@@ -18,7 +18,7 @@ dependencies:
   drift_flutter: ^0.2.0
   path: ^1.9.0
   # V0.4A：选择化验单图片（跨 Android/iOS/Web）
-  file_picker: ^8.1.2
+  file_picker: ^10.3.3
   # V0.4A：移动端把原始图片落盘到应用文档目录
   path_provider: ^2.1.4
   # V0.4B：拍摄检查报告（仅移动端调用相机）
