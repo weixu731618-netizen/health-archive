@@ -1,0 +1,37 @@
+name: health_archive
+description: 健康档案 - 个人健康管理 App（MVP UI 原型 V0.1）
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # 让系统自带组件（如日期、提示）显示中文，属于 Flutter SDK 自带，不是第三方库
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  # 本地数据库（跨端：Android/iOS/Web），用于 V0.3 真实健康数据录入与保存
+  drift: ^2.25.0
+  drift_flutter: ^0.2.0
+  path: ^1.9.0
+  # V0.4A：选择化验单图片（跨 Android/iOS/Web）
+  file_picker: ^8.1.2
+  # V0.4A：移动端把原始图片落盘到应用文档目录
+  path_provider: ^2.1.4
+  # V0.4B：拍摄检查报告（仅移动端调用相机）
+  image_picker: ^1.1.2
+  # V0.4B：Remote 识别后端 HTTP 调用
+  http: ^1.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  drift_dev: ^2.25.0
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
