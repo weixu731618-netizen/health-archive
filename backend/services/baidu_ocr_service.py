@@ -89,7 +89,9 @@ def recognize_image(image_bytes: bytes) -> list[dict]:
         resp = requests.post(
             url,
             params={"access_token": token},
-            data={"image": b64},
+            # detect_direction：手机拍照常见旋转 90/180/270 度，不开启时百度会按原始像素
+            # 方向识别，导致整行文字被读成一列乱码字符。
+            data={"image": b64, "detect_direction": "true"},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             timeout=BAIDU_TIMEOUT_SEC,
         )

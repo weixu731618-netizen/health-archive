@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
-import '../data/health_repository.dart';
 import '../main.dart';
+import '../models/body_area_health.dart';
 import '../models/fake_data.dart';
 import '../utils/format.dart';
 import '../widgets/record_tile.dart';
 import 'daily_health_entry_page.dart';
 import 'manual_metric_entry_page.dart';
-import 'metric_history_page.dart';
 import 'report_detail_page.dart';
 
 /// 记录页面：展示真实录入数据（手工录入 + 日常记录）与现有假数据。
@@ -21,11 +20,12 @@ class RecordsPage extends StatefulWidget {
 
 class _RecordsPageState extends State<RecordsPage> {
   int _filterIndex = 0;
-  static const List<String> _filters = ['全部', '医院检查', '日常记录'];
+  static const List<String> _filters = ['全部来源', '报告', '日常记录'];
 
   List<RealEntry> _real = [];
   List<MedicalReport> _reports = [];
   Map<int, int> _reportMetricCounts = {};
+  Map<int, List<String>> _reportAffectedAreas = {};
   bool _loading = true;
   String? _error;
 
@@ -50,15 +50,18 @@ class _RecordsPageState extends State<RecordsPage> {
         entries.sort((a, b) => b.measuredAt.compareTo(a.measuredAt));
         // 计算每份报告的指标数量
         final counts = <int, int>{};
+        final affectedAreas = <int, List<String>>{};
         for (final r in reports) {
-          final n = await repo.getMetricsByReport(r.id);
-          counts[r.id] = n.length;
+          final reportMetrics = await repo.getMetricsByReport(r.id);
+          counts[r.id] = reportMetrics.length;
+          affectedAreas[r.id] = affectedBodyAreasForMetrics(reportMetrics);
         }
         if (mounted) {
           setState(() {
             _real = entries;
             _reports = reports;
             _reportMetricCounts = counts;
+            _reportAffectedAreas = affectedAreas;
             _loading = false;
             _error = null;
           });
@@ -86,12 +89,19 @@ class _RecordsPageState extends State<RecordsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('健康记录')),
+      appBar: AppBar(title: const Text('资料来源')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 4, bottom: 12),
+              child: Text(
+                '报告、手工录入和日常记录作为身体状态的来源证据保留在这里。',
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+            ),
             Row(
               children: [
                 for (int i = 0; i < _filters.length; i++) ...[
@@ -123,7 +133,8 @@ class _RecordsPageState extends State<RecordsPage> {
                 padding: EdgeInsets.only(bottom: 8),
                 child: Text(
                   '还没有录入数据，去「添加」页手动录入或记录日常健康吧',
-                  style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  style:
+                      TextStyle(fontSize: 14, color: AppColors.textSecondary),
                 ),
               )
             else ...[
@@ -131,6 +142,7 @@ class _RecordsPageState extends State<RecordsPage> {
                 _ReportTile(
                   report: r,
                   metricCount: _reportMetricCounts[r.id] ?? 0,
+                  affectedAreas: _reportAffectedAreas[r.id] ?? const [],
                   onTap: () => _openReport(context, r),
                 ),
                 const SizedBox(height: 12),
@@ -144,13 +156,15 @@ class _RecordsPageState extends State<RecordsPage> {
                 ),
                 const SizedBox(height: 12),
               ],
-              if (!_loading && _filteredReal.isNotEmpty && _filteredFake.isNotEmpty) ...[
+              if (!_loading &&
+                  _filteredReal.isNotEmpty &&
+                  _filteredFake.isNotEmpty) ...[
                 const Padding(
                   padding: EdgeInsets.only(top: 8, bottom: 4),
                   child: Text(
                     '历史假数据示例',
-                    style: TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
+                    style:
+                        TextStyle(fontSize: 13, color: AppColors.textSecondary),
                   ),
                 ),
               ],
@@ -158,9 +172,8 @@ class _RecordsPageState extends State<RecordsPage> {
                 RecordTile(
                   item: item,
                   showArrow: item.isHospital,
-                  onTap: item.isHospital
-                      ? () => _openRecord(context, item)
-                      : null,
+                  onTap:
+                      item.isHospital ? () => _openRecord(context, item) : null,
                 ),
                 const SizedBox(height: 12),
               ],
@@ -180,8 +193,8 @@ class _RecordsPageState extends State<RecordsPage> {
   /// 根据当前筛选条件过滤后的真实数据列表
   List<RealEntry> get _filteredReal {
     switch (_filterIndex) {
-      case 1: // 医院检查
-        return _real.where((e) => e.source == '手工录入').toList();
+      case 1: // 报告
+        return _real.where((e) => e.source == '报告导入').toList();
       case 2: // 日常记录
         return _real.where((e) => e.source == '日常记录').toList();
       default: // 全部
@@ -273,11 +286,9 @@ class RealEntry {
   static String _dailySubtitle(DailyHealthRecord d) {
     switch (d.type) {
       case 'blood_pressure':
-        return '${fmtNum(d.value1)} / ${fmtNum(d.value2!)} ${d.unit}' +
-            (d.context == null ? '' : '  ${d.context}');
+        return '${fmtNum(d.value1)} / ${fmtNum(d.value2!)} ${d.unit}${d.context == null ? '' : '  ${d.context}'}';
       case 'blood_glucose':
-        return '${fmtNum(d.value1)} ${d.unit}' +
-            (d.context == null ? '' : '（${d.context}）');
+        return '${fmtNum(d.value1)} ${d.unit}${d.context == null ? '' : '（${d.context}）'}';
       case 'weight':
       case 'heart_rate':
         return '${fmtNum(d.value1)} ${d.unit}';
@@ -300,6 +311,8 @@ String sourceTypeLabel(String sourceType) {
   switch (sourceType) {
     case 'manual':
       return '手工录入';
+    case 'report_import':
+      return '报告导入';
     case 'daily':
       return '日常记录';
     case 'future_ocr':
@@ -315,11 +328,13 @@ String sourceTypeLabel(String sourceType) {
 class _ReportTile extends StatelessWidget {
   final MedicalReport report;
   final int metricCount;
+  final List<String> affectedAreas;
   final VoidCallback onTap;
 
   const _ReportTile({
     required this.report,
     required this.metricCount,
+    required this.affectedAreas,
     required this.onTap,
   });
 
@@ -344,7 +359,7 @@ class _ReportTile extends StatelessWidget {
                         color: AppColors.textPrimary),
                   ),
                   const Spacer(),
-                  _SourceChip(text: '报告导入'),
+                  const _SourceChip(text: '报告导入'),
                 ],
               ),
               const SizedBox(height: 6),
@@ -361,6 +376,14 @@ class _ReportTile extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary),
               ),
+              if (affectedAreas.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '影响部位：${affectedAreas.join('、')}',
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary),
+                ),
+              ],
             ],
           ),
         ),

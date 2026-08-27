@@ -1,11 +1,11 @@
-// V0.4A 报告导入数据层闭环测试：模拟「写入报告+指标、按报告查询、身体系统可见、级联删除」。
+// V0.4A 报告导入数据层闭环测试：模拟「写入报告+指标、按报告查询、身体部位可见、级联删除」。
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:health_archive/data/app_database.dart';
 import 'package:health_archive/data/health_repository.dart';
+import 'package:health_archive/models/body_area_health.dart';
 import 'package:health_archive/models/metric_dictionary.dart';
-import 'package:health_archive/models/report_models.dart';
 
 void main() {
   late AppDatabase db;
@@ -51,7 +51,7 @@ void main() {
     return reportId;
   }
 
-  test('报告导入后：记录页可查报告、身体系统可查指标、rawText 不打印', () async {
+  test('报告导入后：记录页可查报告、身体部位可查指标、rawText 不打印', () async {
     final reportId = await importMockReport();
 
     // 报告可查到（含原始图片路径 / rawText 字段）
@@ -68,9 +68,11 @@ void main() {
     expect(byReport.every((m) => m.sourceType == 'report_import'), isTrue);
     expect(byReport.every((m) => m.reportId == reportId), isTrue);
 
-    // 身体系统也能查到（真实数据优先的读取来源）
-    final body = await repo.getMetricsByBodySystem('血糖代谢');
+    // 底层身体系统仍能查到；展示层会映射到更自然的身体部位
+    final body = await repo.getMetricsByBodySystem('肾脏');
     expect(body.any((m) => m.metricId == 'UA'), isTrue);
+    expect(bodyAreaForSystem('肾脏'), '肾脏/泌尿');
+    expect(bodyAreaForSystem('血糖代谢'), '代谢');
   });
 
   test('级联删除：删除报告会连带删除其指标，且手工录入数据不受影响', () async {
@@ -106,7 +108,134 @@ void main() {
     expect(matchMetricId('GHb'), 'HBA1C');
     expect(matchMetricId('血尿酸'), 'UA');
     expect(bodySystemForMetric('CREA'), '肾脏');
+    expect(bodySystemForMetric('UA'), '肾脏');
     // 未匹配
     expect(matchMetricId('完全未知指标'), isNull);
+  });
+
+  test('T1 默认本人档案：新安装自动创建，新增数据归属 profileId=1', () async {
+    final profile = await repo.ensureDefaultPersonProfile();
+    expect(profile.id, HealthRepository.defaultProfileId);
+    expect(profile.displayName, '本人');
+    expect(profile.relationship, 'self');
+
+    final reportId = await repo.insertReport(
+      hospitalName: '市第一医院',
+      reportDate: DateTime(2026, 8, 20),
+      reportType: '生化检查',
+    );
+    await repo.insertMetric(
+      metricId: 'CREA',
+      metricName: '肌酐',
+      value: 93,
+      rawValue: '93 μmol/L',
+      numericValue: 93,
+      unit: 'μmol/L',
+      referenceMin: 57,
+      referenceMax: 111,
+      referenceRangeRaw: '57-111',
+      status: '正常',
+      bodySystem: '肾脏',
+      measuredAt: DateTime(2026, 8, 20),
+      sourceType: 'report_import',
+      reportId: reportId,
+      verificationStatus: 'user_confirmed',
+    );
+
+    final reports = await repo.getAllReports();
+    final metrics = await repo.getAllMetrics();
+    expect(reports.single.profileId, HealthRepository.defaultProfileId);
+    expect(metrics.single.profileId, HealthRepository.defaultProfileId);
+    expect(metrics.single.verificationStatus, 'user_confirmed');
+    expect(metrics.single.rawValue, '93 μmol/L');
+    expect(metrics.single.referenceRangeRaw, '57-111');
+  });
+
+  test('T1 可信观测：用户修改后的识别结果保留原始值和修改状态', () async {
+    final reportId = await repo.insertReport(
+      hospitalName: '市第一医院',
+      reportDate: DateTime(2026, 8, 21),
+      reportType: '血糖',
+      recognitionStatus: 'confirmed',
+    );
+    await repo.insertMetric(
+      metricId: 'FPG',
+      metricName: '空腹血糖',
+      value: 6.1,
+      rawValue: '6.8 mmol/L',
+      numericValue: 6.1,
+      unit: 'mmol/L',
+      canonicalValue: 6.1,
+      canonicalUnit: 'mmol/L',
+      referenceMin: 3.9,
+      referenceMax: 6.1,
+      referenceRangeRaw: '3.9-6.1',
+      sourceAbnormalFlag: 'H',
+      status: '正常',
+      bodySystem: '血糖代谢',
+      measuredAt: DateTime(2026, 8, 21),
+      sourceType: 'report_import',
+      rawName: '空腹葡萄糖',
+      matchType: 'alias',
+      recognitionConfidence: 0.72,
+      verificationStatus: 'user_modified',
+      reportId: reportId,
+    );
+
+    final metric = (await repo.getMetricsByReport(reportId)).single;
+    expect(metric.value, 6.1);
+    expect(metric.rawValue, '6.8 mmol/L');
+    expect(metric.verificationStatus, 'user_modified');
+    expect(metric.sourceAbnormalFlag, 'H');
+    expect(metric.recognitionConfidence, 0.72);
+  });
+
+  test('T4 健康资料主题：按资料数量、最近日期、待核对和报告原标记汇总', () async {
+    final reportId = await repo.insertReport(
+      hospitalName: '市第一医院',
+      reportDate: DateTime(2026, 8, 22),
+      reportType: '生化',
+      recognitionStatus: 'confirmed',
+    );
+    await repo.insertMetric(
+      metricId: 'UA',
+      metricName: '尿酸',
+      value: 480,
+      unit: 'μmol/L',
+      referenceMin: 210,
+      referenceMax: 420,
+      status: '偏高',
+      bodySystem: '肾脏',
+      measuredAt: DateTime(2026, 8, 22),
+      sourceType: 'report_import',
+      reportId: reportId,
+      sourceAbnormalFlag: 'H',
+      verificationStatus: 'user_confirmed',
+    );
+    await repo.insertMetric(
+      metricId: 'CREA',
+      metricName: '肌酐',
+      value: 93,
+      unit: 'μmol/L',
+      referenceMin: 57,
+      referenceMax: 111,
+      status: '正常',
+      bodySystem: '肾脏',
+      measuredAt: DateTime(2026, 8, 22),
+      sourceType: 'report_import',
+      reportId: reportId,
+      verificationStatus: 'unverified',
+    );
+
+    final topics = buildHealthTopicSummaries(await repo.getAllMetrics());
+    final kidney = topics.firstWhere((t) => t.name == '肾脏/泌尿');
+
+    expect(kidney.recordCount, 1);
+    expect(kidney.latestMeasuredAt, DateTime(2026, 8, 22));
+    expect(kidney.pendingReviewCount, 1);
+    expect(kidney.sourceFlagCount, 1);
+    expect(kidney.statusLabel, '1 项待核对');
+    expect(kidney.summaryText, contains('1 份相关资料'));
+    expect(kidney.summaryText, contains('1 项报告原标记'));
   });
 }

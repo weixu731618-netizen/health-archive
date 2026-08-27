@@ -2,7 +2,6 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
-import '../data/health_repository.dart';
 import '../main.dart';
 import '../utils/format.dart';
 
@@ -42,7 +41,8 @@ class _MedicationPageState extends State<MedicationPage> {
 
   Future<void> _addOrEdit([Medication? existing]) async {
     final r = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => _MedicationEditPage(medication: existing)),
+      MaterialPageRoute(
+          builder: (_) => _MedicationEditPage(medication: existing)),
     );
     if (r == true) _load();
   }
@@ -53,8 +53,12 @@ class _MedicationPageState extends State<MedicationPage> {
       builder: (ctx) => AlertDialog(
         title: const Text('删除这条用药记录？'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('删除')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('删除')),
         ],
       ),
     );
@@ -79,7 +83,8 @@ class _MedicationPageState extends State<MedicationPage> {
           : _items.isEmpty
               ? const Center(
                   child: Text('暂无用药记录，点击右下角 + 添加',
-                      style: TextStyle(fontSize: 14, color: AppColors.textSecondary)))
+                      style: TextStyle(
+                          fontSize: 14, color: AppColors.textSecondary)))
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
                   itemCount: _items.length,
@@ -96,16 +101,20 @@ class _MedicationPageState extends State<MedicationPage> {
                     ].join(' · ');
                     return Card(
                       child: ListTile(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        title: Text(m.name, style: const TextStyle(fontSize: 15)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        title:
+                            Text(m.name, style: const TextStyle(fontSize: 15)),
                         subtitle: Text(
                           '${m.status}${detail.isEmpty ? '' : ' · $detail'}'
                           '${(m.notes ?? '').isEmpty ? '' : ' · ${m.notes}'}',
-                          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                              fontSize: 13, color: AppColors.textSecondary),
                         ),
                         onTap: () => _addOrEdit(m),
                         trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, color: AppColors.abnormal),
+                          icon: const Icon(Icons.delete_outline,
+                              color: AppColors.abnormal),
                           onPressed: () => _delete(m),
                         ),
                       ),
@@ -155,7 +164,13 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
 
   @override
   void dispose() {
-    for (final c in [_nameCtrl, _dosageCtrl, _unitCtrl, _timesCtrl, _notesCtrl]) {
+    for (final c in [
+      _nameCtrl,
+      _dosageCtrl,
+      _unitCtrl,
+      _timesCtrl,
+      _notesCtrl
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -171,21 +186,28 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
       final m = widget.medication!;
       final updated = m.copyWith(
         name: name,
-        dosage: drift.Value(_dosageCtrl.text.trim().isEmpty ? null : _dosageCtrl.text.trim()),
-        dosageUnit: drift.Value(_unitCtrl.text.trim().isEmpty ? null : _unitCtrl.text.trim()),
-        timesPerDay: drift.Value(_timesCtrl.text.trim().isEmpty ? null : _timesCtrl.text.trim()),
+        dosage: drift.Value(
+            _dosageCtrl.text.trim().isEmpty ? null : _dosageCtrl.text.trim()),
+        dosageUnit: drift.Value(
+            _unitCtrl.text.trim().isEmpty ? null : _unitCtrl.text.trim()),
+        timesPerDay: drift.Value(
+            _timesCtrl.text.trim().isEmpty ? null : _timesCtrl.text.trim()),
         startDate: drift.Value(_start),
         endDate: drift.Value(_end),
         status: _status,
-        notes: drift.Value(_notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim()),
+        notes: drift.Value(
+            _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim()),
       );
       await repo.updateMedication(updated);
     } else {
       await repo.insertMedication(
         name: name,
-        dosage: _dosageCtrl.text.trim().isEmpty ? null : _dosageCtrl.text.trim(),
-        dosageUnit: _unitCtrl.text.trim().isEmpty ? null : _unitCtrl.text.trim(),
-        timesPerDay: _timesCtrl.text.trim().isEmpty ? null : _timesCtrl.text.trim(),
+        dosage:
+            _dosageCtrl.text.trim().isEmpty ? null : _dosageCtrl.text.trim(),
+        dosageUnit:
+            _unitCtrl.text.trim().isEmpty ? null : _unitCtrl.text.trim(),
+        timesPerDay:
+            _timesCtrl.text.trim().isEmpty ? null : _timesCtrl.text.trim(),
         startDate: _start,
         endDate: _end,
         status: _status,
@@ -207,50 +229,66 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
             TextFormField(
               controller: _nameCtrl,
               decoration: _input('药物名称'),
-              validator: (v) => (v == null || v.trim().isEmpty) ? '请输入药物名称' : null,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '请输入药物名称' : null,
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: TextFormField(controller: _dosageCtrl, decoration: _input('剂量'))),
+                Expanded(
+                    child: TextFormField(
+                        controller: _dosageCtrl, decoration: _input('剂量'))),
                 const SizedBox(width: 10),
-                Expanded(child: TextFormField(controller: _unitCtrl, decoration: _input('单位'))),
+                Expanded(
+                    child: TextFormField(
+                        controller: _unitCtrl, decoration: _input('单位'))),
                 const SizedBox(width: 10),
-                Expanded(child: TextFormField(controller: _timesCtrl, decoration: _input('每日次数'))),
+                Expanded(
+                    child: TextFormField(
+                        controller: _timesCtrl, decoration: _input('每日次数'))),
               ],
             ),
             const SizedBox(height: 12),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.calendar_today, color: AppColors.textSecondary),
+              leading: const Icon(Icons.calendar_today,
+                  color: AppColors.textSecondary),
               title: const Text('开始日期'),
               trailing: Text(_start == null ? '未填' : formatDate(_start!),
-                  style: const TextStyle(fontSize: 15, color: AppColors.textPrimary)),
+                  style: const TextStyle(
+                      fontSize: 15, color: AppColors.textPrimary)),
               onTap: () async {
                 final p = await showDatePicker(
                     context: context,
                     initialDate: _start ?? DateTime.now(),
                     firstDate: DateTime(1990),
-                    lastDate: DateTime.now().add(const Duration(days: 365 * 3)));
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365 * 3)));
                 if (p != null) setState(() => _start = p);
               },
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.event_busy, color: AppColors.textSecondary),
+              leading:
+                  const Icon(Icons.event_busy, color: AppColors.textSecondary),
               title: const Text('结束日期（选填）'),
               trailing: Text(_end == null ? '未填' : formatDate(_end!),
-                  style: const TextStyle(fontSize: 15, color: AppColors.textPrimary)),
+                  style: const TextStyle(
+                      fontSize: 15, color: AppColors.textPrimary)),
               onTap: () async {
                 final p = await showDatePicker(
                     context: context,
                     initialDate: _end ?? _start ?? DateTime.now(),
                     firstDate: DateTime(1990),
-                    lastDate: DateTime.now().add(const Duration(days: 365 * 3)));
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365 * 3)));
                 if (p != null) setState(() => _end = p);
               },
             ),
-            TextFormField(controller: _notesCtrl, maxLines: 2, decoration: _input('备注（选填）')),
+            TextFormField(
+                controller: _notesCtrl,
+                maxLines: 2,
+                decoration: _input('备注（选填）')),
             const SizedBox(height: 12),
             const Text('用药状态',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
@@ -269,7 +307,8 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
             const SizedBox(height: 20),
             FilledButton(
               onPressed: _save,
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+              style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14)),
               child: const Text('保存', style: TextStyle(fontSize: 16)),
             ),
           ],

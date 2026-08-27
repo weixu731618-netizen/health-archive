@@ -3,6 +3,16 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+
+/// 根据文件名后缀推断图片的 MIME 类型，供 multipart 上传显式声明 Content-Type。
+/// 后端仅接受 image/jpeg、image/png；不显式声明时 http 包默认用
+/// application/octet-stream，会被后端的图片类型校验拒绝。
+MediaType mediaTypeForImageFileName(String fileName) {
+  final lower = fileName.toLowerCase();
+  if (lower.endsWith('.png')) return MediaType('image', 'png');
+  return MediaType('image', 'jpeg');
+}
 
 /// 一行 OCR 文字（含在图片上的位置）。
 class OcrLine {
@@ -32,8 +42,12 @@ abstract class ReportOcrService {
 
 /// 远程 OCR 服务：上传图片到自有后端，返回行级文字。
 ///
-/// 后端地址来自编译期变量 REPORT_API_BASE（`flutter run --dart-define=REPORT_API_BASE=https://…`）；
-/// 未配置时不发起任何 HTTP，直接抛「后端未配置」。
+/// 后端地址来自编译期变量 REPORT_API_BASE（`flutter run --dart-define=REPORT_API_BASE=https://…`）。
+///
+/// 环境配置约定（不写死任何地址）：
+/// - Android 模拟器开发：REPORT_API_BASE=http://10.0.2.2:8000
+/// - Web/本机开发：       REPORT_API_BASE=http://127.0.0.1:8000
+/// - Release 发布：       部署公网后传 REPORT_API_BASE=https://<生产域名>（未部署前保持留空，App 会提示后端未配置）
 class RemoteOcrService implements ReportOcrService {
   static const String _apiBase = String.fromEnvironment('REPORT_API_BASE');
   static const Duration _timeout = Duration(seconds: 30);
@@ -52,7 +66,7 @@ class RemoteOcrService implements ReportOcrService {
     final uri = Uri.parse('$_apiBase/api/report/ocr');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(http.MultipartFile.fromBytes('file', imageBytes,
-          filename: fileName));
+          filename: fileName, contentType: mediaTypeForImageFileName(fileName)));
 
     http.Response response;
     try {

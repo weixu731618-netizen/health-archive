@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
-import '../data/health_repository.dart';
 import '../main.dart';
 import '../utils/format.dart';
 import 'manual_metric_entry_page.dart';
+import 'report_detail_page.dart';
 
 /// 某个指标的历史记录页：显示当前值 + 按日期排序的历史列表。
 class MetricHistoryPage extends StatefulWidget {
@@ -124,8 +124,8 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
                 padding: const EdgeInsets.all(24),
                 child: Center(
                   child: Text(_error!,
-                      style:
-                          const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                      style: const TextStyle(
+                          fontSize: 14, color: AppColors.textSecondary)),
                 ),
               )
             else if (_records.isEmpty)
@@ -133,8 +133,8 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
                 padding: EdgeInsets.all(24),
                 child: Center(
                   child: Text('暂无历史记录',
-                      style:
-                          TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                      style: TextStyle(
+                          fontSize: 14, color: AppColors.textSecondary)),
                 ),
               )
             else
@@ -149,11 +149,16 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
                           fontSize: 16, color: AppColors.textPrimary),
                     ),
                     subtitle: Text(
-                      '${formatDate(r.measuredAt)} · ${r.status}',
+                      _historySubtitle(r),
                       style: const TextStyle(
                           fontSize: 13, color: AppColors.textSecondary),
                     ),
-                    onTap: () => _editRecord(r),
+                    trailing: r.reportId == null
+                        ? null
+                        : const Icon(Icons.receipt_long_outlined,
+                            color: AppColors.textSecondary),
+                    onTap: () => _openRecord(r),
+                    onLongPress: () => _editRecord(r),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -188,12 +193,14 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
       ),
     );
     if (result == null) return;
+    if (!mounted) return;
 
     if (result) {
       // 编辑
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => ManualMetricEntryPage(metric: m)),
       );
+      if (!mounted) return;
     } else {
       // 删除（二次确认）
       final confirm = await showDialog<bool>(
@@ -212,14 +219,60 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
           ],
         ),
       );
+      if (!mounted) return;
       if (confirm == true) {
         await repo.deleteMetric(m.id);
+        if (!mounted) return;
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(const SnackBar(content: Text('已删除')));
       }
     }
     if (mounted) _load();
+  }
+
+  Future<void> _openRecord(HealthMetric m) async {
+    final reportId = m.reportId;
+    if (reportId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => ReportDetailPage(reportId: reportId)),
+      );
+      if (mounted) _load();
+      return;
+    }
+    await _editRecord(m);
+  }
+
+  String _historySubtitle(HealthMetric r) {
+    final parts = <String>[
+      formatDate(r.measuredAt),
+      r.status,
+    ];
+    if (r.referenceRangeRaw != null && r.referenceRangeRaw!.isNotEmpty) {
+      parts.add('参考 ${r.referenceRangeRaw}');
+    } else if (r.referenceMin != null || r.referenceMax != null) {
+      parts.add(
+        '参考 ${r.referenceMin == null ? '—' : fmtLocal(r.referenceMin!)}'
+        '-${r.referenceMax == null ? '—' : fmtLocal(r.referenceMax!)}',
+      );
+    }
+    if (r.sourceAbnormalFlag != null && r.sourceAbnormalFlag!.isNotEmpty) {
+      parts.add('报告标记 ${r.sourceAbnormalFlag}');
+    }
+    parts.add(_verificationLabel(r.verificationStatus));
+    if (r.reportId != null) parts.add('来源报告 #${r.reportId}');
+    return parts.join(' · ');
+  }
+
+  String _verificationLabel(String status) {
+    switch (status) {
+      case 'user_modified':
+        return '用户已修改';
+      case 'user_confirmed':
+        return '用户已确认';
+      default:
+        return '待核对';
+    }
   }
 }
 

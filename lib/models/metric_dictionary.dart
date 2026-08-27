@@ -90,17 +90,20 @@ String bodySystemForMetric(String? metricId, {String fallback = '其他'}) {
 /// 基础单位标准化（只显示格式统一，不做数值换算）。
 /// 例：umol/L、µmol/L、μmol/L → μmol/L；10^9/L、×10^9/L、10⁹/L → ×10⁹/L
 String normalizeUnit(String unit) {
-  var u = (unit ?? '').trim();
+  var u = unit.trim();
   final lower = u.toLowerCase();
   if (lower == 'umol/l' || lower == 'umol ') return 'μmol/L';
-  if (lower.contains('umol') && (lower.contains('/l') || lower.endsWith('umol'))) {
+  if (lower.contains('umol') &&
+      (lower.contains('/l') || lower.endsWith('umol'))) {
     return 'μmol/L';
   }
   if (u == 'µmol/l' || u == 'μmol/l' || u == 'umol/L') return 'μmol/L';
   if (u.contains('/l') && u.contains('µmol')) return 'μmol/L';
   if (u.contains('/l') && u.contains('μmol')) return 'μmol/L';
-  if (lower.contains('10^9') || lower.contains('×10^9') ||
-      lower.contains('x10^9') || lower.contains('10⁹')) {
+  if (lower.contains('10^9') ||
+      lower.contains('×10^9') ||
+      lower.contains('x10^9') ||
+      lower.contains('10⁹')) {
     return '×10⁹/L';
   }
   return u;
@@ -129,6 +132,7 @@ String computeStatus(double? value, ReferenceRange? range) {
 }
 
 /// 首批标准指标字典（目标 50~100 个；可继续追加）。
+// ignore: constant_identifier_names
 const List<MetricDefinition> METRIC_DICTIONARY = [
   // ===================== 血糖代谢 =====================
   MetricDefinition(
@@ -137,7 +141,11 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     unit: '%',
     bodySystem: '血糖代谢',
     typicalRange: ReferenceRange(min: 4.0, max: 6.0),
-    aliases: ['HbA1c', 'HbA1C', '糖化血红蛋白A1c', 'GHb', '糖化血红蛋白A1C'],
+    aliases: [
+      'HbA1c', 'HbA1C', '糖化血红蛋白A1c', 'GHb', '糖化血红蛋白A1C',
+      // OCR 常把 "1" 误读成小写 "l" 或大写 "I"，补充别名兜底
+      'HbAlc', 'HbAIc', '糖化血红蛋白Alc', '糖化血红蛋白AIc',
+    ],
   ),
   MetricDefinition(
     metricId: 'FPG',
@@ -151,7 +159,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     metricId: 'UA',
     metricName: '尿酸',
     unit: 'μmol/L',
-    bodySystem: '血糖代谢',
+    bodySystem: '肾脏',
     typicalRange: ReferenceRange(min: 210, max: 420),
     aliases: ['血尿酸', 'UA', 'Uric Acid', 'SUA'],
   ),
@@ -462,7 +470,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     metricId: 'PRO-U',
     metricName: '尿蛋白',
     unit: 'g/L',
-    bodySystem: '尿常规',
+    bodySystem: '肾脏',
     aliases: ['尿蛋白', 'PRO', 'PRO-尿'],
   ),
   MetricDefinition(

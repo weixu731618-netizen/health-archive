@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/metric_dictionary.dart';
 import '../models/report_models.dart';
+import 'report_ocr_service.dart' show mediaTypeForImageFileName;
 
 /// 报告识别服务统一接口。
 ///
@@ -47,16 +48,78 @@ class MockReportRecognitionService implements ReportRecognitionService {
 
   List<RecognizedMetric> _buildMetrics() {
     // 每一项先用原始名称，再通过匹配器标准化 matchedMetricId/canonicalName/bodySystem
-    final raw = <({String rawName, double value, String unit,
-        double? min, double? max, String refText})>[
-      (rawName: 'ALT', value: 32, unit: 'U/L', min: 9, max: 50, refText: '9–50'),
-      (rawName: 'AST', value: 27, unit: 'U/L', min: 15, max: 40, refText: '15–40'),
-      (rawName: '尿酸', value: 480, unit: 'μmol/L', min: 210, max: 420, refText: '210–420'),
-      (rawName: '肌酐', value: 93, unit: 'μmol/L', min: 57, max: 111, refText: '57–111'),
-      (rawName: '空腹血糖', value: 6.8, unit: 'mmol/L', min: 3.9, max: 6.1, refText: '3.9–6.1'),
-      (rawName: '糖化血红蛋白', value: 6.8, unit: '%', min: 4.0, max: 6.0, refText: '4.0–6.0'),
-      (rawName: 'LDL-C', value: 3.6, unit: 'mmol/L', min: 0, max: 3.4, refText: '0–3.4'),
-      (rawName: 'HDL-C', value: 1.2, unit: 'mmol/L', min: 1.0, max: 1.6, refText: '1.0–1.6'),
+    final raw = <({
+      String rawName,
+      double value,
+      String unit,
+      double? min,
+      double? max,
+      String refText
+    })>[
+      (
+        rawName: 'ALT',
+        value: 32,
+        unit: 'U/L',
+        min: 9,
+        max: 50,
+        refText: '9–50'
+      ),
+      (
+        rawName: 'AST',
+        value: 27,
+        unit: 'U/L',
+        min: 15,
+        max: 40,
+        refText: '15–40'
+      ),
+      (
+        rawName: '尿酸',
+        value: 480,
+        unit: 'μmol/L',
+        min: 210,
+        max: 420,
+        refText: '210–420'
+      ),
+      (
+        rawName: '肌酐',
+        value: 93,
+        unit: 'μmol/L',
+        min: 57,
+        max: 111,
+        refText: '57–111'
+      ),
+      (
+        rawName: '空腹血糖',
+        value: 6.8,
+        unit: 'mmol/L',
+        min: 3.9,
+        max: 6.1,
+        refText: '3.9–6.1'
+      ),
+      (
+        rawName: '糖化血红蛋白',
+        value: 6.8,
+        unit: '%',
+        min: 4.0,
+        max: 6.0,
+        refText: '4.0–6.0'
+      ),
+      (
+        rawName: 'LDL-C',
+        value: 3.6,
+        unit: 'mmol/L',
+        min: 0,
+        max: 3.4,
+        refText: '0–3.4'
+      ),
+      (
+        rawName: 'HDL-C',
+        value: 1.2,
+        unit: 'mmol/L',
+        min: 1.0,
+        max: 1.6,
+        refText: '1.0–1.6'
+      ),
     ];
 
     // 人为让其中一条置信度偏低，用于演示「请重点核对」低置信度提示
@@ -85,14 +148,14 @@ class MockReportRecognitionService implements ReportRecognitionService {
   }) {
     final matchedId = matchMetricId(rawName);
     final def = matchedId == null ? null : findMetricDefinition(matchedId);
-    final status = (min != null && max != null)
-        ? _statusFor(value, min!, max!)
-        : '未判断';
+    final status =
+        (min != null && max != null) ? _statusFor(value, min, max) : '未判断';
     return RecognizedMetric(
       rawName: rawName,
       matchedMetricId: matchedId,
       canonicalName: def?.metricName ?? rawName,
       value: value,
+      numericValue: value,
       unit: unit,
       referenceMin: min,
       referenceMax: max,
@@ -113,7 +176,8 @@ class MockReportRecognitionService implements ReportRecognitionService {
   String _mockRawText(List<RecognizedMetric> metrics) {
     final buf = StringBuffer('化验单（Mock 识别文本）\n');
     for (final m in metrics) {
-      buf.writeln('${m.canonicalName} ${m.value} ${m.unit} 参考 ${m.referenceText}');
+      buf.writeln(
+          '${m.canonicalName} ${m.value} ${m.unit} 参考 ${m.referenceText}');
     }
     return buf.toString();
   }
@@ -144,7 +208,8 @@ class RemoteReportRecognitionService implements ReportRecognitionService {
     final uri = Uri.parse('$_apiBase/api/report/recognize');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(http.MultipartFile.fromBytes('file', imageBytes,
-          filename: fileName));
+          filename: fileName,
+          contentType: mediaTypeForImageFileName(fileName)));
 
     http.Response response;
     try {
@@ -156,70 +221,149 @@ class RemoteReportRecognitionService implements ReportRecognitionService {
       throw StateError('网络连接失败，请稍后重试');
     }
 
+    dynamic body;
+    try {
+      body = jsonDecode(utf8.decode(response.bodyBytes));
+    } on FormatException {
+      body = null;
+    }
     if (response.statusCode != 200) {
-      throw StateError('报告识别失败');
+      final detail = body is Map ? body['detail']?.toString() : null;
+      throw StateError(
+        detail == null || detail.trim().isEmpty ? '报告识别失败' : detail,
+      );
     }
 
-    final dynamic body = jsonDecode(utf8.decode(response.bodyBytes));
     if (body is! Map<String, dynamic>) {
       throw StateError('报告识别失败');
     }
-    return _mapToStructured(body, imagePath);
-  }
-
-  /// 把后端统一 JSON 映射为本地模型，并做指标匹配 + 本地状态计算。
-  StructuredMedicalReport _mapToStructured(
-      Map<String, dynamic> body, String? imagePath) {
-    final metrics = <RecognizedMetric>[];
-    final rawList = body['metrics'];
-    if (rawList is List) {
-      for (final item in rawList) {
-        if (item is! Map) continue;
-        final id = matchMetricId((item['rawName'] ?? '').toString());
-        final def = id == null ? null : findMetricDefinition(id);
-        final valueRaw = item['value'];
-        final double? value = (valueRaw is num) ? valueRaw.toDouble() : null;
-        final double? min =
-            (item['referenceMin'] is num) ? (item['referenceMin'] as num).toDouble() : null;
-        final double? max =
-            (item['referenceMax'] is num) ? (item['referenceMax'] as num).toDouble() : null;
-        final status = (value != null && (min != null || max != null))
-            ? computeStatus(value, ReferenceRange(min: min, max: max))
-            : '未判断';
-
-        metrics.add(RecognizedMetric(
-          rawName: (item['rawName'] ?? '').toString(),
-          matchedMetricId: id,
-          canonicalName: def?.metricName ?? (item['rawName'] ?? '').toString(),
-          value: value ?? 0,
-          unit: (item['unit'] ?? '').toString(),
-          referenceMin: min,
-          referenceMax: max,
-          referenceText: (item['referenceText'] ?? '').toString(),
-          status: status,
-          originalStatus: item['originalStatus']?.toString(),
-          bodySystem: bodySystemForMetric(id, fallback: '其他'),
-          confidence: (item['confidence'] is num)
-              ? (item['confidence'] as num).toDouble()
-              : 1.0,
-        ));
-      }
+    final report = structuredReportFromBackendJson(body, imagePath);
+    final qualityMessage = validateStructuredReportForReview(report);
+    if (qualityMessage != null) {
+      throw StateError(qualityMessage);
     }
-
-    return StructuredMedicalReport(
-      hospitalName: (body['hospitalName'] ?? '').toString(),
-      reportDate: _parseDate(body['reportDate']) ?? DateTime.now(),
-      reportType: (body['reportType'] ?? '').toString(),
-      patientName: (body['patientName'] ?? '').toString(),
-      metrics: metrics,
-      sourceImagePath: imagePath,
-    );
+    return report;
   }
+}
 
-  DateTime? _parseDate(dynamic v) {
-    if (v is String && v.trim().isNotEmpty) {
-      return DateTime.tryParse(v.trim());
+/// 把后端统一 JSON 映射为本地模型，并做指标匹配 + 本地状态计算。
+///
+/// 独立为顶层函数，便于测试真实后端返回的 numericValue/textValue/qualifier 等
+/// 字段不会在进入核对页前丢失。
+StructuredMedicalReport structuredReportFromBackendJson(
+    Map<String, dynamic> body, String? imagePath) {
+  final metrics = <RecognizedMetric>[];
+  final rawList = body['metrics'];
+  if (rawList is List) {
+    for (final item in rawList) {
+      if (item is! Map) continue;
+      final rawName = (item['rawName'] ?? '').toString();
+      if (rawName.trim().isEmpty) continue;
+      final id = _matchBackendMetricId(item, rawName);
+      final def = id == null ? null : findMetricDefinition(id);
+      final value = _num(item['numericValue']) ?? _num(item['value']);
+      final min = _num(item['referenceMin']);
+      final max = _num(item['referenceMax']);
+      final status = (value != null && (min != null || max != null))
+          ? computeStatus(value, ReferenceRange(min: min, max: max))
+          : '未判断';
+      final unit = normalizeUnit((item['unit'] ?? '').toString());
+      final textValue = item['textValue']?.toString();
+      final referenceText = (item['referenceText'] ?? '').toString();
+      final hasResult =
+          value != null || (textValue != null && textValue.trim().isNotEmpty);
+      if (!hasResult) continue;
+
+      metrics.add(RecognizedMetric(
+        rawName: rawName,
+        matchedMetricId: id,
+        canonicalName:
+            def?.metricName ?? (item['canonicalName'] ?? rawName).toString(),
+        value: value ?? 0,
+        numericValue: value,
+        textValue: textValue,
+        qualifier: item['qualifier']?.toString(),
+        unit: unit,
+        referenceMin: min,
+        referenceMax: max,
+        referenceText: referenceText,
+        status: status,
+        originalStatus: item['originalStatus']?.toString(),
+        bodySystem: bodySystemForMetric(id, fallback: '其他'),
+        confidence: _num(item['confidence']) ?? 0.0,
+      ));
     }
-    return null;
   }
+
+  return StructuredMedicalReport(
+    hospitalName: (body['hospitalName'] ?? '').toString(),
+    reportDate: _parseDate(body['reportDate']) ?? DateTime.now(),
+    reportType: (body['reportType'] ?? '').toString(),
+    patientName: (body['patientName'] ?? '').toString(),
+    metrics: metrics,
+    sourceImagePath: imagePath,
+  );
+}
+
+/// 核对页前的质量门槛：宁可让用户重拍/手工录入，也不把明显不可靠的识别结果送去入库。
+String? validateStructuredReportForReview(StructuredMedicalReport report) {
+  if (report.metrics.isEmpty) {
+    return '未识别到可保存的检查指标，请确认图片是清晰的检验报告';
+  }
+
+  final usable = report.metrics.where((m) {
+    final hasResult = m.numericValue != null ||
+        (m.textValue != null && m.textValue!.trim().isNotEmpty);
+    return hasResult && m.matchedMetricId != null;
+  }).length;
+
+  if (usable == 0) {
+    return '识别结果无法匹配到健康指标，请重新拍摄或使用手工录入';
+  }
+
+  return null;
+}
+
+String? _matchBackendMetricId(Map item, String rawName) {
+  final modelId = item['matchedMetricId']?.toString().trim();
+  if (modelId != null && modelId.isNotEmpty) {
+    final def = findMetricDefinition(modelId);
+    if (def != null) return def.metricId;
+  }
+
+  for (final candidate in _metricNameCandidates(item, rawName)) {
+    final id = matchMetricId(candidate);
+    if (id != null) return id;
+  }
+  return null;
+}
+
+Iterable<String> _metricNameCandidates(Map item, String rawName) sync* {
+  final seen = <String>{};
+  void add(String? value) {
+    final v = value?.trim();
+    if (v != null && v.isNotEmpty) seen.add(v);
+  }
+
+  add(rawName);
+  add(item['canonicalName']?.toString());
+  add(item['matchedMetricId']?.toString());
+
+  final bracket = RegExp(r'[（(]([^）)]+)[）)]');
+  for (final m in bracket.allMatches(rawName)) {
+    add(m.group(1));
+  }
+
+  for (final value in seen) {
+    yield value;
+  }
+}
+
+double? _num(dynamic v) => v is num && !v.isNaN ? v.toDouble() : null;
+
+DateTime? _parseDate(dynamic v) {
+  if (v is String && v.trim().isNotEmpty) {
+    return DateTime.tryParse(v.trim());
+  }
+  return null;
 }

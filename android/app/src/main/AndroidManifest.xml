@@ -1,6 +1,12 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- 网络访问：用于 App 访问自有 FastAPI 后端（OCR/DeepSeek 识别接口） -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 相机：用于「拍摄检查报告」调用系统相机拍照（运行时仍需向用户申请） -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 图片/文件选择：使用系统 Photo Picker / SAF，无需存储权限；Android 13+ 媒体权限由系统 UI 处理 -->
     <application
-        android:label="health_archive"
+        android:label="健康档案"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -49,3 +49,11 @@ app.*.map.json
 
 # V0.4C：本地密钥不入库
 backend/.env
+backend/backend_dev.db
+
+# 本机工具状态，不入库
+.claude/
+.reasonix/tasks/
+
+# 打包产物（体积大，不适合进版本库）
+/release/

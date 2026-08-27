@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../services/report_ocr_service.dart';
+import '../utils/report_image_save.dart';
 
 /// 开发阶段：OCR 结果预览页。
 /// 展示「识别到 XX 行」与逐行 OCR 文字，用于验证真实百度 OCR 流程。
@@ -11,8 +12,14 @@ import '../services/report_ocr_service.dart';
 class OcrDebugPage extends StatelessWidget {
   final List<OcrLine> lines;
   final Uint8List? imageBytes; // 可选：展示原图便于核对
+  final String? sourceImagePath;
 
-  const OcrDebugPage({super.key, required this.lines, this.imageBytes});
+  const OcrDebugPage({
+    super.key,
+    required this.lines,
+    this.imageBytes,
+    this.sourceImagePath,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +89,39 @@ class OcrDebugPage extends StatelessWidget {
             ],
         ],
       ),
+    );
+  }
+}
+
+class OcrDebugCleanupPage extends StatefulWidget {
+  final List<OcrLine> lines;
+  final Uint8List? imageBytes;
+  final String? sourceImagePath;
+
+  const OcrDebugCleanupPage({
+    super.key,
+    required this.lines,
+    this.imageBytes,
+    this.sourceImagePath,
+  });
+
+  @override
+  State<OcrDebugCleanupPage> createState() => _OcrDebugCleanupPageState();
+}
+
+class _OcrDebugCleanupPageState extends State<OcrDebugCleanupPage> {
+  @override
+  void dispose() {
+    deleteManagedReportImage(widget.sourceImagePath);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return OcrDebugPage(
+      lines: widget.lines,
+      imageBytes: widget.imageBytes,
+      sourceImagePath: widget.sourceImagePath,
     );
   }
 }

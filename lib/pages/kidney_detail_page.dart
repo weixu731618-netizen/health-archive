@@ -19,11 +19,11 @@ class KidneyDetailPage extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
           // 顶部信息：最近检查 / 已有历史数据
-          Card(
+          const Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               child: Row(
-                children: const [
+                children: [
                   Expanded(
                     child: _InfoColumn(label: '最近检查', value: '2026年8月18日'),
                   ),

@@ -1,11 +1,15 @@
-import 'metric_dictionary.dart';
-
 /// 单条被识别的检查指标（OCR / AI 输出的结构化结果）
 ///
 /// 为了提高编辑确认流程的简便性，编辑时可直接修改其中的可变字段
 /// （matchedMetricId / canonicalName / value / unit / referenceMin / referenceMax / status / bodySystem）。
 class RecognizedMetric {
   final String rawName; // 原始识别名称，例如「血清肌酐」
+  final double originalValue; // 初次识别数值，用户编辑后仍保留
+  final double? originalNumericValue;
+  final String? originalTextValue;
+  final String originalUnit;
+  final double? originalReferenceMin;
+  final double? originalReferenceMax;
   String? matchedMetricId; // 匹配到的标准指标 id，例如 CREA；null=未匹配（可编辑）
   String canonicalName; // 规范化名称（匹配到标准指标后用标准名，否则用 rawName）
   double value;
@@ -22,10 +26,17 @@ class RecognizedMetric {
   String bodySystem; // 所属身体系统
   final double confidence; // 0~1
   bool isSelected; // 是否勾选入库（默认 true）
+  bool wasEdited; // 用户是否修改过识别字段
   final String? notes;
 
   RecognizedMetric({
     required this.rawName,
+    double? originalValue,
+    double? originalNumericValue,
+    this.originalTextValue,
+    String? originalUnit,
+    this.originalReferenceMin,
+    this.originalReferenceMax,
     this.matchedMetricId,
     required this.canonicalName,
     required this.value,
@@ -42,8 +53,11 @@ class RecognizedMetric {
     required this.bodySystem,
     required this.confidence,
     this.isSelected = true,
+    this.wasEdited = false,
     this.notes,
-  });
+  })  : originalValue = originalValue ?? value,
+        originalNumericValue = originalNumericValue ?? numericValue,
+        originalUnit = originalUnit ?? unit;
 
   /// 复制并应用一部分编辑后的字段
   RecognizedMetric copyWith({
@@ -59,6 +73,12 @@ class RecognizedMetric {
   }) {
     return RecognizedMetric(
       rawName: rawName,
+      originalValue: originalValue,
+      originalNumericValue: originalNumericValue,
+      originalTextValue: originalTextValue,
+      originalUnit: originalUnit,
+      originalReferenceMin: originalReferenceMin,
+      originalReferenceMax: originalReferenceMax,
       matchedMetricId: matchedMetricId ?? this.matchedMetricId,
       canonicalName: canonicalName ?? this.canonicalName,
       value: value ?? this.value,
@@ -70,6 +90,7 @@ class RecognizedMetric {
       bodySystem: bodySystem ?? this.bodySystem,
       confidence: confidence,
       isSelected: isSelected ?? this.isSelected,
+      wasEdited: wasEdited,
       notes: notes ?? this.notes,
     );
   }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' as drift;
 
 import '../data/app_database.dart';
-import '../data/health_repository.dart';
 import '../main.dart';
 import '../utils/format.dart';
 
@@ -183,14 +182,14 @@ class _DailyEntryFormPageState extends State<DailyEntryFormPage> {
             const SizedBox(height: 16),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading:
-                  const Icon(Icons.calendar_today, color: AppColors.textSecondary),
+              leading: const Icon(Icons.calendar_today,
+                  color: AppColors.textSecondary),
               title: const Text('测量日期',
                   style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
               trailing: Text(
                 formatDate(_date),
-                style: const TextStyle(
-                    fontSize: 15, color: AppColors.textPrimary),
+                style:
+                    const TextStyle(fontSize: 15, color: AppColors.textPrimary),
               ),
               onTap: _pickDate,
             ),
@@ -202,8 +201,8 @@ class _DailyEntryFormPageState extends State<DailyEntryFormPage> {
                   style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
               trailing: Text(
                 '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(
-                    fontSize: 15, color: AppColors.textPrimary),
+                style:
+                    const TextStyle(fontSize: 15, color: AppColors.textPrimary),
               ),
               onTap: _pickTime,
             ),
@@ -295,7 +294,8 @@ class _DailyEntryFormPageState extends State<DailyEntryFormPage> {
             unit: 'mmHg',
             context: hr == null ? null : '心率 $hr bpm',
             measuredAt: measured,
-            notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+            notes:
+                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
           );
         case DailyEntryType.bloodGlucose:
           await repo.insertDaily(
@@ -304,7 +304,8 @@ class _DailyEntryFormPageState extends State<DailyEntryFormPage> {
             unit: 'mmol/L',
             context: _glucoseStatus,
             measuredAt: measured,
-            notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+            notes:
+                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
           );
         case DailyEntryType.weight:
         case DailyEntryType.heartRate:
@@ -313,11 +314,12 @@ class _DailyEntryFormPageState extends State<DailyEntryFormPage> {
             value1: double.parse(_value1Ctrl.text.trim()),
             unit: _type.defaultUnit,
             measuredAt: measured,
-            notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+            notes:
+                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
           );
       }
 
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text('保存成功')));
@@ -352,8 +354,8 @@ class _DailyEditPageState extends State<DailyEditPage> {
   void initState() {
     super.initState();
     _value1Ctrl = TextEditingController(text: _r.value1.toString());
-    _value2Ctrl =
-        TextEditingController(text: _r.value2 == null ? '' : _r.value2.toString());
+    _value2Ctrl = TextEditingController(
+        text: _r.value2 == null ? '' : _r.value2.toString());
     _notesCtrl = TextEditingController(text: _r.notes ?? '');
     _date = _r.measuredAt;
     _time = TimeOfDay.fromDateTime(_r.measuredAt);
@@ -394,11 +396,13 @@ class _DailyEditPageState extends State<DailyEditPage> {
           children: [
             TextFormField(
               controller: _value1Ctrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 labelText: isBp ? '收缩压（$_unit）' : '$_label（$_unit）',
                 suffixText: _unit,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
               validator: (v) {
                 final d = double.tryParse((v ?? '').trim());
@@ -411,12 +415,13 @@ class _DailyEditPageState extends State<DailyEditPage> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _value2Ctrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: '舒张压（$_unit）',
                   suffixText: _r.unit,
-                  border:
-                      OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 validator: (v) {
                   final d = double.tryParse((v ?? '').trim());
@@ -429,8 +434,8 @@ class _DailyEditPageState extends State<DailyEditPage> {
             const SizedBox(height: 16),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading:
-                  const Icon(Icons.calendar_today, color: AppColors.textSecondary),
+              leading: const Icon(Icons.calendar_today,
+                  color: AppColors.textSecondary),
               title: const Text('测量日期',
                   style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
               trailing: Text(formatDate(_date),
@@ -440,7 +445,8 @@ class _DailyEditPageState extends State<DailyEditPage> {
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.access_time, color: AppColors.textSecondary),
+              leading:
+                  const Icon(Icons.access_time, color: AppColors.textSecondary),
               title: const Text('测量时间',
                   style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
               trailing: Text(

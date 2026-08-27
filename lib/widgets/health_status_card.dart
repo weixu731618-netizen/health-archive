@@ -11,7 +11,12 @@ Color valueStatusColor(String status) {
     return AppColors.abnormal;
   }
   if (status.contains('不足')) return AppColors.insufficient;
-  if (status.contains('关注')) return AppColors.warning;
+  if (status.contains('关注') ||
+      status.contains('上升') ||
+      status.contains('下降') ||
+      status.contains('轻微')) {
+    return AppColors.warning;
+  }
   return AppColors.insufficient;
 }
 
@@ -127,7 +132,7 @@ class HealthStatusCard extends StatelessWidget {
               ],
             ),
           ],
-          if (value != null) ...[
+          if (!compact && value != null) ...[
             const SizedBox(height: 12),
             Text(
               value!,

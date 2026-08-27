@@ -50,7 +50,8 @@ void main() {
     expect(history, hasLength(1));
 
     // 更新
-    final updated = inserted.copyWith(value: 6.5, status: '正常');    final ok = await repo.updateMetric(updated);
+    final updated = inserted.copyWith(value: 6.5, status: '正常');
+    final ok = await repo.updateMetric(updated);
     expect(ok, isTrue);
     final after = await repo.getMetricHistory('HBA1C');
     expect(after.first.value, 6.5);
@@ -76,7 +77,7 @@ void main() {
     expect(all, hasLength(1));
     expect(all.first.value2, 82);
 
-    final updated = inserted.copyWith(value1: 120, value2: Value(78));
+    final updated = inserted.copyWith(value1: 120, value2: const Value(78));
     expect(await repo.updateDaily(updated), isTrue);
     final after = await repo.getAllDailyRecords();
     expect(after.first.value1, 120);

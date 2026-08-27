@@ -18,6 +18,14 @@ class $HealthMetricsTable extends HealthMetrics
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _profileIdMeta =
+      const VerificationMeta('profileId');
+  @override
+  late final GeneratedColumn<int> profileId = GeneratedColumn<int>(
+      'profile_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
   static const VerificationMeta _metricIdMeta =
       const VerificationMeta('metricId');
   @override
@@ -35,11 +43,35 @@ class $HealthMetricsTable extends HealthMetrics
   late final GeneratedColumn<double> value = GeneratedColumn<double>(
       'value', aliasedName, false,
       type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _rawValueMeta =
+      const VerificationMeta('rawValue');
+  @override
+  late final GeneratedColumn<String> rawValue = GeneratedColumn<String>(
+      'raw_value', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _numericValueMeta =
+      const VerificationMeta('numericValue');
+  @override
+  late final GeneratedColumn<double> numericValue = GeneratedColumn<double>(
+      'numeric_value', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _unitMeta = const VerificationMeta('unit');
   @override
   late final GeneratedColumn<String> unit = GeneratedColumn<String>(
       'unit', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _canonicalValueMeta =
+      const VerificationMeta('canonicalValue');
+  @override
+  late final GeneratedColumn<double> canonicalValue = GeneratedColumn<double>(
+      'canonical_value', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _canonicalUnitMeta =
+      const VerificationMeta('canonicalUnit');
+  @override
+  late final GeneratedColumn<String> canonicalUnit = GeneratedColumn<String>(
+      'canonical_unit', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _referenceMinMeta =
       const VerificationMeta('referenceMin');
   @override
@@ -52,6 +84,18 @@ class $HealthMetricsTable extends HealthMetrics
   late final GeneratedColumn<double> referenceMax = GeneratedColumn<double>(
       'reference_max', aliasedName, true,
       type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _referenceRangeRawMeta =
+      const VerificationMeta('referenceRangeRaw');
+  @override
+  late final GeneratedColumn<String> referenceRangeRaw =
+      GeneratedColumn<String>('reference_range_raw', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceAbnormalFlagMeta =
+      const VerificationMeta('sourceAbnormalFlag');
+  @override
+  late final GeneratedColumn<String> sourceAbnormalFlag =
+      GeneratedColumn<String>('source_abnormal_flag', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -114,15 +158,42 @@ class $HealthMetricsTable extends HealthMetrics
   late final GeneratedColumn<double> recognitionConfidence =
       GeneratedColumn<double>('recognition_confidence', aliasedName, true,
           type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _verificationStatusMeta =
+      const VerificationMeta('verificationStatus');
+  @override
+  late final GeneratedColumn<String> verificationStatus =
+      GeneratedColumn<String>('verification_status', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant('user_confirmed'));
+  static const VerificationMeta _sourcePageMeta =
+      const VerificationMeta('sourcePage');
+  @override
+  late final GeneratedColumn<int> sourcePage = GeneratedColumn<int>(
+      'source_page', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _sourceBoundingBoxMeta =
+      const VerificationMeta('sourceBoundingBox');
+  @override
+  late final GeneratedColumn<String> sourceBoundingBox =
+      GeneratedColumn<String>('source_bounding_box', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        profileId,
         metricId,
         metricName,
         value,
+        rawValue,
+        numericValue,
         unit,
+        canonicalValue,
+        canonicalUnit,
         referenceMin,
         referenceMax,
+        referenceRangeRaw,
+        sourceAbnormalFlag,
         status,
         bodySystem,
         measuredAt,
@@ -132,7 +203,10 @@ class $HealthMetricsTable extends HealthMetrics
         reportId,
         rawName,
         matchType,
-        recognitionConfidence
+        recognitionConfidence,
+        verificationStatus,
+        sourcePage,
+        sourceBoundingBox
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -146,6 +220,10 @@ class $HealthMetricsTable extends HealthMetrics
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(_profileIdMeta,
+          profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta));
     }
     if (data.containsKey('metric_id')) {
       context.handle(_metricIdMeta,
@@ -167,11 +245,33 @@ class $HealthMetricsTable extends HealthMetrics
     } else if (isInserting) {
       context.missing(_valueMeta);
     }
+    if (data.containsKey('raw_value')) {
+      context.handle(_rawValueMeta,
+          rawValue.isAcceptableOrUnknown(data['raw_value']!, _rawValueMeta));
+    }
+    if (data.containsKey('numeric_value')) {
+      context.handle(
+          _numericValueMeta,
+          numericValue.isAcceptableOrUnknown(
+              data['numeric_value']!, _numericValueMeta));
+    }
     if (data.containsKey('unit')) {
       context.handle(
           _unitMeta, unit.isAcceptableOrUnknown(data['unit']!, _unitMeta));
     } else if (isInserting) {
       context.missing(_unitMeta);
+    }
+    if (data.containsKey('canonical_value')) {
+      context.handle(
+          _canonicalValueMeta,
+          canonicalValue.isAcceptableOrUnknown(
+              data['canonical_value']!, _canonicalValueMeta));
+    }
+    if (data.containsKey('canonical_unit')) {
+      context.handle(
+          _canonicalUnitMeta,
+          canonicalUnit.isAcceptableOrUnknown(
+              data['canonical_unit']!, _canonicalUnitMeta));
     }
     if (data.containsKey('reference_min')) {
       context.handle(
@@ -184,6 +284,18 @@ class $HealthMetricsTable extends HealthMetrics
           _referenceMaxMeta,
           referenceMax.isAcceptableOrUnknown(
               data['reference_max']!, _referenceMaxMeta));
+    }
+    if (data.containsKey('reference_range_raw')) {
+      context.handle(
+          _referenceRangeRawMeta,
+          referenceRangeRaw.isAcceptableOrUnknown(
+              data['reference_range_raw']!, _referenceRangeRawMeta));
+    }
+    if (data.containsKey('source_abnormal_flag')) {
+      context.handle(
+          _sourceAbnormalFlagMeta,
+          sourceAbnormalFlag.isAcceptableOrUnknown(
+              data['source_abnormal_flag']!, _sourceAbnormalFlagMeta));
     }
     if (data.containsKey('status')) {
       context.handle(_statusMeta,
@@ -241,6 +353,24 @@ class $HealthMetricsTable extends HealthMetrics
           recognitionConfidence.isAcceptableOrUnknown(
               data['recognition_confidence']!, _recognitionConfidenceMeta));
     }
+    if (data.containsKey('verification_status')) {
+      context.handle(
+          _verificationStatusMeta,
+          verificationStatus.isAcceptableOrUnknown(
+              data['verification_status']!, _verificationStatusMeta));
+    }
+    if (data.containsKey('source_page')) {
+      context.handle(
+          _sourcePageMeta,
+          sourcePage.isAcceptableOrUnknown(
+              data['source_page']!, _sourcePageMeta));
+    }
+    if (data.containsKey('source_bounding_box')) {
+      context.handle(
+          _sourceBoundingBoxMeta,
+          sourceBoundingBox.isAcceptableOrUnknown(
+              data['source_bounding_box']!, _sourceBoundingBoxMeta));
+    }
     return context;
   }
 
@@ -252,18 +382,32 @@ class $HealthMetricsTable extends HealthMetrics
     return HealthMetric(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      profileId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}profile_id'])!,
       metricId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}metric_id'])!,
       metricName: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}metric_name'])!,
       value: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}value'])!,
+      rawValue: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}raw_value']),
+      numericValue: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}numeric_value']),
       unit: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}unit'])!,
+      canonicalValue: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}canonical_value']),
+      canonicalUnit: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}canonical_unit']),
       referenceMin: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}reference_min']),
       referenceMax: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}reference_max']),
+      referenceRangeRaw: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}reference_range_raw']),
+      sourceAbnormalFlag: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}source_abnormal_flag']),
       status: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       bodySystem: attachedDatabase.typeMapping
@@ -285,6 +429,12 @@ class $HealthMetricsTable extends HealthMetrics
       recognitionConfidence: attachedDatabase.typeMapping.read(
           DriftSqlType.double,
           data['${effectivePrefix}recognition_confidence']),
+      verificationStatus: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}verification_status'])!,
+      sourcePage: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}source_page']),
+      sourceBoundingBox: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}source_bounding_box']),
     );
   }
 
@@ -296,12 +446,19 @@ class $HealthMetricsTable extends HealthMetrics
 
 class HealthMetric extends DataClass implements Insertable<HealthMetric> {
   final int id;
+  final int profileId;
   final String metricId;
   final String metricName;
   final double value;
+  final String? rawValue;
+  final double? numericValue;
   final String unit;
+  final double? canonicalValue;
+  final String? canonicalUnit;
   final double? referenceMin;
   final double? referenceMax;
+  final String? referenceRangeRaw;
+  final String? sourceAbnormalFlag;
   final String status;
   final String bodySystem;
   final DateTime measuredAt;
@@ -312,14 +469,24 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
   final String? rawName;
   final String matchType;
   final double? recognitionConfidence;
+  final String verificationStatus;
+  final int? sourcePage;
+  final String? sourceBoundingBox;
   const HealthMetric(
       {required this.id,
+      required this.profileId,
       required this.metricId,
       required this.metricName,
       required this.value,
+      this.rawValue,
+      this.numericValue,
       required this.unit,
+      this.canonicalValue,
+      this.canonicalUnit,
       this.referenceMin,
       this.referenceMax,
+      this.referenceRangeRaw,
+      this.sourceAbnormalFlag,
       required this.status,
       required this.bodySystem,
       required this.measuredAt,
@@ -329,20 +496,42 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
       this.reportId,
       this.rawName,
       required this.matchType,
-      this.recognitionConfidence});
+      this.recognitionConfidence,
+      required this.verificationStatus,
+      this.sourcePage,
+      this.sourceBoundingBox});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    map['profile_id'] = Variable<int>(profileId);
     map['metric_id'] = Variable<String>(metricId);
     map['metric_name'] = Variable<String>(metricName);
     map['value'] = Variable<double>(value);
+    if (!nullToAbsent || rawValue != null) {
+      map['raw_value'] = Variable<String>(rawValue);
+    }
+    if (!nullToAbsent || numericValue != null) {
+      map['numeric_value'] = Variable<double>(numericValue);
+    }
     map['unit'] = Variable<String>(unit);
+    if (!nullToAbsent || canonicalValue != null) {
+      map['canonical_value'] = Variable<double>(canonicalValue);
+    }
+    if (!nullToAbsent || canonicalUnit != null) {
+      map['canonical_unit'] = Variable<String>(canonicalUnit);
+    }
     if (!nullToAbsent || referenceMin != null) {
       map['reference_min'] = Variable<double>(referenceMin);
     }
     if (!nullToAbsent || referenceMax != null) {
       map['reference_max'] = Variable<double>(referenceMax);
+    }
+    if (!nullToAbsent || referenceRangeRaw != null) {
+      map['reference_range_raw'] = Variable<String>(referenceRangeRaw);
+    }
+    if (!nullToAbsent || sourceAbnormalFlag != null) {
+      map['source_abnormal_flag'] = Variable<String>(sourceAbnormalFlag);
     }
     map['status'] = Variable<String>(status);
     map['body_system'] = Variable<String>(bodySystem);
@@ -362,22 +551,48 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
     if (!nullToAbsent || recognitionConfidence != null) {
       map['recognition_confidence'] = Variable<double>(recognitionConfidence);
     }
+    map['verification_status'] = Variable<String>(verificationStatus);
+    if (!nullToAbsent || sourcePage != null) {
+      map['source_page'] = Variable<int>(sourcePage);
+    }
+    if (!nullToAbsent || sourceBoundingBox != null) {
+      map['source_bounding_box'] = Variable<String>(sourceBoundingBox);
+    }
     return map;
   }
 
   HealthMetricsCompanion toCompanion(bool nullToAbsent) {
     return HealthMetricsCompanion(
       id: Value(id),
+      profileId: Value(profileId),
       metricId: Value(metricId),
       metricName: Value(metricName),
       value: Value(value),
+      rawValue: rawValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rawValue),
+      numericValue: numericValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(numericValue),
       unit: Value(unit),
+      canonicalValue: canonicalValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(canonicalValue),
+      canonicalUnit: canonicalUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(canonicalUnit),
       referenceMin: referenceMin == null && nullToAbsent
           ? const Value.absent()
           : Value(referenceMin),
       referenceMax: referenceMax == null && nullToAbsent
           ? const Value.absent()
           : Value(referenceMax),
+      referenceRangeRaw: referenceRangeRaw == null && nullToAbsent
+          ? const Value.absent()
+          : Value(referenceRangeRaw),
+      sourceAbnormalFlag: sourceAbnormalFlag == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceAbnormalFlag),
       status: Value(status),
       bodySystem: Value(bodySystem),
       measuredAt: Value(measuredAt),
@@ -395,6 +610,13 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
       recognitionConfidence: recognitionConfidence == null && nullToAbsent
           ? const Value.absent()
           : Value(recognitionConfidence),
+      verificationStatus: Value(verificationStatus),
+      sourcePage: sourcePage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourcePage),
+      sourceBoundingBox: sourceBoundingBox == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceBoundingBox),
     );
   }
 
@@ -403,12 +625,21 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return HealthMetric(
       id: serializer.fromJson<int>(json['id']),
+      profileId: serializer.fromJson<int>(json['profileId']),
       metricId: serializer.fromJson<String>(json['metricId']),
       metricName: serializer.fromJson<String>(json['metricName']),
       value: serializer.fromJson<double>(json['value']),
+      rawValue: serializer.fromJson<String?>(json['rawValue']),
+      numericValue: serializer.fromJson<double?>(json['numericValue']),
       unit: serializer.fromJson<String>(json['unit']),
+      canonicalValue: serializer.fromJson<double?>(json['canonicalValue']),
+      canonicalUnit: serializer.fromJson<String?>(json['canonicalUnit']),
       referenceMin: serializer.fromJson<double?>(json['referenceMin']),
       referenceMax: serializer.fromJson<double?>(json['referenceMax']),
+      referenceRangeRaw:
+          serializer.fromJson<String?>(json['referenceRangeRaw']),
+      sourceAbnormalFlag:
+          serializer.fromJson<String?>(json['sourceAbnormalFlag']),
       status: serializer.fromJson<String>(json['status']),
       bodySystem: serializer.fromJson<String>(json['bodySystem']),
       measuredAt: serializer.fromJson<DateTime>(json['measuredAt']),
@@ -420,6 +651,11 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
       matchType: serializer.fromJson<String>(json['matchType']),
       recognitionConfidence:
           serializer.fromJson<double?>(json['recognitionConfidence']),
+      verificationStatus:
+          serializer.fromJson<String>(json['verificationStatus']),
+      sourcePage: serializer.fromJson<int?>(json['sourcePage']),
+      sourceBoundingBox:
+          serializer.fromJson<String?>(json['sourceBoundingBox']),
     );
   }
   @override
@@ -427,12 +663,19 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'profileId': serializer.toJson<int>(profileId),
       'metricId': serializer.toJson<String>(metricId),
       'metricName': serializer.toJson<String>(metricName),
       'value': serializer.toJson<double>(value),
+      'rawValue': serializer.toJson<String?>(rawValue),
+      'numericValue': serializer.toJson<double?>(numericValue),
       'unit': serializer.toJson<String>(unit),
+      'canonicalValue': serializer.toJson<double?>(canonicalValue),
+      'canonicalUnit': serializer.toJson<String?>(canonicalUnit),
       'referenceMin': serializer.toJson<double?>(referenceMin),
       'referenceMax': serializer.toJson<double?>(referenceMax),
+      'referenceRangeRaw': serializer.toJson<String?>(referenceRangeRaw),
+      'sourceAbnormalFlag': serializer.toJson<String?>(sourceAbnormalFlag),
       'status': serializer.toJson<String>(status),
       'bodySystem': serializer.toJson<String>(bodySystem),
       'measuredAt': serializer.toJson<DateTime>(measuredAt),
@@ -444,17 +687,27 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
       'matchType': serializer.toJson<String>(matchType),
       'recognitionConfidence':
           serializer.toJson<double?>(recognitionConfidence),
+      'verificationStatus': serializer.toJson<String>(verificationStatus),
+      'sourcePage': serializer.toJson<int?>(sourcePage),
+      'sourceBoundingBox': serializer.toJson<String?>(sourceBoundingBox),
     };
   }
 
   HealthMetric copyWith(
           {int? id,
+          int? profileId,
           String? metricId,
           String? metricName,
           double? value,
+          Value<String?> rawValue = const Value.absent(),
+          Value<double?> numericValue = const Value.absent(),
           String? unit,
+          Value<double?> canonicalValue = const Value.absent(),
+          Value<String?> canonicalUnit = const Value.absent(),
           Value<double?> referenceMin = const Value.absent(),
           Value<double?> referenceMax = const Value.absent(),
+          Value<String?> referenceRangeRaw = const Value.absent(),
+          Value<String?> sourceAbnormalFlag = const Value.absent(),
           String? status,
           String? bodySystem,
           DateTime? measuredAt,
@@ -464,17 +717,34 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
           Value<int?> reportId = const Value.absent(),
           Value<String?> rawName = const Value.absent(),
           String? matchType,
-          Value<double?> recognitionConfidence = const Value.absent()}) =>
+          Value<double?> recognitionConfidence = const Value.absent(),
+          String? verificationStatus,
+          Value<int?> sourcePage = const Value.absent(),
+          Value<String?> sourceBoundingBox = const Value.absent()}) =>
       HealthMetric(
         id: id ?? this.id,
+        profileId: profileId ?? this.profileId,
         metricId: metricId ?? this.metricId,
         metricName: metricName ?? this.metricName,
         value: value ?? this.value,
+        rawValue: rawValue.present ? rawValue.value : this.rawValue,
+        numericValue:
+            numericValue.present ? numericValue.value : this.numericValue,
         unit: unit ?? this.unit,
+        canonicalValue:
+            canonicalValue.present ? canonicalValue.value : this.canonicalValue,
+        canonicalUnit:
+            canonicalUnit.present ? canonicalUnit.value : this.canonicalUnit,
         referenceMin:
             referenceMin.present ? referenceMin.value : this.referenceMin,
         referenceMax:
             referenceMax.present ? referenceMax.value : this.referenceMax,
+        referenceRangeRaw: referenceRangeRaw.present
+            ? referenceRangeRaw.value
+            : this.referenceRangeRaw,
+        sourceAbnormalFlag: sourceAbnormalFlag.present
+            ? sourceAbnormalFlag.value
+            : this.sourceAbnormalFlag,
         status: status ?? this.status,
         bodySystem: bodySystem ?? this.bodySystem,
         measuredAt: measuredAt ?? this.measuredAt,
@@ -487,21 +757,43 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
         recognitionConfidence: recognitionConfidence.present
             ? recognitionConfidence.value
             : this.recognitionConfidence,
+        verificationStatus: verificationStatus ?? this.verificationStatus,
+        sourcePage: sourcePage.present ? sourcePage.value : this.sourcePage,
+        sourceBoundingBox: sourceBoundingBox.present
+            ? sourceBoundingBox.value
+            : this.sourceBoundingBox,
       );
   HealthMetric copyWithCompanion(HealthMetricsCompanion data) {
     return HealthMetric(
       id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
       metricId: data.metricId.present ? data.metricId.value : this.metricId,
       metricName:
           data.metricName.present ? data.metricName.value : this.metricName,
       value: data.value.present ? data.value.value : this.value,
+      rawValue: data.rawValue.present ? data.rawValue.value : this.rawValue,
+      numericValue: data.numericValue.present
+          ? data.numericValue.value
+          : this.numericValue,
       unit: data.unit.present ? data.unit.value : this.unit,
+      canonicalValue: data.canonicalValue.present
+          ? data.canonicalValue.value
+          : this.canonicalValue,
+      canonicalUnit: data.canonicalUnit.present
+          ? data.canonicalUnit.value
+          : this.canonicalUnit,
       referenceMin: data.referenceMin.present
           ? data.referenceMin.value
           : this.referenceMin,
       referenceMax: data.referenceMax.present
           ? data.referenceMax.value
           : this.referenceMax,
+      referenceRangeRaw: data.referenceRangeRaw.present
+          ? data.referenceRangeRaw.value
+          : this.referenceRangeRaw,
+      sourceAbnormalFlag: data.sourceAbnormalFlag.present
+          ? data.sourceAbnormalFlag.value
+          : this.sourceAbnormalFlag,
       status: data.status.present ? data.status.value : this.status,
       bodySystem:
           data.bodySystem.present ? data.bodySystem.value : this.bodySystem,
@@ -517,6 +809,14 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
       recognitionConfidence: data.recognitionConfidence.present
           ? data.recognitionConfidence.value
           : this.recognitionConfidence,
+      verificationStatus: data.verificationStatus.present
+          ? data.verificationStatus.value
+          : this.verificationStatus,
+      sourcePage:
+          data.sourcePage.present ? data.sourcePage.value : this.sourcePage,
+      sourceBoundingBox: data.sourceBoundingBox.present
+          ? data.sourceBoundingBox.value
+          : this.sourceBoundingBox,
     );
   }
 
@@ -524,12 +824,19 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
   String toString() {
     return (StringBuffer('HealthMetric(')
           ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
           ..write('metricId: $metricId, ')
           ..write('metricName: $metricName, ')
           ..write('value: $value, ')
+          ..write('rawValue: $rawValue, ')
+          ..write('numericValue: $numericValue, ')
           ..write('unit: $unit, ')
+          ..write('canonicalValue: $canonicalValue, ')
+          ..write('canonicalUnit: $canonicalUnit, ')
           ..write('referenceMin: $referenceMin, ')
           ..write('referenceMax: $referenceMax, ')
+          ..write('referenceRangeRaw: $referenceRangeRaw, ')
+          ..write('sourceAbnormalFlag: $sourceAbnormalFlag, ')
           ..write('status: $status, ')
           ..write('bodySystem: $bodySystem, ')
           ..write('measuredAt: $measuredAt, ')
@@ -539,41 +846,62 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
           ..write('reportId: $reportId, ')
           ..write('rawName: $rawName, ')
           ..write('matchType: $matchType, ')
-          ..write('recognitionConfidence: $recognitionConfidence')
+          ..write('recognitionConfidence: $recognitionConfidence, ')
+          ..write('verificationStatus: $verificationStatus, ')
+          ..write('sourcePage: $sourcePage, ')
+          ..write('sourceBoundingBox: $sourceBoundingBox')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      metricId,
-      metricName,
-      value,
-      unit,
-      referenceMin,
-      referenceMax,
-      status,
-      bodySystem,
-      measuredAt,
-      sourceType,
-      notes,
-      createdAt,
-      reportId,
-      rawName,
-      matchType,
-      recognitionConfidence);
+  int get hashCode => Object.hashAll([
+        id,
+        profileId,
+        metricId,
+        metricName,
+        value,
+        rawValue,
+        numericValue,
+        unit,
+        canonicalValue,
+        canonicalUnit,
+        referenceMin,
+        referenceMax,
+        referenceRangeRaw,
+        sourceAbnormalFlag,
+        status,
+        bodySystem,
+        measuredAt,
+        sourceType,
+        notes,
+        createdAt,
+        reportId,
+        rawName,
+        matchType,
+        recognitionConfidence,
+        verificationStatus,
+        sourcePage,
+        sourceBoundingBox
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is HealthMetric &&
           other.id == this.id &&
+          other.profileId == this.profileId &&
           other.metricId == this.metricId &&
           other.metricName == this.metricName &&
           other.value == this.value &&
+          other.rawValue == this.rawValue &&
+          other.numericValue == this.numericValue &&
           other.unit == this.unit &&
+          other.canonicalValue == this.canonicalValue &&
+          other.canonicalUnit == this.canonicalUnit &&
           other.referenceMin == this.referenceMin &&
           other.referenceMax == this.referenceMax &&
+          other.referenceRangeRaw == this.referenceRangeRaw &&
+          other.sourceAbnormalFlag == this.sourceAbnormalFlag &&
           other.status == this.status &&
           other.bodySystem == this.bodySystem &&
           other.measuredAt == this.measuredAt &&
@@ -583,17 +911,27 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
           other.reportId == this.reportId &&
           other.rawName == this.rawName &&
           other.matchType == this.matchType &&
-          other.recognitionConfidence == this.recognitionConfidence);
+          other.recognitionConfidence == this.recognitionConfidence &&
+          other.verificationStatus == this.verificationStatus &&
+          other.sourcePage == this.sourcePage &&
+          other.sourceBoundingBox == this.sourceBoundingBox);
 }
 
 class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
   final Value<int> id;
+  final Value<int> profileId;
   final Value<String> metricId;
   final Value<String> metricName;
   final Value<double> value;
+  final Value<String?> rawValue;
+  final Value<double?> numericValue;
   final Value<String> unit;
+  final Value<double?> canonicalValue;
+  final Value<String?> canonicalUnit;
   final Value<double?> referenceMin;
   final Value<double?> referenceMax;
+  final Value<String?> referenceRangeRaw;
+  final Value<String?> sourceAbnormalFlag;
   final Value<String> status;
   final Value<String> bodySystem;
   final Value<DateTime> measuredAt;
@@ -604,14 +942,24 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
   final Value<String?> rawName;
   final Value<String> matchType;
   final Value<double?> recognitionConfidence;
+  final Value<String> verificationStatus;
+  final Value<int?> sourcePage;
+  final Value<String?> sourceBoundingBox;
   const HealthMetricsCompanion({
     this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
     this.metricId = const Value.absent(),
     this.metricName = const Value.absent(),
     this.value = const Value.absent(),
+    this.rawValue = const Value.absent(),
+    this.numericValue = const Value.absent(),
     this.unit = const Value.absent(),
+    this.canonicalValue = const Value.absent(),
+    this.canonicalUnit = const Value.absent(),
     this.referenceMin = const Value.absent(),
     this.referenceMax = const Value.absent(),
+    this.referenceRangeRaw = const Value.absent(),
+    this.sourceAbnormalFlag = const Value.absent(),
     this.status = const Value.absent(),
     this.bodySystem = const Value.absent(),
     this.measuredAt = const Value.absent(),
@@ -622,15 +970,25 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
     this.rawName = const Value.absent(),
     this.matchType = const Value.absent(),
     this.recognitionConfidence = const Value.absent(),
+    this.verificationStatus = const Value.absent(),
+    this.sourcePage = const Value.absent(),
+    this.sourceBoundingBox = const Value.absent(),
   });
   HealthMetricsCompanion.insert({
     this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
     required String metricId,
     required String metricName,
     required double value,
+    this.rawValue = const Value.absent(),
+    this.numericValue = const Value.absent(),
     required String unit,
+    this.canonicalValue = const Value.absent(),
+    this.canonicalUnit = const Value.absent(),
     this.referenceMin = const Value.absent(),
     this.referenceMax = const Value.absent(),
+    this.referenceRangeRaw = const Value.absent(),
+    this.sourceAbnormalFlag = const Value.absent(),
     required String status,
     required String bodySystem,
     required DateTime measuredAt,
@@ -641,6 +999,9 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
     this.rawName = const Value.absent(),
     this.matchType = const Value.absent(),
     this.recognitionConfidence = const Value.absent(),
+    this.verificationStatus = const Value.absent(),
+    this.sourcePage = const Value.absent(),
+    this.sourceBoundingBox = const Value.absent(),
   })  : metricId = Value(metricId),
         metricName = Value(metricName),
         value = Value(value),
@@ -651,12 +1012,19 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
         createdAt = Value(createdAt);
   static Insertable<HealthMetric> custom({
     Expression<int>? id,
+    Expression<int>? profileId,
     Expression<String>? metricId,
     Expression<String>? metricName,
     Expression<double>? value,
+    Expression<String>? rawValue,
+    Expression<double>? numericValue,
     Expression<String>? unit,
+    Expression<double>? canonicalValue,
+    Expression<String>? canonicalUnit,
     Expression<double>? referenceMin,
     Expression<double>? referenceMax,
+    Expression<String>? referenceRangeRaw,
+    Expression<String>? sourceAbnormalFlag,
     Expression<String>? status,
     Expression<String>? bodySystem,
     Expression<DateTime>? measuredAt,
@@ -667,15 +1035,26 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
     Expression<String>? rawName,
     Expression<String>? matchType,
     Expression<double>? recognitionConfidence,
+    Expression<String>? verificationStatus,
+    Expression<int>? sourcePage,
+    Expression<String>? sourceBoundingBox,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
       if (metricId != null) 'metric_id': metricId,
       if (metricName != null) 'metric_name': metricName,
       if (value != null) 'value': value,
+      if (rawValue != null) 'raw_value': rawValue,
+      if (numericValue != null) 'numeric_value': numericValue,
       if (unit != null) 'unit': unit,
+      if (canonicalValue != null) 'canonical_value': canonicalValue,
+      if (canonicalUnit != null) 'canonical_unit': canonicalUnit,
       if (referenceMin != null) 'reference_min': referenceMin,
       if (referenceMax != null) 'reference_max': referenceMax,
+      if (referenceRangeRaw != null) 'reference_range_raw': referenceRangeRaw,
+      if (sourceAbnormalFlag != null)
+        'source_abnormal_flag': sourceAbnormalFlag,
       if (status != null) 'status': status,
       if (bodySystem != null) 'body_system': bodySystem,
       if (measuredAt != null) 'measured_at': measuredAt,
@@ -687,17 +1066,27 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
       if (matchType != null) 'match_type': matchType,
       if (recognitionConfidence != null)
         'recognition_confidence': recognitionConfidence,
+      if (verificationStatus != null) 'verification_status': verificationStatus,
+      if (sourcePage != null) 'source_page': sourcePage,
+      if (sourceBoundingBox != null) 'source_bounding_box': sourceBoundingBox,
     });
   }
 
   HealthMetricsCompanion copyWith(
       {Value<int>? id,
+      Value<int>? profileId,
       Value<String>? metricId,
       Value<String>? metricName,
       Value<double>? value,
+      Value<String?>? rawValue,
+      Value<double?>? numericValue,
       Value<String>? unit,
+      Value<double?>? canonicalValue,
+      Value<String?>? canonicalUnit,
       Value<double?>? referenceMin,
       Value<double?>? referenceMax,
+      Value<String?>? referenceRangeRaw,
+      Value<String?>? sourceAbnormalFlag,
       Value<String>? status,
       Value<String>? bodySystem,
       Value<DateTime>? measuredAt,
@@ -707,15 +1096,25 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
       Value<int?>? reportId,
       Value<String?>? rawName,
       Value<String>? matchType,
-      Value<double?>? recognitionConfidence}) {
+      Value<double?>? recognitionConfidence,
+      Value<String>? verificationStatus,
+      Value<int?>? sourcePage,
+      Value<String?>? sourceBoundingBox}) {
     return HealthMetricsCompanion(
       id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
       metricId: metricId ?? this.metricId,
       metricName: metricName ?? this.metricName,
       value: value ?? this.value,
+      rawValue: rawValue ?? this.rawValue,
+      numericValue: numericValue ?? this.numericValue,
       unit: unit ?? this.unit,
+      canonicalValue: canonicalValue ?? this.canonicalValue,
+      canonicalUnit: canonicalUnit ?? this.canonicalUnit,
       referenceMin: referenceMin ?? this.referenceMin,
       referenceMax: referenceMax ?? this.referenceMax,
+      referenceRangeRaw: referenceRangeRaw ?? this.referenceRangeRaw,
+      sourceAbnormalFlag: sourceAbnormalFlag ?? this.sourceAbnormalFlag,
       status: status ?? this.status,
       bodySystem: bodySystem ?? this.bodySystem,
       measuredAt: measuredAt ?? this.measuredAt,
@@ -727,6 +1126,9 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
       matchType: matchType ?? this.matchType,
       recognitionConfidence:
           recognitionConfidence ?? this.recognitionConfidence,
+      verificationStatus: verificationStatus ?? this.verificationStatus,
+      sourcePage: sourcePage ?? this.sourcePage,
+      sourceBoundingBox: sourceBoundingBox ?? this.sourceBoundingBox,
     );
   }
 
@@ -735,6 +1137,9 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<int>(profileId.value);
     }
     if (metricId.present) {
       map['metric_id'] = Variable<String>(metricId.value);
@@ -745,14 +1150,32 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
     if (value.present) {
       map['value'] = Variable<double>(value.value);
     }
+    if (rawValue.present) {
+      map['raw_value'] = Variable<String>(rawValue.value);
+    }
+    if (numericValue.present) {
+      map['numeric_value'] = Variable<double>(numericValue.value);
+    }
     if (unit.present) {
       map['unit'] = Variable<String>(unit.value);
+    }
+    if (canonicalValue.present) {
+      map['canonical_value'] = Variable<double>(canonicalValue.value);
+    }
+    if (canonicalUnit.present) {
+      map['canonical_unit'] = Variable<String>(canonicalUnit.value);
     }
     if (referenceMin.present) {
       map['reference_min'] = Variable<double>(referenceMin.value);
     }
     if (referenceMax.present) {
       map['reference_max'] = Variable<double>(referenceMax.value);
+    }
+    if (referenceRangeRaw.present) {
+      map['reference_range_raw'] = Variable<String>(referenceRangeRaw.value);
+    }
+    if (sourceAbnormalFlag.present) {
+      map['source_abnormal_flag'] = Variable<String>(sourceAbnormalFlag.value);
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
@@ -785,6 +1208,15 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
       map['recognition_confidence'] =
           Variable<double>(recognitionConfidence.value);
     }
+    if (verificationStatus.present) {
+      map['verification_status'] = Variable<String>(verificationStatus.value);
+    }
+    if (sourcePage.present) {
+      map['source_page'] = Variable<int>(sourcePage.value);
+    }
+    if (sourceBoundingBox.present) {
+      map['source_bounding_box'] = Variable<String>(sourceBoundingBox.value);
+    }
     return map;
   }
 
@@ -792,12 +1224,19 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
   String toString() {
     return (StringBuffer('HealthMetricsCompanion(')
           ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
           ..write('metricId: $metricId, ')
           ..write('metricName: $metricName, ')
           ..write('value: $value, ')
+          ..write('rawValue: $rawValue, ')
+          ..write('numericValue: $numericValue, ')
           ..write('unit: $unit, ')
+          ..write('canonicalValue: $canonicalValue, ')
+          ..write('canonicalUnit: $canonicalUnit, ')
           ..write('referenceMin: $referenceMin, ')
           ..write('referenceMax: $referenceMax, ')
+          ..write('referenceRangeRaw: $referenceRangeRaw, ')
+          ..write('sourceAbnormalFlag: $sourceAbnormalFlag, ')
           ..write('status: $status, ')
           ..write('bodySystem: $bodySystem, ')
           ..write('measuredAt: $measuredAt, ')
@@ -807,7 +1246,10 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
           ..write('reportId: $reportId, ')
           ..write('rawName: $rawName, ')
           ..write('matchType: $matchType, ')
-          ..write('recognitionConfidence: $recognitionConfidence')
+          ..write('recognitionConfidence: $recognitionConfidence, ')
+          ..write('verificationStatus: $verificationStatus, ')
+          ..write('sourcePage: $sourcePage, ')
+          ..write('sourceBoundingBox: $sourceBoundingBox')
           ..write(')'))
         .toString();
   }
@@ -828,6 +1270,14 @@ class $DailyHealthRecordsTable extends DailyHealthRecords
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _profileIdMeta =
+      const VerificationMeta('profileId');
+  @override
+  late final GeneratedColumn<int> profileId = GeneratedColumn<int>(
+      'profile_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumn<String> type = GeneratedColumn<String>(
@@ -872,8 +1322,18 @@ class $DailyHealthRecordsTable extends DailyHealthRecords
       'created_at', aliasedName, false,
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, type, value1, value2, unit, context, measuredAt, notes, createdAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        profileId,
+        type,
+        value1,
+        value2,
+        unit,
+        context,
+        measuredAt,
+        notes,
+        createdAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -886,6 +1346,10 @@ class $DailyHealthRecordsTable extends DailyHealthRecords
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(_profileIdMeta,
+          profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta));
     }
     if (data.containsKey('type')) {
       context.handle(
@@ -942,6 +1406,8 @@ class $DailyHealthRecordsTable extends DailyHealthRecords
     return DailyHealthRecord(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      profileId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}profile_id'])!,
       type: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
       value1: attachedDatabase.typeMapping
@@ -970,6 +1436,7 @@ class $DailyHealthRecordsTable extends DailyHealthRecords
 class DailyHealthRecord extends DataClass
     implements Insertable<DailyHealthRecord> {
   final int id;
+  final int profileId;
   final String type;
   final double value1;
   final double? value2;
@@ -980,6 +1447,7 @@ class DailyHealthRecord extends DataClass
   final DateTime createdAt;
   const DailyHealthRecord(
       {required this.id,
+      required this.profileId,
       required this.type,
       required this.value1,
       this.value2,
@@ -992,6 +1460,7 @@ class DailyHealthRecord extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    map['profile_id'] = Variable<int>(profileId);
     map['type'] = Variable<String>(type);
     map['value1'] = Variable<double>(value1);
     if (!nullToAbsent || value2 != null) {
@@ -1012,6 +1481,7 @@ class DailyHealthRecord extends DataClass
   DailyHealthRecordsCompanion toCompanion(bool nullToAbsent) {
     return DailyHealthRecordsCompanion(
       id: Value(id),
+      profileId: Value(profileId),
       type: Value(type),
       value1: Value(value1),
       value2:
@@ -1032,6 +1502,7 @@ class DailyHealthRecord extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return DailyHealthRecord(
       id: serializer.fromJson<int>(json['id']),
+      profileId: serializer.fromJson<int>(json['profileId']),
       type: serializer.fromJson<String>(json['type']),
       value1: serializer.fromJson<double>(json['value1']),
       value2: serializer.fromJson<double?>(json['value2']),
@@ -1047,6 +1518,7 @@ class DailyHealthRecord extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'profileId': serializer.toJson<int>(profileId),
       'type': serializer.toJson<String>(type),
       'value1': serializer.toJson<double>(value1),
       'value2': serializer.toJson<double?>(value2),
@@ -1060,6 +1532,7 @@ class DailyHealthRecord extends DataClass
 
   DailyHealthRecord copyWith(
           {int? id,
+          int? profileId,
           String? type,
           double? value1,
           Value<double?> value2 = const Value.absent(),
@@ -1070,6 +1543,7 @@ class DailyHealthRecord extends DataClass
           DateTime? createdAt}) =>
       DailyHealthRecord(
         id: id ?? this.id,
+        profileId: profileId ?? this.profileId,
         type: type ?? this.type,
         value1: value1 ?? this.value1,
         value2: value2.present ? value2.value : this.value2,
@@ -1082,6 +1556,7 @@ class DailyHealthRecord extends DataClass
   DailyHealthRecord copyWithCompanion(DailyHealthRecordsCompanion data) {
     return DailyHealthRecord(
       id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
       type: data.type.present ? data.type.value : this.type,
       value1: data.value1.present ? data.value1.value : this.value1,
       value2: data.value2.present ? data.value2.value : this.value2,
@@ -1098,6 +1573,7 @@ class DailyHealthRecord extends DataClass
   String toString() {
     return (StringBuffer('DailyHealthRecord(')
           ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
           ..write('type: $type, ')
           ..write('value1: $value1, ')
           ..write('value2: $value2, ')
@@ -1111,13 +1587,14 @@ class DailyHealthRecord extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, type, value1, value2, unit, context, measuredAt, notes, createdAt);
+  int get hashCode => Object.hash(id, profileId, type, value1, value2, unit,
+      context, measuredAt, notes, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is DailyHealthRecord &&
           other.id == this.id &&
+          other.profileId == this.profileId &&
           other.type == this.type &&
           other.value1 == this.value1 &&
           other.value2 == this.value2 &&
@@ -1130,6 +1607,7 @@ class DailyHealthRecord extends DataClass
 
 class DailyHealthRecordsCompanion extends UpdateCompanion<DailyHealthRecord> {
   final Value<int> id;
+  final Value<int> profileId;
   final Value<String> type;
   final Value<double> value1;
   final Value<double?> value2;
@@ -1140,6 +1618,7 @@ class DailyHealthRecordsCompanion extends UpdateCompanion<DailyHealthRecord> {
   final Value<DateTime> createdAt;
   const DailyHealthRecordsCompanion({
     this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
     this.type = const Value.absent(),
     this.value1 = const Value.absent(),
     this.value2 = const Value.absent(),
@@ -1151,6 +1630,7 @@ class DailyHealthRecordsCompanion extends UpdateCompanion<DailyHealthRecord> {
   });
   DailyHealthRecordsCompanion.insert({
     this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
     required String type,
     required double value1,
     this.value2 = const Value.absent(),
@@ -1166,6 +1646,7 @@ class DailyHealthRecordsCompanion extends UpdateCompanion<DailyHealthRecord> {
         createdAt = Value(createdAt);
   static Insertable<DailyHealthRecord> custom({
     Expression<int>? id,
+    Expression<int>? profileId,
     Expression<String>? type,
     Expression<double>? value1,
     Expression<double>? value2,
@@ -1177,6 +1658,7 @@ class DailyHealthRecordsCompanion extends UpdateCompanion<DailyHealthRecord> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
       if (type != null) 'type': type,
       if (value1 != null) 'value1': value1,
       if (value2 != null) 'value2': value2,
@@ -1190,6 +1672,7 @@ class DailyHealthRecordsCompanion extends UpdateCompanion<DailyHealthRecord> {
 
   DailyHealthRecordsCompanion copyWith(
       {Value<int>? id,
+      Value<int>? profileId,
       Value<String>? type,
       Value<double>? value1,
       Value<double?>? value2,
@@ -1200,6 +1683,7 @@ class DailyHealthRecordsCompanion extends UpdateCompanion<DailyHealthRecord> {
       Value<DateTime>? createdAt}) {
     return DailyHealthRecordsCompanion(
       id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
       type: type ?? this.type,
       value1: value1 ?? this.value1,
       value2: value2 ?? this.value2,
@@ -1216,6 +1700,9 @@ class DailyHealthRecordsCompanion extends UpdateCompanion<DailyHealthRecord> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<int>(profileId.value);
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
@@ -1248,6 +1735,7 @@ class DailyHealthRecordsCompanion extends UpdateCompanion<DailyHealthRecord> {
   String toString() {
     return (StringBuffer('DailyHealthRecordsCompanion(')
           ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
           ..write('type: $type, ')
           ..write('value1: $value1, ')
           ..write('value2: $value2, ')
@@ -1276,6 +1764,14 @@ class $MedicalReportsTable extends MedicalReports
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _profileIdMeta =
+      const VerificationMeta('profileId');
+  @override
+  late final GeneratedColumn<int> profileId = GeneratedColumn<int>(
+      'profile_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
   static const VerificationMeta _hospitalNameMeta =
       const VerificationMeta('hospitalName');
   @override
@@ -1323,6 +1819,7 @@ class $MedicalReportsTable extends MedicalReports
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        profileId,
         hospitalName,
         reportDate,
         reportType,
@@ -1343,6 +1840,10 @@ class $MedicalReportsTable extends MedicalReports
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(_profileIdMeta,
+          profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta));
     }
     if (data.containsKey('hospital_name')) {
       context.handle(
@@ -1401,6 +1902,8 @@ class $MedicalReportsTable extends MedicalReports
     return MedicalReport(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      profileId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}profile_id'])!,
       hospitalName: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}hospital_name'])!,
       reportDate: attachedDatabase.typeMapping
@@ -1426,6 +1929,7 @@ class $MedicalReportsTable extends MedicalReports
 
 class MedicalReport extends DataClass implements Insertable<MedicalReport> {
   final int id;
+  final int profileId;
   final String hospitalName;
   final DateTime reportDate;
   final String reportType;
@@ -1435,6 +1939,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
   final DateTime createdAt;
   const MedicalReport(
       {required this.id,
+      required this.profileId,
       required this.hospitalName,
       required this.reportDate,
       required this.reportType,
@@ -1446,6 +1951,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    map['profile_id'] = Variable<int>(profileId);
     map['hospital_name'] = Variable<String>(hospitalName);
     map['report_date'] = Variable<DateTime>(reportDate);
     map['report_type'] = Variable<String>(reportType);
@@ -1463,6 +1969,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
   MedicalReportsCompanion toCompanion(bool nullToAbsent) {
     return MedicalReportsCompanion(
       id: Value(id),
+      profileId: Value(profileId),
       hospitalName: Value(hospitalName),
       reportDate: Value(reportDate),
       reportType: Value(reportType),
@@ -1482,6 +1989,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return MedicalReport(
       id: serializer.fromJson<int>(json['id']),
+      profileId: serializer.fromJson<int>(json['profileId']),
       hospitalName: serializer.fromJson<String>(json['hospitalName']),
       reportDate: serializer.fromJson<DateTime>(json['reportDate']),
       reportType: serializer.fromJson<String>(json['reportType']),
@@ -1496,6 +2004,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'profileId': serializer.toJson<int>(profileId),
       'hospitalName': serializer.toJson<String>(hospitalName),
       'reportDate': serializer.toJson<DateTime>(reportDate),
       'reportType': serializer.toJson<String>(reportType),
@@ -1508,6 +2017,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
 
   MedicalReport copyWith(
           {int? id,
+          int? profileId,
           String? hospitalName,
           DateTime? reportDate,
           String? reportType,
@@ -1517,6 +2027,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
           DateTime? createdAt}) =>
       MedicalReport(
         id: id ?? this.id,
+        profileId: profileId ?? this.profileId,
         hospitalName: hospitalName ?? this.hospitalName,
         reportDate: reportDate ?? this.reportDate,
         reportType: reportType ?? this.reportType,
@@ -1530,6 +2041,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
   MedicalReport copyWithCompanion(MedicalReportsCompanion data) {
     return MedicalReport(
       id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
       hospitalName: data.hospitalName.present
           ? data.hospitalName.value
           : this.hospitalName,
@@ -1552,6 +2064,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
   String toString() {
     return (StringBuffer('MedicalReport(')
           ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
           ..write('hospitalName: $hospitalName, ')
           ..write('reportDate: $reportDate, ')
           ..write('reportType: $reportType, ')
@@ -1564,13 +2077,14 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
   }
 
   @override
-  int get hashCode => Object.hash(id, hospitalName, reportDate, reportType,
-      sourceImagePath, rawText, recognitionStatus, createdAt);
+  int get hashCode => Object.hash(id, profileId, hospitalName, reportDate,
+      reportType, sourceImagePath, rawText, recognitionStatus, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is MedicalReport &&
           other.id == this.id &&
+          other.profileId == this.profileId &&
           other.hospitalName == this.hospitalName &&
           other.reportDate == this.reportDate &&
           other.reportType == this.reportType &&
@@ -1582,6 +2096,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
 
 class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
   final Value<int> id;
+  final Value<int> profileId;
   final Value<String> hospitalName;
   final Value<DateTime> reportDate;
   final Value<String> reportType;
@@ -1591,6 +2106,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
   final Value<DateTime> createdAt;
   const MedicalReportsCompanion({
     this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
     this.hospitalName = const Value.absent(),
     this.reportDate = const Value.absent(),
     this.reportType = const Value.absent(),
@@ -1601,6 +2117,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
   });
   MedicalReportsCompanion.insert({
     this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
     required String hospitalName,
     required DateTime reportDate,
     required String reportType,
@@ -1614,6 +2131,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
         createdAt = Value(createdAt);
   static Insertable<MedicalReport> custom({
     Expression<int>? id,
+    Expression<int>? profileId,
     Expression<String>? hospitalName,
     Expression<DateTime>? reportDate,
     Expression<String>? reportType,
@@ -1624,6 +2142,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
       if (hospitalName != null) 'hospital_name': hospitalName,
       if (reportDate != null) 'report_date': reportDate,
       if (reportType != null) 'report_type': reportType,
@@ -1636,6 +2155,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
 
   MedicalReportsCompanion copyWith(
       {Value<int>? id,
+      Value<int>? profileId,
       Value<String>? hospitalName,
       Value<DateTime>? reportDate,
       Value<String>? reportType,
@@ -1645,6 +2165,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
       Value<DateTime>? createdAt}) {
     return MedicalReportsCompanion(
       id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
       hospitalName: hospitalName ?? this.hospitalName,
       reportDate: reportDate ?? this.reportDate,
       reportType: reportType ?? this.reportType,
@@ -1660,6 +2181,9 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<int>(profileId.value);
     }
     if (hospitalName.present) {
       map['hospital_name'] = Variable<String>(hospitalName.value);
@@ -1689,6 +2213,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
   String toString() {
     return (StringBuffer('MedicalReportsCompanion(')
           ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
           ..write('hospitalName: $hospitalName, ')
           ..write('reportDate: $reportDate, ')
           ..write('reportType: $reportType, ')
@@ -1715,6 +2240,14 @@ class $DiseasesTable extends Diseases with TableInfo<$DiseasesTable, Disease> {
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _profileIdMeta =
+      const VerificationMeta('profileId');
+  @override
+  late final GeneratedColumn<int> profileId = GeneratedColumn<int>(
+      'profile_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -1746,7 +2279,7 @@ class $DiseasesTable extends Diseases with TableInfo<$DiseasesTable, Disease> {
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns =>
-      [id, name, foundDate, status, notes, createdAt];
+      [id, profileId, name, foundDate, status, notes, createdAt];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1759,6 +2292,10 @@ class $DiseasesTable extends Diseases with TableInfo<$DiseasesTable, Disease> {
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(_profileIdMeta,
+          profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta));
     }
     if (data.containsKey('name')) {
       context.handle(
@@ -1795,6 +2332,8 @@ class $DiseasesTable extends Diseases with TableInfo<$DiseasesTable, Disease> {
     return Disease(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      profileId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}profile_id'])!,
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       foundDate: attachedDatabase.typeMapping
@@ -1816,6 +2355,7 @@ class $DiseasesTable extends Diseases with TableInfo<$DiseasesTable, Disease> {
 
 class Disease extends DataClass implements Insertable<Disease> {
   final int id;
+  final int profileId;
   final String name;
   final DateTime? foundDate;
   final String status;
@@ -1823,6 +2363,7 @@ class Disease extends DataClass implements Insertable<Disease> {
   final DateTime createdAt;
   const Disease(
       {required this.id,
+      required this.profileId,
       required this.name,
       this.foundDate,
       required this.status,
@@ -1832,6 +2373,7 @@ class Disease extends DataClass implements Insertable<Disease> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    map['profile_id'] = Variable<int>(profileId);
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || foundDate != null) {
       map['found_date'] = Variable<DateTime>(foundDate);
@@ -1847,6 +2389,7 @@ class Disease extends DataClass implements Insertable<Disease> {
   DiseasesCompanion toCompanion(bool nullToAbsent) {
     return DiseasesCompanion(
       id: Value(id),
+      profileId: Value(profileId),
       name: Value(name),
       foundDate: foundDate == null && nullToAbsent
           ? const Value.absent()
@@ -1863,6 +2406,7 @@ class Disease extends DataClass implements Insertable<Disease> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Disease(
       id: serializer.fromJson<int>(json['id']),
+      profileId: serializer.fromJson<int>(json['profileId']),
       name: serializer.fromJson<String>(json['name']),
       foundDate: serializer.fromJson<DateTime?>(json['foundDate']),
       status: serializer.fromJson<String>(json['status']),
@@ -1875,6 +2419,7 @@ class Disease extends DataClass implements Insertable<Disease> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'profileId': serializer.toJson<int>(profileId),
       'name': serializer.toJson<String>(name),
       'foundDate': serializer.toJson<DateTime?>(foundDate),
       'status': serializer.toJson<String>(status),
@@ -1885,6 +2430,7 @@ class Disease extends DataClass implements Insertable<Disease> {
 
   Disease copyWith(
           {int? id,
+          int? profileId,
           String? name,
           Value<DateTime?> foundDate = const Value.absent(),
           String? status,
@@ -1892,6 +2438,7 @@ class Disease extends DataClass implements Insertable<Disease> {
           DateTime? createdAt}) =>
       Disease(
         id: id ?? this.id,
+        profileId: profileId ?? this.profileId,
         name: name ?? this.name,
         foundDate: foundDate.present ? foundDate.value : this.foundDate,
         status: status ?? this.status,
@@ -1901,6 +2448,7 @@ class Disease extends DataClass implements Insertable<Disease> {
   Disease copyWithCompanion(DiseasesCompanion data) {
     return Disease(
       id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
       name: data.name.present ? data.name.value : this.name,
       foundDate: data.foundDate.present ? data.foundDate.value : this.foundDate,
       status: data.status.present ? data.status.value : this.status,
@@ -1913,6 +2461,7 @@ class Disease extends DataClass implements Insertable<Disease> {
   String toString() {
     return (StringBuffer('Disease(')
           ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
           ..write('name: $name, ')
           ..write('foundDate: $foundDate, ')
           ..write('status: $status, ')
@@ -1924,12 +2473,13 @@ class Disease extends DataClass implements Insertable<Disease> {
 
   @override
   int get hashCode =>
-      Object.hash(id, name, foundDate, status, notes, createdAt);
+      Object.hash(id, profileId, name, foundDate, status, notes, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Disease &&
           other.id == this.id &&
+          other.profileId == this.profileId &&
           other.name == this.name &&
           other.foundDate == this.foundDate &&
           other.status == this.status &&
@@ -1939,6 +2489,7 @@ class Disease extends DataClass implements Insertable<Disease> {
 
 class DiseasesCompanion extends UpdateCompanion<Disease> {
   final Value<int> id;
+  final Value<int> profileId;
   final Value<String> name;
   final Value<DateTime?> foundDate;
   final Value<String> status;
@@ -1946,6 +2497,7 @@ class DiseasesCompanion extends UpdateCompanion<Disease> {
   final Value<DateTime> createdAt;
   const DiseasesCompanion({
     this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
     this.name = const Value.absent(),
     this.foundDate = const Value.absent(),
     this.status = const Value.absent(),
@@ -1954,6 +2506,7 @@ class DiseasesCompanion extends UpdateCompanion<Disease> {
   });
   DiseasesCompanion.insert({
     this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
     required String name,
     this.foundDate = const Value.absent(),
     this.status = const Value.absent(),
@@ -1963,6 +2516,7 @@ class DiseasesCompanion extends UpdateCompanion<Disease> {
         createdAt = Value(createdAt);
   static Insertable<Disease> custom({
     Expression<int>? id,
+    Expression<int>? profileId,
     Expression<String>? name,
     Expression<DateTime>? foundDate,
     Expression<String>? status,
@@ -1971,6 +2525,7 @@ class DiseasesCompanion extends UpdateCompanion<Disease> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
       if (name != null) 'name': name,
       if (foundDate != null) 'found_date': foundDate,
       if (status != null) 'status': status,
@@ -1981,6 +2536,7 @@ class DiseasesCompanion extends UpdateCompanion<Disease> {
 
   DiseasesCompanion copyWith(
       {Value<int>? id,
+      Value<int>? profileId,
       Value<String>? name,
       Value<DateTime?>? foundDate,
       Value<String>? status,
@@ -1988,6 +2544,7 @@ class DiseasesCompanion extends UpdateCompanion<Disease> {
       Value<DateTime>? createdAt}) {
     return DiseasesCompanion(
       id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
       name: name ?? this.name,
       foundDate: foundDate ?? this.foundDate,
       status: status ?? this.status,
@@ -2001,6 +2558,9 @@ class DiseasesCompanion extends UpdateCompanion<Disease> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<int>(profileId.value);
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
@@ -2024,6 +2584,7 @@ class DiseasesCompanion extends UpdateCompanion<Disease> {
   String toString() {
     return (StringBuffer('DiseasesCompanion(')
           ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
           ..write('name: $name, ')
           ..write('foundDate: $foundDate, ')
           ..write('status: $status, ')
@@ -2049,6 +2610,14 @@ class $MedicationsTable extends Medications
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _profileIdMeta =
+      const VerificationMeta('profileId');
+  @override
+  late final GeneratedColumn<int> profileId = GeneratedColumn<int>(
+      'profile_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -2104,6 +2673,7 @@ class $MedicationsTable extends Medications
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        profileId,
         name,
         dosage,
         dosageUnit,
@@ -2126,6 +2696,10 @@ class $MedicationsTable extends Medications
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(_profileIdMeta,
+          profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta));
     }
     if (data.containsKey('name')) {
       context.handle(
@@ -2182,6 +2756,8 @@ class $MedicationsTable extends Medications
     return Medication(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      profileId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}profile_id'])!,
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       dosage: attachedDatabase.typeMapping
@@ -2211,6 +2787,7 @@ class $MedicationsTable extends Medications
 
 class Medication extends DataClass implements Insertable<Medication> {
   final int id;
+  final int profileId;
   final String name;
   final String? dosage;
   final String? dosageUnit;
@@ -2222,6 +2799,7 @@ class Medication extends DataClass implements Insertable<Medication> {
   final DateTime createdAt;
   const Medication(
       {required this.id,
+      required this.profileId,
       required this.name,
       this.dosage,
       this.dosageUnit,
@@ -2235,6 +2813,7 @@ class Medication extends DataClass implements Insertable<Medication> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    map['profile_id'] = Variable<int>(profileId);
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || dosage != null) {
       map['dosage'] = Variable<String>(dosage);
@@ -2262,6 +2841,7 @@ class Medication extends DataClass implements Insertable<Medication> {
   MedicationsCompanion toCompanion(bool nullToAbsent) {
     return MedicationsCompanion(
       id: Value(id),
+      profileId: Value(profileId),
       name: Value(name),
       dosage:
           dosage == null && nullToAbsent ? const Value.absent() : Value(dosage),
@@ -2289,6 +2869,7 @@ class Medication extends DataClass implements Insertable<Medication> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Medication(
       id: serializer.fromJson<int>(json['id']),
+      profileId: serializer.fromJson<int>(json['profileId']),
       name: serializer.fromJson<String>(json['name']),
       dosage: serializer.fromJson<String?>(json['dosage']),
       dosageUnit: serializer.fromJson<String?>(json['dosageUnit']),
@@ -2305,6 +2886,7 @@ class Medication extends DataClass implements Insertable<Medication> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'profileId': serializer.toJson<int>(profileId),
       'name': serializer.toJson<String>(name),
       'dosage': serializer.toJson<String?>(dosage),
       'dosageUnit': serializer.toJson<String?>(dosageUnit),
@@ -2319,6 +2901,7 @@ class Medication extends DataClass implements Insertable<Medication> {
 
   Medication copyWith(
           {int? id,
+          int? profileId,
           String? name,
           Value<String?> dosage = const Value.absent(),
           Value<String?> dosageUnit = const Value.absent(),
@@ -2330,6 +2913,7 @@ class Medication extends DataClass implements Insertable<Medication> {
           DateTime? createdAt}) =>
       Medication(
         id: id ?? this.id,
+        profileId: profileId ?? this.profileId,
         name: name ?? this.name,
         dosage: dosage.present ? dosage.value : this.dosage,
         dosageUnit: dosageUnit.present ? dosageUnit.value : this.dosageUnit,
@@ -2343,6 +2927,7 @@ class Medication extends DataClass implements Insertable<Medication> {
   Medication copyWithCompanion(MedicationsCompanion data) {
     return Medication(
       id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
       name: data.name.present ? data.name.value : this.name,
       dosage: data.dosage.present ? data.dosage.value : this.dosage,
       dosageUnit:
@@ -2361,6 +2946,7 @@ class Medication extends DataClass implements Insertable<Medication> {
   String toString() {
     return (StringBuffer('Medication(')
           ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
           ..write('name: $name, ')
           ..write('dosage: $dosage, ')
           ..write('dosageUnit: $dosageUnit, ')
@@ -2375,13 +2961,14 @@ class Medication extends DataClass implements Insertable<Medication> {
   }
 
   @override
-  int get hashCode => Object.hash(id, name, dosage, dosageUnit, timesPerDay,
-      startDate, endDate, status, notes, createdAt);
+  int get hashCode => Object.hash(id, profileId, name, dosage, dosageUnit,
+      timesPerDay, startDate, endDate, status, notes, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Medication &&
           other.id == this.id &&
+          other.profileId == this.profileId &&
           other.name == this.name &&
           other.dosage == this.dosage &&
           other.dosageUnit == this.dosageUnit &&
@@ -2395,6 +2982,7 @@ class Medication extends DataClass implements Insertable<Medication> {
 
 class MedicationsCompanion extends UpdateCompanion<Medication> {
   final Value<int> id;
+  final Value<int> profileId;
   final Value<String> name;
   final Value<String?> dosage;
   final Value<String?> dosageUnit;
@@ -2406,6 +2994,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
   final Value<DateTime> createdAt;
   const MedicationsCompanion({
     this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
     this.name = const Value.absent(),
     this.dosage = const Value.absent(),
     this.dosageUnit = const Value.absent(),
@@ -2418,6 +3007,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
   });
   MedicationsCompanion.insert({
     this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
     required String name,
     this.dosage = const Value.absent(),
     this.dosageUnit = const Value.absent(),
@@ -2431,6 +3021,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
         createdAt = Value(createdAt);
   static Insertable<Medication> custom({
     Expression<int>? id,
+    Expression<int>? profileId,
     Expression<String>? name,
     Expression<String>? dosage,
     Expression<String>? dosageUnit,
@@ -2443,6 +3034,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
       if (name != null) 'name': name,
       if (dosage != null) 'dosage': dosage,
       if (dosageUnit != null) 'dosage_unit': dosageUnit,
@@ -2457,6 +3049,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
 
   MedicationsCompanion copyWith(
       {Value<int>? id,
+      Value<int>? profileId,
       Value<String>? name,
       Value<String?>? dosage,
       Value<String?>? dosageUnit,
@@ -2468,6 +3061,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
       Value<DateTime>? createdAt}) {
     return MedicationsCompanion(
       id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
       name: name ?? this.name,
       dosage: dosage ?? this.dosage,
       dosageUnit: dosageUnit ?? this.dosageUnit,
@@ -2485,6 +3079,9 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<int>(profileId.value);
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
@@ -2520,6 +3117,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
   String toString() {
     return (StringBuffer('MedicationsCompanion(')
           ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
           ..write('name: $name, ')
           ..write('dosage: $dosage, ')
           ..write('dosageUnit: $dosageUnit, ')
@@ -2881,6 +3479,387 @@ class UserProfileCompanion extends UpdateCompanion<UserProfileData> {
   }
 }
 
+class $PersonProfilesTable extends PersonProfiles
+    with TableInfo<$PersonProfilesTable, PersonProfile> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PersonProfilesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _displayNameMeta =
+      const VerificationMeta('displayName');
+  @override
+  late final GeneratedColumn<String> displayName = GeneratedColumn<String>(
+      'display_name', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('本人'));
+  static const VerificationMeta _relationshipMeta =
+      const VerificationMeta('relationship');
+  @override
+  late final GeneratedColumn<String> relationship = GeneratedColumn<String>(
+      'relationship', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('self'));
+  static const VerificationMeta _sexMeta = const VerificationMeta('sex');
+  @override
+  late final GeneratedColumn<String> sex = GeneratedColumn<String>(
+      'sex', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _dateOfBirthMeta =
+      const VerificationMeta('dateOfBirth');
+  @override
+  late final GeneratedColumn<DateTime> dateOfBirth = GeneratedColumn<DateTime>(
+      'date_of_birth', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, displayName, relationship, sex, dateOfBirth, createdAt, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'person_profiles';
+  @override
+  VerificationContext validateIntegrity(Insertable<PersonProfile> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('display_name')) {
+      context.handle(
+          _displayNameMeta,
+          displayName.isAcceptableOrUnknown(
+              data['display_name']!, _displayNameMeta));
+    }
+    if (data.containsKey('relationship')) {
+      context.handle(
+          _relationshipMeta,
+          relationship.isAcceptableOrUnknown(
+              data['relationship']!, _relationshipMeta));
+    }
+    if (data.containsKey('sex')) {
+      context.handle(
+          _sexMeta, sex.isAcceptableOrUnknown(data['sex']!, _sexMeta));
+    }
+    if (data.containsKey('date_of_birth')) {
+      context.handle(
+          _dateOfBirthMeta,
+          dateOfBirth.isAcceptableOrUnknown(
+              data['date_of_birth']!, _dateOfBirthMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PersonProfile map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PersonProfile(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      displayName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}display_name'])!,
+      relationship: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}relationship'])!,
+      sex: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sex']),
+      dateOfBirth: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}date_of_birth']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $PersonProfilesTable createAlias(String alias) {
+    return $PersonProfilesTable(attachedDatabase, alias);
+  }
+}
+
+class PersonProfile extends DataClass implements Insertable<PersonProfile> {
+  final int id;
+  final String displayName;
+  final String relationship;
+  final String? sex;
+  final DateTime? dateOfBirth;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const PersonProfile(
+      {required this.id,
+      required this.displayName,
+      required this.relationship,
+      this.sex,
+      this.dateOfBirth,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['display_name'] = Variable<String>(displayName);
+    map['relationship'] = Variable<String>(relationship);
+    if (!nullToAbsent || sex != null) {
+      map['sex'] = Variable<String>(sex);
+    }
+    if (!nullToAbsent || dateOfBirth != null) {
+      map['date_of_birth'] = Variable<DateTime>(dateOfBirth);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  PersonProfilesCompanion toCompanion(bool nullToAbsent) {
+    return PersonProfilesCompanion(
+      id: Value(id),
+      displayName: Value(displayName),
+      relationship: Value(relationship),
+      sex: sex == null && nullToAbsent ? const Value.absent() : Value(sex),
+      dateOfBirth: dateOfBirth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dateOfBirth),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory PersonProfile.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PersonProfile(
+      id: serializer.fromJson<int>(json['id']),
+      displayName: serializer.fromJson<String>(json['displayName']),
+      relationship: serializer.fromJson<String>(json['relationship']),
+      sex: serializer.fromJson<String?>(json['sex']),
+      dateOfBirth: serializer.fromJson<DateTime?>(json['dateOfBirth']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'displayName': serializer.toJson<String>(displayName),
+      'relationship': serializer.toJson<String>(relationship),
+      'sex': serializer.toJson<String?>(sex),
+      'dateOfBirth': serializer.toJson<DateTime?>(dateOfBirth),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  PersonProfile copyWith(
+          {int? id,
+          String? displayName,
+          String? relationship,
+          Value<String?> sex = const Value.absent(),
+          Value<DateTime?> dateOfBirth = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      PersonProfile(
+        id: id ?? this.id,
+        displayName: displayName ?? this.displayName,
+        relationship: relationship ?? this.relationship,
+        sex: sex.present ? sex.value : this.sex,
+        dateOfBirth: dateOfBirth.present ? dateOfBirth.value : this.dateOfBirth,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  PersonProfile copyWithCompanion(PersonProfilesCompanion data) {
+    return PersonProfile(
+      id: data.id.present ? data.id.value : this.id,
+      displayName:
+          data.displayName.present ? data.displayName.value : this.displayName,
+      relationship: data.relationship.present
+          ? data.relationship.value
+          : this.relationship,
+      sex: data.sex.present ? data.sex.value : this.sex,
+      dateOfBirth:
+          data.dateOfBirth.present ? data.dateOfBirth.value : this.dateOfBirth,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PersonProfile(')
+          ..write('id: $id, ')
+          ..write('displayName: $displayName, ')
+          ..write('relationship: $relationship, ')
+          ..write('sex: $sex, ')
+          ..write('dateOfBirth: $dateOfBirth, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, displayName, relationship, sex, dateOfBirth, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PersonProfile &&
+          other.id == this.id &&
+          other.displayName == this.displayName &&
+          other.relationship == this.relationship &&
+          other.sex == this.sex &&
+          other.dateOfBirth == this.dateOfBirth &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
+  final Value<int> id;
+  final Value<String> displayName;
+  final Value<String> relationship;
+  final Value<String?> sex;
+  final Value<DateTime?> dateOfBirth;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const PersonProfilesCompanion({
+    this.id = const Value.absent(),
+    this.displayName = const Value.absent(),
+    this.relationship = const Value.absent(),
+    this.sex = const Value.absent(),
+    this.dateOfBirth = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  PersonProfilesCompanion.insert({
+    this.id = const Value.absent(),
+    this.displayName = const Value.absent(),
+    this.relationship = const Value.absent(),
+    this.sex = const Value.absent(),
+    this.dateOfBirth = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  })  : createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<PersonProfile> custom({
+    Expression<int>? id,
+    Expression<String>? displayName,
+    Expression<String>? relationship,
+    Expression<String>? sex,
+    Expression<DateTime>? dateOfBirth,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (displayName != null) 'display_name': displayName,
+      if (relationship != null) 'relationship': relationship,
+      if (sex != null) 'sex': sex,
+      if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  PersonProfilesCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? displayName,
+      Value<String>? relationship,
+      Value<String?>? sex,
+      Value<DateTime?>? dateOfBirth,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt}) {
+    return PersonProfilesCompanion(
+      id: id ?? this.id,
+      displayName: displayName ?? this.displayName,
+      relationship: relationship ?? this.relationship,
+      sex: sex ?? this.sex,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (displayName.present) {
+      map['display_name'] = Variable<String>(displayName.value);
+    }
+    if (relationship.present) {
+      map['relationship'] = Variable<String>(relationship.value);
+    }
+    if (sex.present) {
+      map['sex'] = Variable<String>(sex.value);
+    }
+    if (dateOfBirth.present) {
+      map['date_of_birth'] = Variable<DateTime>(dateOfBirth.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PersonProfilesCompanion(')
+          ..write('id: $id, ')
+          ..write('displayName: $displayName, ')
+          ..write('relationship: $relationship, ')
+          ..write('sex: $sex, ')
+          ..write('dateOfBirth: $dateOfBirth, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2891,6 +3870,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DiseasesTable diseases = $DiseasesTable(this);
   late final $MedicationsTable medications = $MedicationsTable(this);
   late final $UserProfileTable userProfile = $UserProfileTable(this);
+  late final $PersonProfilesTable personProfiles = $PersonProfilesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2901,19 +3881,27 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         medicalReports,
         diseases,
         medications,
-        userProfile
+        userProfile,
+        personProfiles
       ];
 }
 
 typedef $$HealthMetricsTableCreateCompanionBuilder = HealthMetricsCompanion
     Function({
   Value<int> id,
+  Value<int> profileId,
   required String metricId,
   required String metricName,
   required double value,
+  Value<String?> rawValue,
+  Value<double?> numericValue,
   required String unit,
+  Value<double?> canonicalValue,
+  Value<String?> canonicalUnit,
   Value<double?> referenceMin,
   Value<double?> referenceMax,
+  Value<String?> referenceRangeRaw,
+  Value<String?> sourceAbnormalFlag,
   required String status,
   required String bodySystem,
   required DateTime measuredAt,
@@ -2924,16 +3912,26 @@ typedef $$HealthMetricsTableCreateCompanionBuilder = HealthMetricsCompanion
   Value<String?> rawName,
   Value<String> matchType,
   Value<double?> recognitionConfidence,
+  Value<String> verificationStatus,
+  Value<int?> sourcePage,
+  Value<String?> sourceBoundingBox,
 });
 typedef $$HealthMetricsTableUpdateCompanionBuilder = HealthMetricsCompanion
     Function({
   Value<int> id,
+  Value<int> profileId,
   Value<String> metricId,
   Value<String> metricName,
   Value<double> value,
+  Value<String?> rawValue,
+  Value<double?> numericValue,
   Value<String> unit,
+  Value<double?> canonicalValue,
+  Value<String?> canonicalUnit,
   Value<double?> referenceMin,
   Value<double?> referenceMax,
+  Value<String?> referenceRangeRaw,
+  Value<String?> sourceAbnormalFlag,
   Value<String> status,
   Value<String> bodySystem,
   Value<DateTime> measuredAt,
@@ -2944,6 +3942,9 @@ typedef $$HealthMetricsTableUpdateCompanionBuilder = HealthMetricsCompanion
   Value<String?> rawName,
   Value<String> matchType,
   Value<double?> recognitionConfidence,
+  Value<String> verificationStatus,
+  Value<int?> sourcePage,
+  Value<String?> sourceBoundingBox,
 });
 
 class $$HealthMetricsTableFilterComposer
@@ -2958,6 +3959,9 @@ class $$HealthMetricsTableFilterComposer
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get metricId => $composableBuilder(
       column: $table.metricId, builder: (column) => ColumnFilters(column));
 
@@ -2967,14 +3971,35 @@ class $$HealthMetricsTableFilterComposer
   ColumnFilters<double> get value => $composableBuilder(
       column: $table.value, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get rawValue => $composableBuilder(
+      column: $table.rawValue, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get numericValue => $composableBuilder(
+      column: $table.numericValue, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get unit => $composableBuilder(
       column: $table.unit, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get canonicalValue => $composableBuilder(
+      column: $table.canonicalValue,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get canonicalUnit => $composableBuilder(
+      column: $table.canonicalUnit, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get referenceMin => $composableBuilder(
       column: $table.referenceMin, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get referenceMax => $composableBuilder(
       column: $table.referenceMax, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get referenceRangeRaw => $composableBuilder(
+      column: $table.referenceRangeRaw,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceAbnormalFlag => $composableBuilder(
+      column: $table.sourceAbnormalFlag,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnFilters(column));
@@ -3006,6 +4031,17 @@ class $$HealthMetricsTableFilterComposer
   ColumnFilters<double> get recognitionConfidence => $composableBuilder(
       column: $table.recognitionConfidence,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get verificationStatus => $composableBuilder(
+      column: $table.verificationStatus,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sourcePage => $composableBuilder(
+      column: $table.sourcePage, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceBoundingBox => $composableBuilder(
+      column: $table.sourceBoundingBox,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$HealthMetricsTableOrderingComposer
@@ -3020,6 +4056,9 @@ class $$HealthMetricsTableOrderingComposer
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get metricId => $composableBuilder(
       column: $table.metricId, builder: (column) => ColumnOrderings(column));
 
@@ -3029,8 +4068,23 @@ class $$HealthMetricsTableOrderingComposer
   ColumnOrderings<double> get value => $composableBuilder(
       column: $table.value, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get rawValue => $composableBuilder(
+      column: $table.rawValue, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get numericValue => $composableBuilder(
+      column: $table.numericValue,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get unit => $composableBuilder(
       column: $table.unit, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get canonicalValue => $composableBuilder(
+      column: $table.canonicalValue,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get canonicalUnit => $composableBuilder(
+      column: $table.canonicalUnit,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<double> get referenceMin => $composableBuilder(
       column: $table.referenceMin,
@@ -3038,6 +4092,14 @@ class $$HealthMetricsTableOrderingComposer
 
   ColumnOrderings<double> get referenceMax => $composableBuilder(
       column: $table.referenceMax,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get referenceRangeRaw => $composableBuilder(
+      column: $table.referenceRangeRaw,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceAbnormalFlag => $composableBuilder(
+      column: $table.sourceAbnormalFlag,
       builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get status => $composableBuilder(
@@ -3070,6 +4132,17 @@ class $$HealthMetricsTableOrderingComposer
   ColumnOrderings<double> get recognitionConfidence => $composableBuilder(
       column: $table.recognitionConfidence,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get verificationStatus => $composableBuilder(
+      column: $table.verificationStatus,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sourcePage => $composableBuilder(
+      column: $table.sourcePage, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceBoundingBox => $composableBuilder(
+      column: $table.sourceBoundingBox,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$HealthMetricsTableAnnotationComposer
@@ -3084,6 +4157,9 @@ class $$HealthMetricsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<int> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
+
   GeneratedColumn<String> get metricId =>
       $composableBuilder(column: $table.metricId, builder: (column) => column);
 
@@ -3093,14 +4169,32 @@ class $$HealthMetricsTableAnnotationComposer
   GeneratedColumn<double> get value =>
       $composableBuilder(column: $table.value, builder: (column) => column);
 
+  GeneratedColumn<String> get rawValue =>
+      $composableBuilder(column: $table.rawValue, builder: (column) => column);
+
+  GeneratedColumn<double> get numericValue => $composableBuilder(
+      column: $table.numericValue, builder: (column) => column);
+
   GeneratedColumn<String> get unit =>
       $composableBuilder(column: $table.unit, builder: (column) => column);
+
+  GeneratedColumn<double> get canonicalValue => $composableBuilder(
+      column: $table.canonicalValue, builder: (column) => column);
+
+  GeneratedColumn<String> get canonicalUnit => $composableBuilder(
+      column: $table.canonicalUnit, builder: (column) => column);
 
   GeneratedColumn<double> get referenceMin => $composableBuilder(
       column: $table.referenceMin, builder: (column) => column);
 
   GeneratedColumn<double> get referenceMax => $composableBuilder(
       column: $table.referenceMax, builder: (column) => column);
+
+  GeneratedColumn<String> get referenceRangeRaw => $composableBuilder(
+      column: $table.referenceRangeRaw, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceAbnormalFlag => $composableBuilder(
+      column: $table.sourceAbnormalFlag, builder: (column) => column);
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
@@ -3131,6 +4225,15 @@ class $$HealthMetricsTableAnnotationComposer
 
   GeneratedColumn<double> get recognitionConfidence => $composableBuilder(
       column: $table.recognitionConfidence, builder: (column) => column);
+
+  GeneratedColumn<String> get verificationStatus => $composableBuilder(
+      column: $table.verificationStatus, builder: (column) => column);
+
+  GeneratedColumn<int> get sourcePage => $composableBuilder(
+      column: $table.sourcePage, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceBoundingBox => $composableBuilder(
+      column: $table.sourceBoundingBox, builder: (column) => column);
 }
 
 class $$HealthMetricsTableTableManager extends RootTableManager<
@@ -3160,12 +4263,19 @@ class $$HealthMetricsTableTableManager extends RootTableManager<
               $$HealthMetricsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
             Value<String> metricId = const Value.absent(),
             Value<String> metricName = const Value.absent(),
             Value<double> value = const Value.absent(),
+            Value<String?> rawValue = const Value.absent(),
+            Value<double?> numericValue = const Value.absent(),
             Value<String> unit = const Value.absent(),
+            Value<double?> canonicalValue = const Value.absent(),
+            Value<String?> canonicalUnit = const Value.absent(),
             Value<double?> referenceMin = const Value.absent(),
             Value<double?> referenceMax = const Value.absent(),
+            Value<String?> referenceRangeRaw = const Value.absent(),
+            Value<String?> sourceAbnormalFlag = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<String> bodySystem = const Value.absent(),
             Value<DateTime> measuredAt = const Value.absent(),
@@ -3176,15 +4286,25 @@ class $$HealthMetricsTableTableManager extends RootTableManager<
             Value<String?> rawName = const Value.absent(),
             Value<String> matchType = const Value.absent(),
             Value<double?> recognitionConfidence = const Value.absent(),
+            Value<String> verificationStatus = const Value.absent(),
+            Value<int?> sourcePage = const Value.absent(),
+            Value<String?> sourceBoundingBox = const Value.absent(),
           }) =>
               HealthMetricsCompanion(
             id: id,
+            profileId: profileId,
             metricId: metricId,
             metricName: metricName,
             value: value,
+            rawValue: rawValue,
+            numericValue: numericValue,
             unit: unit,
+            canonicalValue: canonicalValue,
+            canonicalUnit: canonicalUnit,
             referenceMin: referenceMin,
             referenceMax: referenceMax,
+            referenceRangeRaw: referenceRangeRaw,
+            sourceAbnormalFlag: sourceAbnormalFlag,
             status: status,
             bodySystem: bodySystem,
             measuredAt: measuredAt,
@@ -3195,15 +4315,25 @@ class $$HealthMetricsTableTableManager extends RootTableManager<
             rawName: rawName,
             matchType: matchType,
             recognitionConfidence: recognitionConfidence,
+            verificationStatus: verificationStatus,
+            sourcePage: sourcePage,
+            sourceBoundingBox: sourceBoundingBox,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
             required String metricId,
             required String metricName,
             required double value,
+            Value<String?> rawValue = const Value.absent(),
+            Value<double?> numericValue = const Value.absent(),
             required String unit,
+            Value<double?> canonicalValue = const Value.absent(),
+            Value<String?> canonicalUnit = const Value.absent(),
             Value<double?> referenceMin = const Value.absent(),
             Value<double?> referenceMax = const Value.absent(),
+            Value<String?> referenceRangeRaw = const Value.absent(),
+            Value<String?> sourceAbnormalFlag = const Value.absent(),
             required String status,
             required String bodySystem,
             required DateTime measuredAt,
@@ -3214,15 +4344,25 @@ class $$HealthMetricsTableTableManager extends RootTableManager<
             Value<String?> rawName = const Value.absent(),
             Value<String> matchType = const Value.absent(),
             Value<double?> recognitionConfidence = const Value.absent(),
+            Value<String> verificationStatus = const Value.absent(),
+            Value<int?> sourcePage = const Value.absent(),
+            Value<String?> sourceBoundingBox = const Value.absent(),
           }) =>
               HealthMetricsCompanion.insert(
             id: id,
+            profileId: profileId,
             metricId: metricId,
             metricName: metricName,
             value: value,
+            rawValue: rawValue,
+            numericValue: numericValue,
             unit: unit,
+            canonicalValue: canonicalValue,
+            canonicalUnit: canonicalUnit,
             referenceMin: referenceMin,
             referenceMax: referenceMax,
+            referenceRangeRaw: referenceRangeRaw,
+            sourceAbnormalFlag: sourceAbnormalFlag,
             status: status,
             bodySystem: bodySystem,
             measuredAt: measuredAt,
@@ -3233,6 +4373,9 @@ class $$HealthMetricsTableTableManager extends RootTableManager<
             rawName: rawName,
             matchType: matchType,
             recognitionConfidence: recognitionConfidence,
+            verificationStatus: verificationStatus,
+            sourcePage: sourcePage,
+            sourceBoundingBox: sourceBoundingBox,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -3259,6 +4402,7 @@ typedef $$HealthMetricsTableProcessedTableManager = ProcessedTableManager<
 typedef $$DailyHealthRecordsTableCreateCompanionBuilder
     = DailyHealthRecordsCompanion Function({
   Value<int> id,
+  Value<int> profileId,
   required String type,
   required double value1,
   Value<double?> value2,
@@ -3271,6 +4415,7 @@ typedef $$DailyHealthRecordsTableCreateCompanionBuilder
 typedef $$DailyHealthRecordsTableUpdateCompanionBuilder
     = DailyHealthRecordsCompanion Function({
   Value<int> id,
+  Value<int> profileId,
   Value<String> type,
   Value<double> value1,
   Value<double?> value2,
@@ -3292,6 +4437,9 @@ class $$DailyHealthRecordsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnFilters(column));
@@ -3330,6 +4478,9 @@ class $$DailyHealthRecordsTableOrderingComposer
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnOrderings(column));
 
@@ -3366,6 +4517,9 @@ class $$DailyHealthRecordsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
@@ -3421,6 +4575,7 @@ class $$DailyHealthRecordsTableTableManager extends RootTableManager<
                   $db: db, $table: table),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
             Value<String> type = const Value.absent(),
             Value<double> value1 = const Value.absent(),
             Value<double?> value2 = const Value.absent(),
@@ -3432,6 +4587,7 @@ class $$DailyHealthRecordsTableTableManager extends RootTableManager<
           }) =>
               DailyHealthRecordsCompanion(
             id: id,
+            profileId: profileId,
             type: type,
             value1: value1,
             value2: value2,
@@ -3443,6 +4599,7 @@ class $$DailyHealthRecordsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
             required String type,
             required double value1,
             Value<double?> value2 = const Value.absent(),
@@ -3454,6 +4611,7 @@ class $$DailyHealthRecordsTableTableManager extends RootTableManager<
           }) =>
               DailyHealthRecordsCompanion.insert(
             id: id,
+            profileId: profileId,
             type: type,
             value1: value1,
             value2: value2,
@@ -3488,6 +4646,7 @@ typedef $$DailyHealthRecordsTableProcessedTableManager = ProcessedTableManager<
 typedef $$MedicalReportsTableCreateCompanionBuilder = MedicalReportsCompanion
     Function({
   Value<int> id,
+  Value<int> profileId,
   required String hospitalName,
   required DateTime reportDate,
   required String reportType,
@@ -3499,6 +4658,7 @@ typedef $$MedicalReportsTableCreateCompanionBuilder = MedicalReportsCompanion
 typedef $$MedicalReportsTableUpdateCompanionBuilder = MedicalReportsCompanion
     Function({
   Value<int> id,
+  Value<int> profileId,
   Value<String> hospitalName,
   Value<DateTime> reportDate,
   Value<String> reportType,
@@ -3519,6 +4679,9 @@ class $$MedicalReportsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get hospitalName => $composableBuilder(
       column: $table.hospitalName, builder: (column) => ColumnFilters(column));
@@ -3556,6 +4719,9 @@ class $$MedicalReportsTableOrderingComposer
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get hospitalName => $composableBuilder(
       column: $table.hospitalName,
       builder: (column) => ColumnOrderings(column));
@@ -3592,6 +4758,9 @@ class $$MedicalReportsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
 
   GeneratedColumn<String> get hospitalName => $composableBuilder(
       column: $table.hospitalName, builder: (column) => column);
@@ -3643,6 +4812,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
               $$MedicalReportsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
             Value<String> hospitalName = const Value.absent(),
             Value<DateTime> reportDate = const Value.absent(),
             Value<String> reportType = const Value.absent(),
@@ -3653,6 +4823,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
           }) =>
               MedicalReportsCompanion(
             id: id,
+            profileId: profileId,
             hospitalName: hospitalName,
             reportDate: reportDate,
             reportType: reportType,
@@ -3663,6 +4834,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
             required String hospitalName,
             required DateTime reportDate,
             required String reportType,
@@ -3673,6 +4845,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
           }) =>
               MedicalReportsCompanion.insert(
             id: id,
+            profileId: profileId,
             hospitalName: hospitalName,
             reportDate: reportDate,
             reportType: reportType,
@@ -3705,6 +4878,7 @@ typedef $$MedicalReportsTableProcessedTableManager = ProcessedTableManager<
     PrefetchHooks Function()>;
 typedef $$DiseasesTableCreateCompanionBuilder = DiseasesCompanion Function({
   Value<int> id,
+  Value<int> profileId,
   required String name,
   Value<DateTime?> foundDate,
   Value<String> status,
@@ -3713,6 +4887,7 @@ typedef $$DiseasesTableCreateCompanionBuilder = DiseasesCompanion Function({
 });
 typedef $$DiseasesTableUpdateCompanionBuilder = DiseasesCompanion Function({
   Value<int> id,
+  Value<int> profileId,
   Value<String> name,
   Value<DateTime?> foundDate,
   Value<String> status,
@@ -3731,6 +4906,9 @@ class $$DiseasesTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
@@ -3760,6 +4938,9 @@ class $$DiseasesTableOrderingComposer
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
@@ -3787,6 +4968,9 @@ class $$DiseasesTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -3828,6 +5012,7 @@ class $$DiseasesTableTableManager extends RootTableManager<
               $$DiseasesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<DateTime?> foundDate = const Value.absent(),
             Value<String> status = const Value.absent(),
@@ -3836,6 +5021,7 @@ class $$DiseasesTableTableManager extends RootTableManager<
           }) =>
               DiseasesCompanion(
             id: id,
+            profileId: profileId,
             name: name,
             foundDate: foundDate,
             status: status,
@@ -3844,6 +5030,7 @@ class $$DiseasesTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
             required String name,
             Value<DateTime?> foundDate = const Value.absent(),
             Value<String> status = const Value.absent(),
@@ -3852,6 +5039,7 @@ class $$DiseasesTableTableManager extends RootTableManager<
           }) =>
               DiseasesCompanion.insert(
             id: id,
+            profileId: profileId,
             name: name,
             foundDate: foundDate,
             status: status,
@@ -3880,6 +5068,7 @@ typedef $$DiseasesTableProcessedTableManager = ProcessedTableManager<
 typedef $$MedicationsTableCreateCompanionBuilder = MedicationsCompanion
     Function({
   Value<int> id,
+  Value<int> profileId,
   required String name,
   Value<String?> dosage,
   Value<String?> dosageUnit,
@@ -3893,6 +5082,7 @@ typedef $$MedicationsTableCreateCompanionBuilder = MedicationsCompanion
 typedef $$MedicationsTableUpdateCompanionBuilder = MedicationsCompanion
     Function({
   Value<int> id,
+  Value<int> profileId,
   Value<String> name,
   Value<String?> dosage,
   Value<String?> dosageUnit,
@@ -3915,6 +5105,9 @@ class $$MedicationsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
@@ -3956,6 +5149,9 @@ class $$MedicationsTableOrderingComposer
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
@@ -3995,6 +5191,9 @@ class $$MedicationsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -4048,6 +5247,7 @@ class $$MedicationsTableTableManager extends RootTableManager<
               $$MedicationsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String?> dosage = const Value.absent(),
             Value<String?> dosageUnit = const Value.absent(),
@@ -4060,6 +5260,7 @@ class $$MedicationsTableTableManager extends RootTableManager<
           }) =>
               MedicationsCompanion(
             id: id,
+            profileId: profileId,
             name: name,
             dosage: dosage,
             dosageUnit: dosageUnit,
@@ -4072,6 +5273,7 @@ class $$MedicationsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
             required String name,
             Value<String?> dosage = const Value.absent(),
             Value<String?> dosageUnit = const Value.absent(),
@@ -4084,6 +5286,7 @@ class $$MedicationsTableTableManager extends RootTableManager<
           }) =>
               MedicationsCompanion.insert(
             id: id,
+            profileId: profileId,
             name: name,
             dosage: dosage,
             dosageUnit: dosageUnit,
@@ -4301,6 +5504,205 @@ typedef $$UserProfileTableProcessedTableManager = ProcessedTableManager<
     ),
     UserProfileData,
     PrefetchHooks Function()>;
+typedef $$PersonProfilesTableCreateCompanionBuilder = PersonProfilesCompanion
+    Function({
+  Value<int> id,
+  Value<String> displayName,
+  Value<String> relationship,
+  Value<String?> sex,
+  Value<DateTime?> dateOfBirth,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+});
+typedef $$PersonProfilesTableUpdateCompanionBuilder = PersonProfilesCompanion
+    Function({
+  Value<int> id,
+  Value<String> displayName,
+  Value<String> relationship,
+  Value<String?> sex,
+  Value<DateTime?> dateOfBirth,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+
+class $$PersonProfilesTableFilterComposer
+    extends Composer<_$AppDatabase, $PersonProfilesTable> {
+  $$PersonProfilesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get displayName => $composableBuilder(
+      column: $table.displayName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get relationship => $composableBuilder(
+      column: $table.relationship, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sex => $composableBuilder(
+      column: $table.sex, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get dateOfBirth => $composableBuilder(
+      column: $table.dateOfBirth, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$PersonProfilesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PersonProfilesTable> {
+  $$PersonProfilesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get displayName => $composableBuilder(
+      column: $table.displayName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get relationship => $composableBuilder(
+      column: $table.relationship,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sex => $composableBuilder(
+      column: $table.sex, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get dateOfBirth => $composableBuilder(
+      column: $table.dateOfBirth, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$PersonProfilesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PersonProfilesTable> {
+  $$PersonProfilesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get displayName => $composableBuilder(
+      column: $table.displayName, builder: (column) => column);
+
+  GeneratedColumn<String> get relationship => $composableBuilder(
+      column: $table.relationship, builder: (column) => column);
+
+  GeneratedColumn<String> get sex =>
+      $composableBuilder(column: $table.sex, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dateOfBirth => $composableBuilder(
+      column: $table.dateOfBirth, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$PersonProfilesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $PersonProfilesTable,
+    PersonProfile,
+    $$PersonProfilesTableFilterComposer,
+    $$PersonProfilesTableOrderingComposer,
+    $$PersonProfilesTableAnnotationComposer,
+    $$PersonProfilesTableCreateCompanionBuilder,
+    $$PersonProfilesTableUpdateCompanionBuilder,
+    (
+      PersonProfile,
+      BaseReferences<_$AppDatabase, $PersonProfilesTable, PersonProfile>
+    ),
+    PersonProfile,
+    PrefetchHooks Function()> {
+  $$PersonProfilesTableTableManager(
+      _$AppDatabase db, $PersonProfilesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PersonProfilesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PersonProfilesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PersonProfilesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> displayName = const Value.absent(),
+            Value<String> relationship = const Value.absent(),
+            Value<String?> sex = const Value.absent(),
+            Value<DateTime?> dateOfBirth = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              PersonProfilesCompanion(
+            id: id,
+            displayName: displayName,
+            relationship: relationship,
+            sex: sex,
+            dateOfBirth: dateOfBirth,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> displayName = const Value.absent(),
+            Value<String> relationship = const Value.absent(),
+            Value<String?> sex = const Value.absent(),
+            Value<DateTime?> dateOfBirth = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+          }) =>
+              PersonProfilesCompanion.insert(
+            id: id,
+            displayName: displayName,
+            relationship: relationship,
+            sex: sex,
+            dateOfBirth: dateOfBirth,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$PersonProfilesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $PersonProfilesTable,
+    PersonProfile,
+    $$PersonProfilesTableFilterComposer,
+    $$PersonProfilesTableOrderingComposer,
+    $$PersonProfilesTableAnnotationComposer,
+    $$PersonProfilesTableCreateCompanionBuilder,
+    $$PersonProfilesTableUpdateCompanionBuilder,
+    (
+      PersonProfile,
+      BaseReferences<_$AppDatabase, $PersonProfilesTable, PersonProfile>
+    ),
+    PersonProfile,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4317,4 +5719,6 @@ class $AppDatabaseManager {
       $$MedicationsTableTableManager(_db, _db.medications);
   $$UserProfileTableTableManager get userProfile =>
       $$UserProfileTableTableManager(_db, _db.userProfile);
+  $$PersonProfilesTableTableManager get personProfiles =>
+      $$PersonProfilesTableTableManager(_db, _db.personProfiles);
 }

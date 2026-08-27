@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../utils/image_storage.dart';
+import 'manual_metric_entry_page.dart';
 import 'report_recognition_flow.dart';
 
 /// 报告导入页（上传）：选择化验单图片 -> 识别（走共享 [startReportRecognitionFlow]）。
@@ -37,10 +38,9 @@ class _ReportImportPageState extends State<ReportImportPage> {
   }
 
   void _goManual() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-          const SnackBar(content: Text('可回到「添加」页使用手工录入')));
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ManualMetricEntryPage()),
+    );
   }
 
   @override
@@ -106,8 +106,7 @@ class _ReportImportPageState extends State<ReportImportPage> {
                             ),
                             const SizedBox(width: 8),
                             TextButton(
-                              onPressed: () =>
-                                  setState(() => _image = null),
+                              onPressed: () => setState(() => _image = null),
                               child: const Text('移除'),
                             ),
                           ],

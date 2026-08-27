@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -9,32 +8,29 @@ import 'pages/body_page.dart';
 import 'pages/home_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/records_page.dart';
+import 'services/cloud_backup_service.dart';
+import 'services/identity_service.dart';
+import 'services/local_backup_service.dart';
 import 'services/report_ocr_service.dart';
-import 'services/report_recognition_service.dart';
 
 /// 全局仓库实例：页面通过它读写本地数据库。
 /// 在 main() 里初始化，属于简单依赖注入，不使用状态管理框架。
 HealthRepository? appRepository;
 
-/// 全局报告识别服务。
-/// 默认使用 Mock（跑通全流程、无真实网络）。
-/// Debug 阶段可用 `flutter run --dart-define=REPORT_AI=remote` 切换 Remote（需后端接入后）；
-/// 普通用户构建不含此开关，也不会看到任何开发选项。
-ReportRecognitionService reportRecognitionService =
-    _buildRecognitionService();
-
-ReportRecognitionService _buildRecognitionService() {
-  const mode = String.fromEnvironment('REPORT_AI');
-  if (mode == 'remote' && !kReleaseMode) {
-    return RemoteReportRecognitionService();
-  }
-  return MockReportRecognitionService();
-}
-
 /// 全局 OCR 服务（V0.4C-1）：上传图片到自有后端做真实百度 OCR。
 /// 后端地址由编译期变量 REPORT_API_BASE 提供；未配置时 isConfigured=false，
-/// 前端会回退到 Mock 结构化流程。
+/// 前端会提示未配置，不再回退到 Mock 假数据。
 ReportOcrService reportOcrService = RemoteOcrService();
+
+/// V0.5：匿名身份服务（首次启动自动创建匿名用户并安全保存 token/恢复码）。
+final IdentityService identityService = IdentityService();
+
+/// V0.5：云端备份/恢复客户端（需要自建后端，进阶可选项）。
+final CloudBackupService cloudBackupService =
+    CloudBackupService(identity: identityService);
+
+/// V0.5.1：本地完整备份（zip 打包 + 系统分享面板），免服务器，推荐默认路径。
+final LocalBackupService localBackupService = LocalBackupService();
 
 /// 全局数据库实例（可复用同一连接）
 AppDatabase? appDatabase;
@@ -70,10 +66,17 @@ Future<void> main() async {
     // 执行一次真实查询，强制触发 drift 惰性连接；若打开失败则进入 catch，
     // 使 appRepository 保持为 null，页面显示「数据库未就绪」而不是崩溃。
     await db.customSelect('SELECT 1').get();
-  } catch (_) {
+    await appRepository!.ensureDefaultPersonProfile();
+  } catch (e, st) {
+    debugPrint('AppDatabase init failed: $e\n$st');
     appDatabase = null;
     appRepository = null;
   }
+  // V0.5 云端备份/匿名账号在 v1 精简版暂不启用（UI 入口已隐藏，见 profile_page.dart），
+  // 故这里不再启动时自动调用 /api/anonymous/register：
+  // 1) 避免每次启动都打一个后端根本没挂载对应路由（v1 后端只保留 OCR 接口）的请求；
+  // 2) identityService 本身仍保留、未删除，v2 重新启用云备份时把这行加回来即可。
+  // unawaited(identityService.ensureIdentity().then((_) {}, onError: (_) {}));
   runApp(const HealthArchiveApp());
 }
 

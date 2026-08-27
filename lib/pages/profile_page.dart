@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../data/app_database.dart';
 import '../main.dart';
-import '../utils/format.dart';
+import 'about_page.dart';
 import 'condition_page.dart';
 import 'medication_page.dart';
-import 'placeholder_page.dart';
 import 'privacy_page.dart';
 import 'profile_edit_page.dart';
 
@@ -39,8 +37,8 @@ class _ProfilePageState extends State<ProfilePage> {
     if (mounted) {
       setState(() {
         if (profile != null) {
-          _nickname = (profile.nickname ?? '').isEmpty ? '未设置昵称' : profile.nickname!;
-          _gender = profile.gender ?? '';
+          _nickname = profile.nickname.isEmpty ? '未设置昵称' : profile.nickname;
+          _gender = profile.gender;
           _heightCm = profile.heightCm;
         }
         _diseaseCount = diseases.length;
@@ -52,12 +50,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _open(Widget page) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
     _load();
-  }
-
-  void _openPlaceholder(BuildContext context, String title) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => PlaceholderPage(title: title)),
-    );
   }
 
   @override
@@ -125,7 +117,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   IconButton(
                     onPressed: () => _open(const ProfileEditPage()),
-                    icon: const Icon(Icons.edit_outlined, color: AppColors.textSecondary),
+                    icon: const Icon(Icons.edit_outlined,
+                        color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -152,7 +145,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           _SettingTile(
             title: '关于健康档案',
-            onTap: () => _openPlaceholder(context, '关于健康档案'),
+            onTap: () => _open(const AboutPage()),
           ),
         ],
       ),

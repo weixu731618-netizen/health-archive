@@ -2,7 +2,6 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
-import '../data/health_repository.dart';
 import '../main.dart';
 import '../utils/format.dart';
 
@@ -53,8 +52,12 @@ class _ConditionPageState extends State<ConditionPage> {
       builder: (ctx) => AlertDialog(
         title: const Text('删除这条疾病史？'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('删除')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('删除')),
         ],
       ),
     );
@@ -79,7 +82,8 @@ class _ConditionPageState extends State<ConditionPage> {
           : _diseases.isEmpty
               ? const Center(
                   child: Text('暂无疾病史，点击右下角 + 添加',
-                      style: TextStyle(fontSize: 14, color: AppColors.textSecondary)))
+                      style: TextStyle(
+                          fontSize: 14, color: AppColors.textSecondary)))
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
                   itemCount: _diseases.length,
@@ -87,17 +91,21 @@ class _ConditionPageState extends State<ConditionPage> {
                     final d = _diseases[i];
                     return Card(
                       child: ListTile(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        title: Text(d.name, style: const TextStyle(fontSize: 15)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        title:
+                            Text(d.name, style: const TextStyle(fontSize: 15)),
                         subtitle: Text(
                           '状态：${d.status}'
                           '${d.foundDate == null ? '' : ' · 发现于 ${formatDate(d.foundDate!)}'}'
                           '${(d.notes ?? '').isEmpty ? '' : ' · ${d.notes}'}',
-                          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                              fontSize: 13, color: AppColors.textSecondary),
                         ),
                         onTap: () => _addOrEdit(d),
                         trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, color: AppColors.abnormal),
+                          icon: const Icon(Icons.delete_outline,
+                              color: AppColors.abnormal),
                           onPressed: () => _delete(d),
                         ),
                       ),
@@ -156,9 +164,8 @@ class _DiseaseEditPageState extends State<_DiseaseEditPage> {
         name: name,
         foundDate: drift.Value(_foundDate),
         status: _status,
-        notes: drift.Value(_notesCtrl.text.trim().isEmpty
-            ? null
-            : _notesCtrl.text.trim()),
+        notes: drift.Value(
+            _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim()),
       );
       await repo.updateDisease(updated);
     } else {
@@ -184,7 +191,8 @@ class _DiseaseEditPageState extends State<_DiseaseEditPage> {
             TextFormField(
               controller: _nameCtrl,
               decoration: _input('疾病名称'),
-              validator: (v) => (v == null || v.trim().isEmpty) ? '请输入疾病名称' : null,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '请输入疾病名称' : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -210,11 +218,13 @@ class _DiseaseEditPageState extends State<_DiseaseEditPage> {
             const SizedBox(height: 16),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.calendar_today, color: AppColors.textSecondary),
+              leading: const Icon(Icons.calendar_today,
+                  color: AppColors.textSecondary),
               title: const Text('首次发现日期'),
               trailing: Text(
                 _foundDate == null ? '未填' : formatDate(_foundDate!),
-                style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+                style:
+                    const TextStyle(fontSize: 15, color: AppColors.textPrimary),
               ),
               onTap: () async {
                 final picked = await showDatePicker(
@@ -229,7 +239,8 @@ class _DiseaseEditPageState extends State<_DiseaseEditPage> {
             const SizedBox(height: 20),
             FilledButton(
               onPressed: _save,
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+              style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14)),
               child: const Text('保存', style: TextStyle(fontSize: 16)),
             ),
           ],

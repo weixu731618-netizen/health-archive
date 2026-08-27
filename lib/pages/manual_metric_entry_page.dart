@@ -87,8 +87,8 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
                     padding: EdgeInsets.only(top: 4, bottom: 8),
                     child: Text(
                       '手动添加化验或检查指标',
-                      style:
-                          TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                      style: TextStyle(
+                          fontSize: 14, color: AppColors.textSecondary),
                     ),
                   ),
                   // 选择指标（编辑模式禁止更换指标类型，避免数据错乱）
@@ -99,6 +99,15 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
                         : '${_definition!.metricName}  （${_definition!.bodySystem} · ${_definition!.unit}）',
                     onTap: _isEditing ? _pickMetricBlocked : _pickMetric,
                   ),
+                  if (!_isEditing)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _createCustomMetric,
+                        icon: const Icon(Icons.add_circle_outline),
+                        label: const Text('字典里没有，新增自定义指标'),
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _valueCtrl,
@@ -170,8 +179,7 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('保存记录',
-                        style: TextStyle(fontSize: 16)),
+                    child: const Text('保存记录', style: TextStyle(fontSize: 16)),
                   ),
                 ],
               ),
@@ -192,16 +200,31 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
   Future<void> _pickMetric() async {
     final def = await showMetricSelector(context);
     if (def != null) {
-      setState(() {
-        _definition = def;
-        _unitCtrl.text = def.unit;
-        if (_minCtrl.text.isEmpty && def.typicalRange.min != null) {
-          _minCtrl.text = _fmtNum(def.typicalRange.min!);
-        }
-        if (_maxCtrl.text.isEmpty && def.typicalRange.max != null) {
-          _maxCtrl.text = _fmtNum(def.typicalRange.max!);
-        }
-      });
+      _applyMetricDefinition(def);
+    }
+  }
+
+  void _applyMetricDefinition(MetricDefinition def) {
+    setState(() {
+      _definition = def;
+      _unitCtrl.text = def.unit;
+      if (_minCtrl.text.isEmpty && def.typicalRange.min != null) {
+        _minCtrl.text = _fmtNum(def.typicalRange.min!);
+      }
+      if (_maxCtrl.text.isEmpty && def.typicalRange.max != null) {
+        _maxCtrl.text = _fmtNum(def.typicalRange.max!);
+      }
+    });
+  }
+
+  Future<void> _createCustomMetric() async {
+    final def = await showDialog<MetricDefinition>(
+      context: context,
+      builder: (_) => const _CustomMetricDialog(),
+    );
+
+    if (def != null) {
+      _applyMetricDefinition(def);
     }
   }
 
@@ -257,9 +280,8 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
           referenceMax: drift.Value(max),
           status: status,
           measuredAt: _date,
-          notes: drift.Value(_notesCtrl.text.trim().isEmpty
-              ? null
-              : _notesCtrl.text.trim()),
+          notes: drift.Value(
+              _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim()),
         );
         await repo.updateMetric(updated);
       } else {
@@ -281,7 +303,7 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
         );
       }
 
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text('保存成功')));
@@ -289,6 +311,90 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+}
+
+class _CustomMetricDialog extends StatefulWidget {
+  const _CustomMetricDialog();
+
+  @override
+  State<_CustomMetricDialog> createState() => _CustomMetricDialogState();
+}
+
+class _CustomMetricDialogState extends State<_CustomMetricDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _unitCtrl = TextEditingController();
+  final _systemCtrl = TextEditingController(text: '其他');
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _unitCtrl.dispose();
+    _systemCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('新增自定义指标'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _nameCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: '指标名称',
+                hintText: '例如 C反应蛋白',
+              ),
+              validator: (v) => (v ?? '').trim().isEmpty ? '请输入指标名称' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _unitCtrl,
+              decoration: const InputDecoration(
+                labelText: '单位',
+                hintText: '例如 mg/L，可留空',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _systemCtrl,
+              decoration: const InputDecoration(
+                labelText: '分类',
+                hintText: '例如 炎症、肾脏、其他',
+              ),
+              validator: (v) => (v ?? '').trim().isEmpty ? '请输入分类' : null,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (!_formKey.currentState!.validate()) return;
+            Navigator.pop(
+              context,
+              MetricDefinition(
+                metricId: 'CUSTOM_${DateTime.now().microsecondsSinceEpoch}',
+                metricName: _nameCtrl.text.trim(),
+                unit: _unitCtrl.text.trim(),
+                bodySystem: _systemCtrl.text.trim(),
+              ),
+            );
+          },
+          child: const Text('添加'),
+        ),
+      ],
+    );
   }
 }
 
@@ -316,7 +422,8 @@ class _SelectionTile extends StatelessWidget {
           value,
           style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
         ),
-        trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+        trailing:
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
         onTap: onTap,
       ),
     );

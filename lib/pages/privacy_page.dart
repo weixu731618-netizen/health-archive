@@ -59,6 +59,44 @@ class _PrivacyPageState extends State<PrivacyPage> {
     }
   }
 
+  Future<void> _exportAndShare() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await localBackupService.exportAndShare();
+      if (mounted) _toast('备份包已生成，请在分享面板里选择保存位置（微信/网盘等）');
+    } catch (e) {
+      if (mounted) _toast('备份失败：$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _restoreFromFile() async {
+    if (_busy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('从备份文件恢复'),
+        content: const Text('选择一个之前导出的健康档案备份（.zip），将覆盖当前设备上的全部健康数据，是否继续？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('选择文件')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _busy = true);
+    try {
+      final msg = await localBackupService.pickAndRestore();
+      if (mounted && msg != null) _toast(msg);
+    } catch (e) {
+      if (mounted) _toast('恢复失败：$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _deleteAll() async {
     if (_busy) return;
     final confirmed = await showDialog<bool>(
@@ -99,10 +137,46 @@ class _PrivacyPageState extends State<PrivacyPage> {
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
           ),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 16),
+            child: Text(
+              '提示：你在「上传报告 / 拍摄检查报告」中选择的图片，仅用于识别其中的检查指标。\n'
+              '负责识别的 OCR/DeepSeek 服务运行在你的 FastAPI 后端，识别后 App 会先让你在确认页逐项核对，'
+              '只有你点击「确认并保存」后，这些指标才写入本地健康档案。',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              '备份（推荐）',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+            ),
+          ),
+          _Tile(
+            icon: Icons.folder_zip_outlined,
+            title: '完整备份并分享',
+            subtitle: '打包全部数据与报告原图为一个文件，通过分享面板发到微信/网盘等自选渠道保存；不需要你自己部署服务器',
+            onTap: _busy ? null : _exportAndShare,
+          ),
+          _Tile(
+            icon: Icons.settings_backup_restore,
+            title: '从备份文件恢复',
+            subtitle: '选择之前导出的备份文件，恢复到本机（会覆盖当前数据）',
+            danger: true,
+            onTap: _busy ? null : _restoreFromFile,
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 8, bottom: 8),
+            child: Text(
+              '其它',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+            ),
+          ),
           _Tile(
             icon: Icons.ios_share,
-            title: '导出健康数据',
-            subtitle: '导出指标、日常记录、报告、疾病史与用药记录（JSON）',
+            title: '导出健康数据（纯文本）',
+            subtitle: '导出指标、日常记录、报告、疾病史与用药记录（JSON，不含报告原图）',
             onTap: _busy ? null : _export,
           ),
           _Tile(

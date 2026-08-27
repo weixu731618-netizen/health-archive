@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../models/body_area_health.dart';
 import '../models/fake_data.dart';
 import '../utils/file_image.dart';
 import '../utils/format.dart';
+import '../utils/report_image_save.dart';
 import '../widgets/health_status_card.dart';
 import '../widgets/section_title.dart';
 
@@ -82,7 +84,10 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     );
     if (confirm != true) return;
     try {
+      final imagePath = _report?.sourceImagePath;
       await repo.deleteReportCascade(rid);
+      // 数据库行删除成功后再清理本地原图文件，避免遗留占用存储空间。
+      await deleteManagedReportImage(imagePath);
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -101,7 +106,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('检查详情')),
+      appBar: AppBar(title: const Text('报告详情')),
       body: _isImported ? _buildImported() : _buildPlaceholder(),
     );
   }
@@ -111,11 +116,11 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
-        Card(
+        const Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             child: Column(
-              children: const [
+              children: [
                 _InfoRow(label: '医院', value: '深圳某医院'),
                 _InfoRow(label: '检查日期', value: '2026年8月18日'),
                 _InfoRow(label: '类型', value: '生化检查'),
@@ -123,8 +128,14 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
             ),
           ),
         ),
+        const SectionTitle(title: '影响部位'),
+        _AffectedBodyAreasCard(
+          areas: affectedBodyAreasForRawMetricNames(
+            FakeData.reportIndicators.map((m) => m.name),
+          ),
+        ),
         const SectionTitle(title: '检查指标'),
-        for (final indicator in FakeData.reportIndicators) ...[
+        for (final indicator in _sortedPlaceholderIndicators) ...[
           _IndicatorCard(indicator: indicator),
           const SizedBox(height: 12),
         ],
@@ -176,31 +187,29 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _InfoRow(
-                      label: '医院',
-                      value: _report?.hospitalName ?? '—'),
+                  _InfoRow(label: '医院', value: _report?.hospitalName ?? '—'),
                   _InfoRow(
                       label: '检查日期',
                       value: _report == null
                           ? '—'
                           : formatDate(_report!.reportDate)),
-                  _InfoRow(
-                      label: '类型',
-                      value: _report?.reportType ?? '—'),
+                  _InfoRow(label: '类型', value: _report?.reportType ?? '—'),
                 ],
               ),
             ),
           ),
+          const SectionTitle(title: '影响部位'),
+          _AffectedBodyAreasCard(areas: affectedBodyAreasForMetrics(_metrics)),
           const SectionTitle(title: '检查指标'),
           if (_metrics.isEmpty)
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text('该报告未关联任何指标',
-                  style: TextStyle(
-                      fontSize: 14, color: AppColors.textSecondary)),
+                  style:
+                      TextStyle(fontSize: 14, color: AppColors.textSecondary)),
             )
           else
-            for (final m in _metrics) ...[
+            for (final m in _sortedMetrics) ...[
               _ImportedMetricCard(metric: m),
               const SizedBox(height: 12),
             ],
@@ -218,6 +227,28 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         ],
       ],
     );
+  }
+
+  List<HealthMetric> get _sortedMetrics {
+    final list = [..._metrics];
+    list.sort((a, b) {
+      final ar = isMetricAbnormalStatus(a.status) ? 0 : 1;
+      final br = isMetricAbnormalStatus(b.status) ? 0 : 1;
+      if (ar != br) return ar.compareTo(br);
+      return b.measuredAt.compareTo(a.measuredAt);
+    });
+    return list;
+  }
+
+  List<ReportIndicator> get _sortedPlaceholderIndicators {
+    final list = [...FakeData.reportIndicators];
+    list.sort((a, b) {
+      final ar = isMetricAbnormalStatus(a.status) ? 0 : 1;
+      final br = isMetricAbnormalStatus(b.status) ? 0 : 1;
+      if (ar != br) return ar.compareTo(br);
+      return a.name.compareTo(b.name);
+    });
+    return list;
   }
 
   Widget _buildOriginalImage() {
@@ -242,12 +273,44 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.image_outlined,
-              size: 36, color: AppColors.textSecondary),
+          Icon(Icons.image_outlined, size: 36, color: AppColors.textSecondary),
           SizedBox(height: 8),
           Text('未保存原始图片',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
         ],
+      ),
+    );
+  }
+}
+
+class _AffectedBodyAreasCard extends StatelessWidget {
+  final List<String> areas;
+
+  const _AffectedBodyAreasCard({required this.areas});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = areas.isEmpty ? '暂无可追溯的身体部位影响' : areas.join('、');
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Icon(Icons.account_tree_outlined,
+                size: 20, color: AppColors.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -261,6 +324,13 @@ class _ImportedMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasRange = metric.referenceMin != null && metric.referenceMax != null;
+    final rangeText = hasRange
+        ? '  ·  参考 ${_fmt(metric.referenceMin!)}–${_fmt(metric.referenceMax!)}'
+        : '';
+    final sourceFlag = metric.sourceAbnormalFlag == null ||
+            metric.sourceAbnormalFlag!.isEmpty
+        ? ''
+        : '  ·  报告标记 ${metric.sourceAbnormalFlag}';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -279,12 +349,15 @@ class _ImportedMetricCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '${_fmt(metric.value)} ${metric.unit}' +
-                        (hasRange
-                            ? '  ·  参考 ${_fmt(metric.referenceMin!)}–${_fmt(metric.referenceMax!)}'
-                            : ''),
+                    '${_fmt(metric.value)} ${metric.unit}$rangeText$sourceFlag',
                     style: const TextStyle(
                         fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _verificationLabel(metric.verificationStatus),
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -384,6 +457,17 @@ class _IndicatorCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+String _verificationLabel(String status) {
+  switch (status) {
+    case 'user_modified':
+      return '用户已修改';
+    case 'user_confirmed':
+      return '用户已确认';
+    default:
+      return '待核对';
   }
 }
 

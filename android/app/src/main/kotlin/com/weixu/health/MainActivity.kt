@@ -1,4 +1,4 @@
-package com.example.health_archive
+package com.weixu.health
 
 import io.flutter.embedding.android.FlutterActivity
 

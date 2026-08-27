@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../data/health_repository.dart';
 import '../main.dart';
 import '../utils/format.dart';
 
@@ -34,14 +33,15 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final p = await repo.getProfile();
     if (p == null || !mounted) return;
     setState(() {
-      _nickCtrl.text = p.nickname ?? '';
-      _gender = p.gender ?? '';
+      _nickCtrl.text = p.nickname;
+      _gender = p.gender;
       _birth = p.birthDate;
       _heightCtrl.text = p.heightCm == null ? '' : _fmt(p.heightCm!);
     });
   }
 
-  static String _fmt(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+  static String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
 
   @override
   void dispose() {
@@ -78,7 +78,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             decoration: _input('昵称'),
           ),
           const SizedBox(height: 12),
-          const Text('性别', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          const Text('性别',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
@@ -94,10 +95,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           const SizedBox(height: 12),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.cake_outlined, color: AppColors.textSecondary),
+            leading:
+                const Icon(Icons.cake_outlined, color: AppColors.textSecondary),
             title: const Text('出生日期'),
             trailing: Text(_birth == null ? '未填' : formatDate(_birth!),
-                style: const TextStyle(fontSize: 15, color: AppColors.textPrimary)),
+                style: const TextStyle(
+                    fontSize: 15, color: AppColors.textPrimary)),
             onTap: () async {
               final p = await showDatePicker(
                 context: context,
@@ -115,13 +118,15 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             decoration: const InputDecoration(
               labelText: '身高（cm）',
               suffixText: 'cm',
-              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12))),
             ),
           ),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _save,
-            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+            style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14)),
             child: const Text('保存', style: TextStyle(fontSize: 16)),
           ),
         ],

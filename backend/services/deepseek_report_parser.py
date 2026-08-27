@@ -10,6 +10,7 @@
 隐私：本模块不打印 OCR 全文、患者姓名、报告内容；只允许记录结构化成功/数量/耗时。
 """
 import json
+import logging
 import os
 import time
 
@@ -24,6 +25,7 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE = os.getenv("DEEPSEEK_BASE", "https://api.deepseek.com")
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 DEEPSEEK_TIMEOUT_SEC = float(os.getenv("DEEPSEEK_TIMEOUT_SEC", "120"))
+logger = logging.getLogger("uvicorn.error")
 
 # 系统 Prompt 与业务代码分离，方便后续调整。
 SYSTEM_PROMPT = '''你是医疗检验报告结构化工具，不是医生。
@@ -42,7 +44,10 @@ JSON Schema（metric 的 value 用 numericValue/textValue/qualifier 组合表达
 "referenceText":"string"|null,"originalStatus":"string"|null,"bodySystem":"string"|null,
 "confidence":number}]}
 规则：数值型结果放 numericValue（并把 qualifier 填 <、>、<=、>= 等，无则 null）；
-阴性/阳性等文本放 textValue；报告没有的参考范围/单位必须返回 null，不得猜。'''
+阴性/阳性等文本放 textValue；报告没有的参考范围/单位必须返回 null，不得猜。
+只提取明确呈现为“检查项目 + 结果”的行；不要把姓名、年龄、日期、科室、条码、提示语、标题当作指标。
+如果 OCR 内容不是医学检验/体检报告，或文字过少/过乱导致不能确认项目与结果，请返回 metrics: []。
+不要根据常识生成报告中没有出现的指标。'''
 
 
 
@@ -151,7 +156,11 @@ def parse_ocr_result(ocr_lines: list[dict]) -> dict:
     metrics = [m for m in metrics if m.get("rawName")]
 
     # 只记录计数与耗时，不记录健康内容
-    print(f"LLM parse success | metrics extracted: {len(metrics)} | duration: {duration_ms} ms")
+    logger.info(
+        "LLM parse success | metrics extracted: %d | duration: %d ms",
+        len(metrics),
+        duration_ms,
+    )
 
     return {
         "hospitalName": model.hospitalName,

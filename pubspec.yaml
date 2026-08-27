@@ -1,7 +1,7 @@
 name: health_archive
-description: 健康档案 - 个人健康管理 App（MVP UI 原型 V0.1）
+description: 健康档案 - 个人健康管理 App（MVP）
 publish_to: 'none'
-version: 0.1.0
+version: 1.0.2+3
 
 environment:
   sdk: '>=3.6.0 <4.0.0'
@@ -25,6 +25,16 @@ dependencies:
   image_picker: ^1.1.2
   # V0.4B：Remote 识别后端 HTTP 调用
   http: ^1.2.2
+  # 显式设置 multipart 图片上传的 Content-Type（image/jpeg、image/png）
+  http_parser: ^4.0.2
+  # V0.5：匿名身份 token / 恢复码 安全存储（Android Keystore / iOS Keychain）
+  flutter_secure_storage: ^9.2.2
+  # V0.5：Web 预览时的本地身份存储回退
+  shared_preferences: ^2.3.2
+  # V0.5.1：本地完整备份（JSON+报告原图打包成 zip），免服务器的备份方案
+  archive: ^3.6.1
+  # V0.5.1：把导出的备份文件通过系统分享面板发到微信/网盘等 App
+  share_plus: ^10.1.4
 
 dev_dependencies:
   flutter_test:
@@ -32,6 +42,10 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   drift_dev: ^2.25.0
   build_runner: ^2.4.13
+  # V0.5.1：测试里伪造应用文档目录（本地备份/恢复的路径依赖）
+  path_provider_platform_interface: ^2.1.3
+  plugin_platform_interface: ^2.1.8
+  sqlite3: ^2.9.4
 
 flutter:
   uses-material-design: true

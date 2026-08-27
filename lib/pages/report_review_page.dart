@@ -2,11 +2,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import '../data/app_database.dart';
 import '../main.dart';
-import '../models/metric_dictionary.dart';
 import '../models/report_models.dart';
 import '../utils/format.dart';
+import '../utils/report_image_save.dart';
 import '../widgets/metric_selector.dart';
 
 /// 报告识别结果确认页：医院/日期/类型可改，指标可编辑、可取消勾选、低置信度提示。
@@ -27,11 +26,19 @@ class ReportReviewPage extends StatefulWidget {
 }
 
 class _ReportReviewPageState extends State<ReportReviewPage> {
-  late StructuredMedicalReport _report = widget.report;
+  late final StructuredMedicalReport _report = widget.report;
   bool _saving = false;
+  bool _saved = false;
 
-  int get _selectedCount =>
-      _report.metrics.where((m) => m.isSelected).length;
+  int get _selectedCount => _report.metrics.where((m) => m.isSelected).length;
+
+  @override
+  void dispose() {
+    if (!_saved) {
+      deleteManagedReportImage(_report.sourceImagePath);
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +145,8 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
     );
   }
 
-  Future<void> _editText(String label, String current, void Function(String) onSave) async {
+  Future<void> _editText(
+      String label, String current, void Function(String) onSave) async {
     final ctrl = TextEditingController(text: current);
     final result = await showDialog<String>(
       context: context,
@@ -188,8 +196,8 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
                     widget.imageBytes,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => const Center(
-                      child: Text('无法显示图片',
-                          style: TextStyle(color: Colors.white)),
+                      child:
+                          Text('无法显示图片', style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ),
@@ -231,9 +239,15 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
           metricId: m.matchedMetricId ?? 'UNKNOWN',
           metricName: m.canonicalName,
           value: m.numericValue ?? m.value,
+          rawValue: _rawValueText(m),
+          numericValue: m.numericValue ?? m.value,
           unit: m.unit,
+          canonicalValue: m.numericValue ?? m.value,
+          canonicalUnit: m.unit.isEmpty ? null : m.unit,
           referenceMin: m.referenceMin,
           referenceMax: m.referenceMax,
+          referenceRangeRaw: m.referenceText.isEmpty ? null : m.referenceText,
+          sourceAbnormalFlag: m.originalStatus,
           status: m.status,
           bodySystem: m.bodySystem,
           measuredAt: _report.reportDate,
@@ -241,12 +255,14 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
           rawName: m.rawName.isEmpty ? null : m.rawName,
           matchType: m.matchedMetricId == null ? 'unmatched' : m.matchType,
           recognitionConfidence: m.confidence,
+          verificationStatus: m.wasEdited ? 'user_modified' : 'user_confirmed',
           notes: _buildNotes(m, reportId),
           reportId: reportId,
         );
       }
       // 用户确认保存成功 → 报告状态置为 confirmed
       await repo.setReportStatus(reportId, 'confirmed');
+      _saved = true;
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -273,7 +289,16 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
       parts.add(m.notes!);
     }
     final extra = parts.isEmpty ? '' : ' · ${parts.join('；')}';
-    return '来自 ${reportId} 号报告导入$extra';
+    return '来自 $reportId 号报告导入$extra';
+  }
+
+  String _rawValueText(RecognizedMetric m) {
+    if (m.originalTextValue != null && m.originalTextValue!.isNotEmpty) {
+      return m.originalTextValue!;
+    }
+    final value = m.originalNumericValue ?? m.originalValue;
+    final numText = _fmt(value);
+    return m.originalUnit.isEmpty ? numText : '$numText ${m.originalUnit}';
   }
 
   void _toast(String msg) {
@@ -401,7 +426,8 @@ class _MetricEditTile extends StatelessWidget {
                           style: TextStyle(
                               fontSize: 12, color: AppColors.warning)),
                     ),
-                  if (metric.referenceMin == null && metric.referenceMax == null)
+                  if (metric.referenceMin == null &&
+                      metric.referenceMax == null)
                     const Padding(
                       padding: EdgeInsets.only(top: 2),
                       child: Text('参考范围未识别',
@@ -480,7 +506,8 @@ class _MetricEditTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Text(label,
-          style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
+          style: TextStyle(
+              fontSize: 12, color: color, fontWeight: FontWeight.w500)),
     );
   }
 
@@ -516,7 +543,8 @@ class _MetricEditorSheet extends StatefulWidget {
   final RecognizedMetric metric;
   final bool needManualMatch;
 
-  const _MetricEditorSheet({required this.metric, required this.needManualMatch});
+  const _MetricEditorSheet(
+      {required this.metric, required this.needManualMatch});
 
   @override
   State<_MetricEditorSheet> createState() => _MetricEditorSheetState();
@@ -537,10 +565,10 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
     _nameCtrl = TextEditingController(text: m.canonicalName);
     _valueCtrl = TextEditingController(text: _fmt(m.value));
     _unitCtrl = TextEditingController(text: m.unit);
-    _minCtrl =
-        TextEditingController(text: m.referenceMin == null ? '' : _fmt(m.referenceMin!));
-    _maxCtrl =
-        TextEditingController(text: m.referenceMax == null ? '' : _fmt(m.referenceMax!));
+    _minCtrl = TextEditingController(
+        text: m.referenceMin == null ? '' : _fmt(m.referenceMin!));
+    _maxCtrl = TextEditingController(
+        text: m.referenceMax == null ? '' : _fmt(m.referenceMax!));
   }
 
   @override
@@ -583,6 +611,7 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
                       m.canonicalName = def.metricName;
                       m.bodySystem = def.bodySystem;
                       m.unit = def.unit;
+                      m.wasEdited = true;
                       _nameCtrl.text = def.metricName;
                       _unitCtrl.text = def.unit;
                     });
@@ -599,7 +628,8 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
             _smallLabel('数值'),
             TextField(
               controller: _valueCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 10),
             _smallLabel('单位'),
@@ -634,7 +664,8 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
   Widget _smallLabel(String s) => Padding(
         padding: const EdgeInsets.only(bottom: 4),
         child: Text(s,
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            style:
+                const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
       );
 
   void _apply() {
@@ -647,21 +678,22 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
     }
     final min = double.tryParse(_minCtrl.text.trim());
     final max = double.tryParse(_maxCtrl.text.trim());
-    final newStatus = (min != null && max != null)
-        ? _statusFor(value, min, max)
-        : '未判断';
+    final newStatus =
+        (min != null && max != null) ? _statusFor(value, min, max) : '未判断';
 
     // 直接 mutate 可变字段，保持外部引用一致
     if (_nameCtrl.text.trim().isNotEmpty) {
       m.canonicalName = _nameCtrl.text.trim();
     }
     m.value = value;
+    m.numericValue = value;
     if (_unitCtrl.text.trim().isNotEmpty) {
       m.unit = _unitCtrl.text.trim();
     }
     m.referenceMin = min;
     m.referenceMax = max;
     m.status = newStatus;
+    m.wasEdited = true;
     Navigator.pop(context);
   }
 
