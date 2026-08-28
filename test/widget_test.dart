@@ -41,20 +41,22 @@ void main() {
     expect(find.text('ALT 32 U/L'), findsNothing);
   });
 
-  testWidgets('App 启动后显示底部 5 个 Tab', (tester) async {
+  testWidgets('App 启动后显示底部 4 个 Tab 与悬浮添加按钮', (tester) async {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
     expect(find.text('身体关注概览'), findsOneWidget);
 
     final Finder navBar = find.byType(NavigationBar);
-    for (final label in ['首页', '身体', '记录', '添加', '我的']) {
+    for (final label in ['首页', '身体', '记录', '我的']) {
       expect(
         find.descendant(of: navBar, matching: find.text(label)),
         findsOneWidget,
         reason: '底部导航应包含「$label」',
       );
     }
+    expect(find.descendant(of: navBar, matching: find.text('添加')), findsNothing);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
   });
 
   testWidgets('身体页可以进入肾脏泌尿详情页', (tester) async {
@@ -105,12 +107,7 @@ void main() {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(NavigationBar),
-        matching: find.text('添加'),
-      ),
-    );
+    await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('拍摄检查报告'));
@@ -136,11 +133,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('账号与云端备份'), findsNothing);
+    await tester.ensureVisible(find.text('关于健康档案'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.1.0+4'), findsOneWidget);
-    expect(find.text('V2 数据清理 + 折叠视图 + 趋势图'), findsOneWidget);
+    expect(find.text('版本 1.2.0+5'), findsOneWidget);
+    expect(find.text('后台隐私遮罩 + 备份加密 + 悬浮添加按钮'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {

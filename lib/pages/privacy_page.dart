@@ -61,9 +61,16 @@ class _PrivacyPageState extends State<PrivacyPage> {
 
   Future<void> _exportAndShare() async {
     if (_busy) return;
+    final password = await showDialog<String>(
+      context: context,
+      builder: (_) => const _SetPasswordDialog(),
+    );
+    if (password == null) return; // 用户取消（区别于“跳过”，跳过会返回空字符串）
     setState(() => _busy = true);
     try {
-      await localBackupService.exportAndShare();
+      await localBackupService.exportAndShare(
+        password: password.isEmpty ? null : password,
+      );
       if (mounted) _toast('备份包已生成，请在分享面板里选择保存位置（微信/网盘等）');
     } catch (e) {
       if (mounted) _toast('备份失败：$e');
@@ -86,15 +93,41 @@ class _PrivacyPageState extends State<PrivacyPage> {
       ),
     );
     if (confirmed != true) return;
+
+    final path = await localBackupService.pickBackupFilePath();
+    if (path == null) return;
+
     setState(() => _busy = true);
     try {
-      final msg = await localBackupService.pickAndRestore();
-      if (mounted && msg != null) _toast(msg);
+      String msg;
+      try {
+        msg = await localBackupService.restoreFromFile(path);
+      } catch (e) {
+        if (!_looksLikePasswordError(e)) rethrow;
+        if (!mounted) return;
+        final password = await showDialog<String>(
+          context: context,
+          builder: (_) => const _EnterPasswordDialog(),
+        );
+        if (password == null) {
+          if (mounted) _toast('已取消恢复');
+          return;
+        }
+        msg = await localBackupService.restoreFromFile(path, password: password);
+      }
+      if (mounted) _toast(msg);
     } catch (e) {
       if (mounted) _toast('恢复失败：$e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// 粗略判断异常是否为“缺少密码/密码错误”：
+  /// archive 包在密码为空或错误时会抛 password/null-check 相关的异常文案。
+  bool _looksLikePasswordError(Object e) {
+    final s = e.toString().toLowerCase();
+    return s.contains('password') || s.contains('null check');
   }
 
   Future<void> _deleteAll() async {
@@ -156,7 +189,7 @@ class _PrivacyPageState extends State<PrivacyPage> {
           _Tile(
             icon: Icons.folder_zip_outlined,
             title: '完整备份并分享',
-            subtitle: '打包全部数据与报告原图为一个文件，通过分享面板发到微信/网盘等自选渠道保存；不需要你自己部署服务器',
+            subtitle: '打包全部数据与报告原图为一个文件，可设置密码保护，通过分享面板发到微信/网盘等自选渠道保存；不需要你自己部署服务器',
             onTap: _busy ? null : _exportAndShare,
           ),
           _Tile(
@@ -223,6 +256,139 @@ class _Tile extends StatelessWidget {
         subtitle: Text(subtitle,
             style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
       ),
+    );
+  }
+}
+
+/// 导出备份前询问是否设置密码。
+/// 返回值：null=用户取消整个导出；空字符串=用户选择不加密；非空=用作 zip 密码。
+class _SetPasswordDialog extends StatefulWidget {
+  const _SetPasswordDialog();
+
+  @override
+  State<_SetPasswordDialog> createState() => _SetPasswordDialogState();
+}
+
+class _SetPasswordDialogState extends State<_SetPasswordDialog> {
+  final _ctrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  bool get _hasInput => _ctrl.text.isNotEmpty || _confirmCtrl.text.isNotEmpty;
+  bool get _matches => _ctrl.text == _confirmCtrl.text;
+  bool get _canConfirm =>
+      _ctrl.text.trim().isNotEmpty && _matches;
+
+  @override
+  Widget build(BuildContext context) {
+    final showMismatch = _hasInput && _confirmCtrl.text.isNotEmpty && !_matches;
+    return AlertDialog(
+      title: const Text('给备份文件设置密码？'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('设置密码后，这份备份文件即使被别人拿到也打不开；恢复时需要输入相同密码。不设置则文件不加密。'),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _ctrl,
+            obscureText: _obscure,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: '设置密码（可留空）',
+              suffixIcon: IconButton(
+                icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _confirmCtrl,
+            obscureText: _obscure,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: '再次输入密码确认',
+              errorText: showMismatch ? '两次密码不一致' : null,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, null),
+          child: const Text('取消'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, ''),
+          child: const Text('跳过（不加密）'),
+        ),
+        FilledButton(
+          onPressed: _canConfirm ? () => Navigator.pop(context, _ctrl.text.trim()) : null,
+          child: const Text('设置密码并继续'),
+        ),
+      ],
+    );
+  }
+}
+
+/// 从加密备份恢复时，提示输入密码。返回 null 表示用户取消。
+class _EnterPasswordDialog extends StatefulWidget {
+  const _EnterPasswordDialog();
+
+  @override
+  State<_EnterPasswordDialog> createState() => _EnterPasswordDialogState();
+}
+
+class _EnterPasswordDialogState extends State<_EnterPasswordDialog> {
+  final _ctrl = TextEditingController();
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('这份备份文件已加密'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('请输入导出时设置的密码。'),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _ctrl,
+            obscureText: _obscure,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: '密码',
+              suffixIcon: IconButton(
+                icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, null), child: const Text('取消')),
+        FilledButton(
+          onPressed: _ctrl.text.isEmpty ? null : () => Navigator.pop(context, _ctrl.text),
+          child: const Text('确认'),
+        ),
+      ],
     );
   }
 }

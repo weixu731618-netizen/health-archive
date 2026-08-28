@@ -141,6 +141,40 @@ void main() {
     expect(medications.single.name, '二甲双胍');
   });
 
+  test('加密备份：正确密码能恢复，缺少或错误密码会失败', () async {
+    await repo.insertDisease(name: '高血压', status: '确诊');
+
+    final zipPath = await backup.exportBundle(password: 'secret123');
+    expect(File(zipPath).existsSync(), isTrue);
+
+    // 不给密码：无法解密内容
+    await expectLater(
+      backup.restoreFromFile(zipPath),
+      throwsA(anything),
+    );
+
+    // 密码错误：同样无法解密
+    await expectLater(
+      backup.restoreFromFile(zipPath, password: 'wrong-password'),
+      throwsA(anything),
+    );
+
+    // 正确密码：能正常恢复
+    final msg = await backup.restoreFromFile(zipPath, password: 'secret123');
+    expect(msg, '恢复成功');
+    final diseases = await repo.getAllDiseases();
+    expect(diseases.length, 1);
+    expect(diseases.single.name, '高血压');
+  });
+
+  test('未加密的旧备份文件：不传密码也能正常恢复（向后兼容）', () async {
+    await repo.insertDisease(name: '高血压', status: '确诊');
+
+    final zipPath = await backup.exportBundle(); // 不设密码
+    final msg = await backup.restoreFromFile(zipPath); // 不传密码
+    expect(msg, '恢复成功');
+  });
+
   test('取消核对清理：只删除 App 管理的单张报告原图', () async {
     final imageBytes = Uint8List.fromList(List<int>.generate(32, (i) => 255 - i));
     final savedImagePath = await saveReportImageLocally(imageBytes, '.jpg');

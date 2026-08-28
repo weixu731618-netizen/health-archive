@@ -80,8 +80,36 @@ Future<void> main() async {
   runApp(const HealthArchiveApp());
 }
 
-class HealthArchiveApp extends StatelessWidget {
+class HealthArchiveApp extends StatefulWidget {
   const HealthArchiveApp({super.key});
+
+  @override
+  State<HealthArchiveApp> createState() => _HealthArchiveAppState();
+}
+
+class _HealthArchiveAppState extends State<HealthArchiveApp>
+    with WidgetsBindingObserver {
+  // App 切到后台/多任务切换的瞬间，系统会给当前画面拍一张快照用作缩略图；
+  // 这里在非 resumed 状态时盖一层遮罩，避免快照里带出健康数据。
+  bool _obscured = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final obscured = state != AppLifecycleState.resumed;
+    if (obscured != _obscured) setState(() => _obscured = obscured);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,6 +126,14 @@ class HealthArchiveApp extends StatelessWidget {
       ],
       theme: _buildTheme(),
       home: const MainShell(),
+      builder: (context, child) {
+        return Stack(
+          children: [
+            if (child != null) child,
+            if (_obscured) const _PrivacyCover(),
+          ],
+        );
+      },
     );
   }
 
@@ -135,6 +171,38 @@ class HealthArchiveApp extends StatelessWidget {
   }
 }
 
+/// 后台/多任务切换时盖住内容的遮罩，防止系统截图带出健康数据。
+class _PrivacyCover extends StatelessWidget {
+  const _PrivacyCover();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Positioned.fill(
+      child: Material(
+        color: AppColors.background,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.health_and_safety,
+                  size: 56, color: AppColors.primary),
+              SizedBox(height: 12),
+              Text(
+                '健康档案',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// App 主框架：底部固定 5 个 Tab
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -147,7 +215,7 @@ class _MainShellState extends State<MainShell> {
   int _index = 0;
 
   /// 每次切换 Tab 都重新构建对应页面，确保「记录」「身体」等页能加载到最新保存的数据。
-  /// 保留 5 个底部 Tab 与各处导航逻辑不变。
+  /// 「添加」不再是底部 Tab，改为悬浮按钮，见 [build] 里的 floatingActionButton。
   Widget _buildPage(int index) {
     switch (index) {
       case 0:
@@ -157,8 +225,6 @@ class _MainShellState extends State<MainShell> {
       case 2:
         return const RecordsPage();
       case 3:
-        return const AddPage();
-      case 4:
         return const ProfilePage();
       default:
         return const HomePage();
@@ -169,6 +235,14 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _buildPage(_index),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: FloatingActionButton(
+        tooltip: '添加健康数据',
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AddPage()),
+        ),
+        child: const Icon(Icons.add),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (value) => setState(() => _index = value),
@@ -186,11 +260,6 @@ class _MainShellState extends State<MainShell> {
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
             label: '记录',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.add_circle_outline),
-            selectedIcon: Icon(Icons.add_circle),
-            label: '添加',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

@@ -30,7 +30,8 @@ class LocalBackupService {
   static const int _maxTotalUncompressedBytes = 500 * 1024 * 1024; // 500MB
 
   /// 组装 zip 备份包并写入本地文件，返回文件路径。
-  Future<String> exportBundle() async {
+  /// [password] 非空时用 AES 加密整个 zip；恢复时需要提供相同密码。
+  Future<String> exportBundle({String? password}) async {
     final repo = appRepository;
     if (repo == null) throw StateError('数据库未就绪');
     final snapshot = await repo.exportHealthData();
@@ -60,7 +61,7 @@ class LocalBackupService {
         utf8.encode(const JsonEncoder.withIndent('  ').convert(snapshot));
     archive.addFile(ArchiveFile(_dataEntryName, jsonBytes.length, jsonBytes));
 
-    final zipBytes = ZipEncoder().encode(archive);
+    final zipBytes = ZipEncoder(password: password).encode(archive);
     if (zipBytes == null) throw StateError('打包备份文件失败');
     final dir = await getApplicationDocumentsDirectory();
     final folder = Directory(p.join(dir.path, 'exports'));
@@ -79,26 +80,25 @@ class LocalBackupService {
   }
 
   /// 导出并立即分享，一步到位。返回文件路径。
-  Future<String> exportAndShare() async {
-    final path = await exportBundle();
+  Future<String> exportAndShare({String? password}) async {
+    final path = await exportBundle(password: password);
     await shareBundle(path);
     return path;
   }
 
-  /// 弹出系统文件选择器，选一个之前导出的 zip 备份包并恢复。
-  /// 返回 null 表示用户取消了选择；否则返回恢复结果说明。
-  Future<String?> pickAndRestore() async {
+  /// 弹出系统文件选择器，选一个之前导出的 zip 备份文件。
+  /// 返回 null 表示用户取消了选择。
+  Future<String?> pickBackupFilePath() async {
     final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: ['zip'],
     );
-    final path = file?.path;
-    if (path == null) return null;
-    return restoreFromFile(path);
+    return file?.path;
   }
 
   /// 从指定 zip 备份文件恢复（覆盖本地数据，调用方需先弹二次确认）。
-  Future<String> restoreFromFile(String filePath) async {
+  /// [password] 为空时按未加密文件处理；若文件本身未加密，传入密码也不影响解压。
+  Future<String> restoreFromFile(String filePath, {String? password}) async {
     final repo = appRepository;
     if (repo == null) throw StateError('数据库未就绪');
 
@@ -109,7 +109,7 @@ class LocalBackupService {
     }
 
     final bytes = await zipFile.readAsBytes();
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = ZipDecoder().decodeBytes(bytes, password: password);
     if (archive.files.length > _maxArchiveEntries) {
       throw const FormatException('备份文件内容异常（条目数过多），可能已损坏');
     }

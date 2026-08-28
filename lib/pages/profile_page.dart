@@ -57,7 +57,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       appBar: AppBar(title: const Text('我的')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        // 底部多留一点空间，避免最后一项被悬浮的"添加"按钮挡住。
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
         children: [
           // 个人资料卡
           Card(
