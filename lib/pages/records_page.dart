@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 import '../data/app_database.dart';
 import '../main.dart';
 import '../models/body_area_health.dart';
-import '../models/fake_data.dart';
 import '../utils/format.dart';
-import '../widgets/record_tile.dart';
 import 'daily_health_entry_page.dart';
 import 'manual_metric_entry_page.dart';
 import 'report_detail_page.dart';
 
-/// 记录页面：展示真实录入数据（手工录入 + 日常记录）与现有假数据。
+/// 记录页面：仅展示用户实际录入或导入的数据。
 class RecordsPage extends StatefulWidget {
   const RecordsPage({super.key});
 
@@ -67,7 +65,7 @@ class _RecordsPageState extends State<RecordsPage> {
           });
         }
       } else {
-        // 无数据库（如测试/预览环境）：当作空数据，不报错，仍可查看假数据示例
+        // 无数据库（如测试/预览环境）：当作空数据，不注入演示内容。
         if (mounted) {
           setState(() {
             _real = const [];
@@ -126,9 +124,7 @@ class _RecordsPageState extends State<RecordsPage> {
                 child: Text(_error!,
                     style: const TextStyle(color: AppColors.textSecondary)),
               )
-            else if (_filteredReal.isEmpty &&
-                _filteredFake.isEmpty &&
-                _visibleReports.isEmpty)
+            else if (_filteredReal.isEmpty && _visibleReports.isEmpty)
               const Padding(
                 padding: EdgeInsets.only(bottom: 8),
                 child: Text(
@@ -156,37 +152,10 @@ class _RecordsPageState extends State<RecordsPage> {
                 ),
                 const SizedBox(height: 12),
               ],
-              if (!_loading &&
-                  _filteredReal.isNotEmpty &&
-                  _filteredFake.isNotEmpty) ...[
-                const Padding(
-                  padding: EdgeInsets.only(top: 8, bottom: 4),
-                  child: Text(
-                    '历史假数据示例',
-                    style:
-                        TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                  ),
-                ),
-              ],
-              for (final item in _filteredFake) ...[
-                RecordTile(
-                  item: item,
-                  showArrow: item.isHospital,
-                  onTap:
-                      item.isHospital ? () => _openRecord(context, item) : null,
-                ),
-                const SizedBox(height: 12),
-              ],
             ],
           ],
         ),
       ),
-    );
-  }
-
-  void _openRecord(BuildContext context, RecordItem item) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ReportDetailPage()),
     );
   }
 
@@ -199,18 +168,6 @@ class _RecordsPageState extends State<RecordsPage> {
         return _real.where((e) => e.source == '日常记录').toList();
       default: // 全部
         return _real;
-    }
-  }
-
-  /// 根据当前筛选条件过滤后的假数据列表
-  List<RecordItem> get _filteredFake {
-    switch (_filterIndex) {
-      case 1: // 医院检查：只显示医院检查的假数据项
-        return FakeData.records.where((item) => item.isHospital).toList();
-      case 2: // 日常记录：不显示假数据
-        return const [];
-      default: // 全部
-        return FakeData.records;
     }
   }
 

@@ -54,7 +54,7 @@ void main() {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
-    // 记录页能看到真实数据（带来源标记），且“假数据示例”也在
+    // 记录页只显示真实数据（带来源标记）。
     await tester.tap(find.descendant(
         of: find.byType(NavigationBar), matching: find.text('记录')));
     await tester.pumpAndSettle();
