@@ -73,7 +73,9 @@ class LocalBackupService {
 
   /// 唤起系统分享面板，把备份文件发到用户自选的 App（微信/网盘/邮件等）。
   Future<void> shareBundle(String path) async {
-    await Share.shareXFiles([XFile(path)], text: '健康档案备份');
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(path)], text: '健康档案备份'),
+    );
   }
 
   /// 导出并立即分享，一步到位。返回文件路径。
@@ -86,11 +88,11 @@ class LocalBackupService {
   /// 弹出系统文件选择器，选一个之前导出的 zip 备份包并恢复。
   /// 返回 null 表示用户取消了选择；否则返回恢复结果说明。
   Future<String?> pickAndRestore() async {
-    final result = await FilePicker.platform.pickFiles(
+    final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: ['zip'],
     );
-    final path = result?.files.single.path;
+    final path = file?.path;
     if (path == null) return null;
     return restoreFromFile(path);
   }

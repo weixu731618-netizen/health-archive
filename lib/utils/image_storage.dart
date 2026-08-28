@@ -25,17 +25,15 @@ class PickedReportImage {
 /// - 移动端（Android/iOS）：把图片字节复制到应用文档目录，返回落盘路径。
 /// - Web 等无法写文件系统的平台：不落盘，返回 path=null（仅本次会话可预览）。
 Future<PickedReportImage> pickLabReportImage() async {
-  final result = await FilePicker.platform.pickFiles(
+  final file = await FilePicker.pickFile(
     type: FileType.custom,
     allowedExtensions: ['jpg', 'jpeg', 'png'],
-    withData: true, // 确保拿到字节（Web 必须）
   );
-  if (result == null || result.files.isEmpty) {
+  if (file == null) {
     throw StateError('未选择文件');
   }
-  final file = result.files.single;
-  final bytes = file.bytes;
-  if (bytes == null) {
+  final bytes = await file.readAsBytes();
+  if (bytes.isEmpty) {
     throw StateError('无法读取该图片');
   }
   final ext = p.extension(file.name).isEmpty ? '.jpg' : p.extension(file.name);

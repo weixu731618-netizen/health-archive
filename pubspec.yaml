@@ -18,7 +18,7 @@ dependencies:
   drift_flutter: ^0.2.0
   path: ^1.9.0
   # V0.4A：选择化验单图片（跨 Android/iOS/Web）
-  file_picker: ^10.3.3
+  file_picker: ^12.1.1
   # V0.4A：移动端把原始图片落盘到应用文档目录
   path_provider: ^2.1.4
   # V0.4B：拍摄检查报告（仅移动端调用相机）
@@ -28,13 +28,13 @@ dependencies:
   # 显式设置 multipart 图片上传的 Content-Type（image/jpeg、image/png）
   http_parser: ^4.0.2
   # V0.5：匿名身份 token / 恢复码 安全存储（Android Keystore / iOS Keychain）
-  flutter_secure_storage: ^9.2.2
+  flutter_secure_storage: ^11.0.0
   # V0.5：Web 预览时的本地身份存储回退
   shared_preferences: ^2.3.2
   # V0.5.1：本地完整备份（JSON+报告原图打包成 zip），免服务器的备份方案
   archive: ^3.6.1
   # V0.5.1：把导出的备份文件通过系统分享面板发到微信/网盘等 App
-  share_plus: ^10.1.4
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:
