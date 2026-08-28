@@ -64,9 +64,8 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  List<BodyAreaHealthSummary> get _bodyAreas => _metrics.isEmpty
-      ? buildFallbackBodyAreaHealth()
-      : buildBodyAreaHealthFromMetrics(_metrics);
+  List<BodyAreaHealthSummary> get _bodyAreas =>
+      buildBodyAreaHealthFromMetrics(_metrics);
 
   List<HealthTopicSummary> get _healthTopics =>
       buildHealthTopicSummaries(_metrics);
@@ -88,7 +87,6 @@ class _HomePageState extends State<HomePage> {
             : attentionAreas;
     final primaryAreas =
         prioritySource.take(_kHomeBodyAreaPreviewCount).toList();
-    final previewAreas = bodyAreas.take(_kHomeBodyAreaPreviewCount).toList();
     final topicPreview = _healthTopics.take(_kHomeBodyAreaPreviewCount).toList();
 
     return Scaffold(
@@ -105,7 +103,7 @@ class _HomePageState extends State<HomePage> {
                   profile: _profile,
                   bodyAreas: bodyAreas,
                   isLoading: _loading,
-                  isExample: _metrics.isEmpty,
+                  isExample: false,
                 ),
                 const SectionTitle(title: '健康资料主题'),
                 if (_loading)
@@ -115,7 +113,11 @@ class _HomePageState extends State<HomePage> {
                   )
                 else
                   for (final topic in topicPreview) ...[
-                    _HealthTopicCard(topic: topic),
+                    _HealthTopicCard(
+                      topic: topic,
+                      onTap: () => _openBodyAreaByName(
+                          context, topic.name, bodyAreas),
+                    ),
                     const SizedBox(height: 12),
                   ],
                 _SectionHeader(
@@ -135,47 +137,22 @@ class _HomePageState extends State<HomePage> {
                   for (final area in primaryAreas) ...[
                     _HomeBodyAreaCard(
                       area: area,
-                      isExample: _metrics.isEmpty,
+                      isExample: false,
                       onTap: () => _openBodyArea(context, area),
                     ),
                     const SizedBox(height: 12),
                   ],
-                const SectionTitle(title: '全部身体部位'),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final cardW = (constraints.maxWidth - 12) / 2;
-                    return Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        for (final area in previewAreas)
-                          SizedBox(
-                            width: cardW,
-                            child: HealthStatusCard(
-                              title: area.name,
-                              value: _metricSummary(area.keyMetric),
-                              status: area.status,
-                              compact: true,
-                              onTap: () => _openBodyArea(context, area),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-                if (bodyAreas.length > _kHomeBodyAreaPreviewCount) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const BodyPage()),
-                      ),
-                      icon: const Icon(Icons.list_alt_outlined),
-                      label: const Text('查看全部身体部位'),
+                const SizedBox(height: 4),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const BodyPage()),
                     ),
+                    icon: const Icon(Icons.list_alt_outlined),
+                    label: const Text('查看全部身体部位'),
                   ),
-                ],
+                ),
               ],
             ),
           ),
@@ -190,10 +167,26 @@ class _HomePageState extends State<HomePage> {
         builder: (_) => BodySystemDetailPage(
           area: area,
           allMetrics: _metrics,
-          isExample: _metrics.isEmpty,
+          isExample: false,
         ),
       ),
     );
+  }
+
+  void _openBodyAreaByName(
+    BuildContext context,
+    String areaName,
+    List<BodyAreaHealthSummary> bodyAreas,
+  ) {
+    final area = bodyAreas.firstWhere(
+      (a) => a.name == areaName,
+      orElse: () => BodyAreaHealthSummary(
+        name: areaName,
+        status: '数据不足',
+        metrics: const [],
+      ),
+    );
+    _openBodyArea(context, area);
   }
 
   Future<void> _openPriorityPicker(
@@ -405,8 +398,9 @@ class _HomeBodyAreaCard extends StatelessWidget {
 
 class _HealthTopicCard extends StatelessWidget {
   final HealthTopicSummary topic;
+  final VoidCallback onTap;
 
-  const _HealthTopicCard({required this.topic});
+  const _HealthTopicCard({required this.topic, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -421,6 +415,7 @@ class _HealthTopicCard extends StatelessWidget {
       title: topic.name,
       status: topic.statusLabel,
       subtitle: subtitle,
+      onTap: onTap,
     );
   }
 }

@@ -18,3 +18,6 @@ String formatTime(DateTime d) {
   final m = d.minute.toString().padLeft(2, '0');
   return '$h:$m';
 }
+
+/// 格式化为 M-d，用于图表横轴等空间有限的场景，例如 8-19
+String formatDateShort(DateTime d) => '${d.month}-${d.day}';

@@ -31,14 +31,14 @@ void main() {
     expect(find.text('暂无相关检查资料'), findsWidgets);
     expect(find.text('优先关注部位'), findsOneWidget);
     expect(find.text('选择'), findsOneWidget);
-    expect(find.text('全部身体部位'), findsOneWidget);
     expect(find.text('查看全部身体部位'), findsOneWidget);
 
-    // 身体部位卡片：名称 + 关键指标 + 状态
+    // 空库只展示空状态，不得注入历史演示指标。
     expect(find.text('心血管'), findsWidgets);
-    expect(find.text('LDL-C 3.6 mmol/L'), findsWidgets);
-    expect(find.text('HbA1c 6.8%'), findsWidgets);
-    expect(find.text('ALT 32 U/L'), findsWidgets);
+    expect(find.text('数据不足'), findsWidgets);
+    expect(find.text('LDL-C 3.6 mmol/L'), findsNothing);
+    expect(find.text('HbA1c 6.8%'), findsNothing);
+    expect(find.text('ALT 32 U/L'), findsNothing);
   });
 
   testWidgets('App 启动后显示底部 5 个 Tab', (tester) async {
@@ -72,7 +72,8 @@ void main() {
     await tester.tap(find.text('肾脏/泌尿'));
     await tester.pumpAndSettle();
 
-    expect(find.text('肌酐'), findsOneWidget);
+    expect(find.text('肌酐'), findsNothing);
+    expect(find.text('暂无可用于判断的检查指标'), findsOneWidget);
     expect(find.text('需关注问题'), findsOneWidget);
     expect(find.text('历史趋势'), findsOneWidget);
     await tester.scrollUntilVisible(
@@ -82,7 +83,7 @@ void main() {
     expect(find.textContaining('不等同于医学诊断'), findsOneWidget);
   });
 
-  testWidgets('记录页可以进入检查详情页', (tester) async {
+  testWidgets('空记录页不展示历史假报告', (tester) async {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
@@ -94,12 +95,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('生化检查'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('报告详情'), findsOneWidget);
-    expect(find.text('影响部位'), findsOneWidget);
-    expect(find.text('ALT'), findsOneWidget);
+    expect(find.textContaining('还没有录入数据'), findsOneWidget);
+    expect(find.text('生化检查'), findsNothing);
+    expect(find.text('深圳某医院'), findsNothing);
+    expect(find.text('ALT'), findsNothing);
   });
 
   testWidgets('点击拍摄检查报告进入拍摄页面', (tester) async {
@@ -140,8 +139,8 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.0.2+3'), findsOneWidget);
-    expect(find.text('T5-T9 local test'), findsOneWidget);
+    expect(find.text('版本 1.1.0+4'), findsOneWidget);
+    expect(find.text('V2 数据清理 + 折叠视图 + 趋势图'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {

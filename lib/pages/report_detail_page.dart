@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 import '../data/app_database.dart';
 import '../main.dart';
 import '../models/body_area_health.dart';
-import '../models/fake_data.dart';
 import '../utils/file_image.dart';
 import '../utils/format.dart';
 import '../utils/report_image_save.dart';
 import '../widgets/health_status_card.dart';
+import '../widgets/normal_items_toggle.dart';
 import '../widgets/section_title.dart';
 
 /// 检查详情页。
-/// - 仅预览用：不传 [reportId] → 显示 V0.2 假数据。
+/// - 不传 [reportId] → 显示空状态，不注入演示数据。
 /// - 报告导入：传 [reportId] → 加载并显示真实报告（信息 / 原始图 / 指标 / 删除）。
 class ReportDetailPage extends StatefulWidget {
   final int? reportId;
@@ -27,6 +27,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   List<HealthMetric> _metrics = [];
   bool _loading = true;
   String? _error;
+  bool _showNormalMetrics = false;
 
   bool get _isImported => widget.reportId != null;
 
@@ -112,55 +113,15 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   }
 
   Widget _buildPlaceholder() {
-    // V0.2 假数据预览
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-      children: [
-        const Card(
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              children: [
-                _InfoRow(label: '医院', value: '深圳某医院'),
-                _InfoRow(label: '检查日期', value: '2026年8月18日'),
-                _InfoRow(label: '类型', value: '生化检查'),
-              ],
-            ),
-          ),
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Text(
+          '没有可显示的报告。请从「添加」页导入真实报告。',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
-        const SectionTitle(title: '影响部位'),
-        _AffectedBodyAreasCard(
-          areas: affectedBodyAreasForRawMetricNames(
-            FakeData.reportIndicators.map((m) => m.name),
-          ),
-        ),
-        const SectionTitle(title: '检查指标'),
-        for (final indicator in _sortedPlaceholderIndicators) ...[
-          _IndicatorCard(indicator: indicator),
-          const SizedBox(height: 12),
-        ],
-        const SectionTitle(title: '原始报告'),
-        Container(
-          height: 140,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1F3F5),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          alignment: Alignment.center,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.image_outlined,
-                  size: 36,
-                  color: AppColors.textSecondary.withValues(alpha: 0.5)),
-              const SizedBox(height: 8),
-              const Text('报告图片',
-                  style:
-                      TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -208,11 +169,32 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                   style:
                       TextStyle(fontSize: 14, color: AppColors.textSecondary)),
             )
-          else
-            for (final m in _sortedMetrics) ...[
+          else ...[
+            for (final m in _attentionMetrics) ...[
               _ImportedMetricCard(metric: m),
               const SizedBox(height: 12),
             ],
+            if (_attentionMetrics.isEmpty)
+              for (final m in _normalMetrics) ...[
+                _ImportedMetricCard(metric: m),
+                const SizedBox(height: 12),
+              ]
+            else ...[
+              NormalItemsToggle(
+                expanded: _showNormalMetrics,
+                hiddenCount: _normalMetrics.length,
+                onTap: () =>
+                    setState(() => _showNormalMetrics = !_showNormalMetrics),
+              ),
+              if (_showNormalMetrics) ...[
+                const SizedBox(height: 12),
+                for (final m in _normalMetrics) ...[
+                  _ImportedMetricCard(metric: m),
+                  const SizedBox(height: 12),
+                ],
+              ],
+            ],
+          ],
           const SectionTitle(title: '原始报告'),
           _buildOriginalImage(),
           const SizedBox(height: 24),
@@ -229,25 +211,19 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     );
   }
 
-  List<HealthMetric> get _sortedMetrics {
-    final list = [..._metrics];
-    list.sort((a, b) {
-      final ar = isMetricAbnormalStatus(a.status) ? 0 : 1;
-      final br = isMetricAbnormalStatus(b.status) ? 0 : 1;
-      if (ar != br) return ar.compareTo(br);
-      return b.measuredAt.compareTo(a.measuredAt);
-    });
+  bool _needsAttention(HealthMetric m) =>
+      isMetricAbnormalStatus(m.status) || isMetricAttentionStatus(m.status);
+
+  /// 异常/需关注的指标：始终展示在前；正常（含未判断）的可折叠。
+  List<HealthMetric> get _attentionMetrics {
+    final list = _metrics.where(_needsAttention).toList();
+    list.sort((a, b) => b.measuredAt.compareTo(a.measuredAt));
     return list;
   }
 
-  List<ReportIndicator> get _sortedPlaceholderIndicators {
-    final list = [...FakeData.reportIndicators];
-    list.sort((a, b) {
-      final ar = isMetricAbnormalStatus(a.status) ? 0 : 1;
-      final br = isMetricAbnormalStatus(b.status) ? 0 : 1;
-      if (ar != br) return ar.compareTo(br);
-      return a.name.compareTo(b.name);
-    });
+  List<HealthMetric> get _normalMetrics {
+    final list = _metrics.where((m) => !_needsAttention(m)).toList();
+    list.sort((a, b) => b.measuredAt.compareTo(a.measuredAt));
     return list;
   }
 
@@ -408,53 +384,6 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// 检查指标卡片（占位预览用）：指标名 / 数值+参考范围 / 状态
-class _IndicatorCard extends StatelessWidget {
-  final ReportIndicator indicator;
-
-  const _IndicatorCard({required this.indicator});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    indicator.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${indicator.value}  ·  ${indicator.range}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            StatusChip(
-              text: indicator.status,
-              color: valueStatusColor(indicator.status),
-            ),
-          ],
-        ),
       ),
     );
   }

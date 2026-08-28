@@ -1,7 +1,7 @@
 name: health_archive
 description: 健康档案 - 个人健康管理 App（MVP）
 publish_to: 'none'
-version: 1.0.2+3
+version: 1.1.0+4
 
 environment:
   sdk: '>=3.6.0 <4.0.0'
@@ -35,6 +35,7 @@ dependencies:
   archive: ^3.6.1
   # V0.5.1：把导出的备份文件通过系统分享面板发到微信/网盘等 App
   share_plus: ^13.3.0
+  fl_chart: ^1.2.0
 
 dev_dependencies:
   flutter_test:

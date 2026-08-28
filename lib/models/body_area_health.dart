@@ -1,5 +1,4 @@
 import '../data/app_database.dart';
-import 'fake_data.dart';
 import 'metric_dictionary.dart';
 
 const List<String> coreBodyAreaOrder = [
@@ -25,6 +24,8 @@ class BodyAreaMetricEvidence {
   final String status;
   final DateTime? measuredAt;
   final int? reportId;
+  final double? referenceMin;
+  final double? referenceMax;
 
   const BodyAreaMetricEvidence({
     required this.metricId,
@@ -33,6 +34,8 @@ class BodyAreaMetricEvidence {
     required this.status,
     this.measuredAt,
     this.reportId,
+    this.referenceMin,
+    this.referenceMax,
   });
 
   bool get isAbnormal => isMetricAbnormalStatus(status);
@@ -224,6 +227,8 @@ List<BodyAreaHealthSummary> buildBodyAreaHealthFromMetrics(
             status: m.status,
             measuredAt: m.measuredAt,
             reportId: m.reportId,
+            referenceMin: m.referenceMin,
+            referenceMax: m.referenceMax,
           ),
         );
   }
@@ -265,29 +270,6 @@ List<HealthTopicSummary> buildHealthTopicSummaries(
     for (final entry in byArea.entries)
       _buildTopicSummary(entry.key, entry.value),
   ]..sort(_compareTopicSummary);
-  return summaries;
-}
-
-List<BodyAreaHealthSummary> buildFallbackBodyAreaHealth() {
-  final byArea = <String, List<BodyAreaMetricEvidence>>{};
-  for (final system in FakeData.bodySystems) {
-    final area = bodyAreaForSystem(system.name);
-    byArea
-        .putIfAbsent(area, () => [])
-        .addAll(_fallbackMetricsForSystem(system));
-  }
-  for (final area in coreBodyAreaOrder) {
-    byArea.putIfAbsent(area, () => []);
-  }
-
-  final summaries = [
-    for (final entry in byArea.entries)
-      BodyAreaHealthSummary(
-        name: entry.key,
-        status: _statusFromMetrics(entry.value),
-        metrics: [...entry.value]..sort(compareMetricEvidence),
-      ),
-  ]..sort(compareBodyAreaSummary);
   return summaries;
 }
 
@@ -371,41 +353,6 @@ String _statusFromMetrics(List<BodyAreaMetricEvidence> metrics) {
   if (metrics.any((m) => m.needsAttention)) return '需关注';
   if (metrics.every((m) => m.status.contains('正常'))) return '正常';
   return '数据不足';
-}
-
-List<BodyAreaMetricEvidence> _fallbackMetricsForSystem(BodySystem system) {
-  if (system.name == '肾脏') {
-    return [
-      for (final metric in FakeData.kidneyMetrics)
-        BodyAreaMetricEvidence(
-          metricId: metric.name,
-          name: metric.name,
-          valueText: metric.value,
-          status: metric.status,
-        ),
-    ]..sort(compareMetricEvidence);
-  }
-  final keyIndicator = system.keyIndicator;
-  if (keyIndicator == null) return const [];
-  return [
-    BodyAreaMetricEvidence(
-      metricId: system.name,
-      name: _fallbackMetricName(keyIndicator),
-      valueText: _fallbackMetricValue(keyIndicator),
-      status: system.status,
-    ),
-  ];
-}
-
-String _fallbackMetricName(String text) {
-  final parts = text.split(' ');
-  return parts.isEmpty ? text : parts.first;
-}
-
-String _fallbackMetricValue(String text) {
-  final parts = text.split(' ');
-  if (parts.length <= 1) return text;
-  return parts.sublist(1).join(' ');
 }
 
 String _fmt(double v) {

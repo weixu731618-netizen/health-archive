@@ -1,8 +1,10 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
 import '../utils/format.dart';
+import '../widgets/health_status_card.dart';
 import 'manual_metric_entry_page.dart';
 import 'report_detail_page.dart';
 
@@ -117,6 +119,7 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
               ),
             ),
             const SizedBox(height: 16),
+            if (!_loading && _error == null) _buildChart(),
             if (_loading)
               const Center(child: CircularProgressIndicator())
             else if (_error != null)
@@ -164,6 +167,129 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
                 const SizedBox(height: 8),
               ],
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 趋势折线图：按时间正序排列，每个点按当时状态着色；
+  /// 若最新记录有参考范围，用虚线标出正常区间上下限。
+  Widget _buildChart() {
+    if (_records.length < 2) return const SizedBox.shrink();
+    final points = _records.reversed.toList(); // 转成按时间正序
+
+    final values = [for (final p in points) p.value];
+    var lo = values.reduce((a, b) => a < b ? a : b);
+    var hi = values.reduce((a, b) => a > b ? a : b);
+    final refMin = _latest?.referenceMin;
+    final refMax = _latest?.referenceMax;
+    final hasRange = refMin != null && refMax != null;
+    if (hasRange) {
+      lo = lo < refMin ? lo : refMin;
+      hi = hi > refMax ? hi : refMax;
+    }
+    final span = hi - lo;
+    final pad = span <= 0 ? (hi.abs() * 0.1 + 1) : span * 0.2;
+    final minY = lo - pad;
+    final maxY = hi + pad;
+    final labelStep = (points.length / 5).ceil().clamp(1, 1000);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 20, 20, 12),
+        child: SizedBox(
+          height: 200,
+          child: LineChart(
+            LineChartData(
+              minX: 0,
+              maxX: (points.length - 1).toDouble(),
+              minY: minY,
+              maxY: maxY,
+              gridData: const FlGridData(show: true, drawVerticalLine: false),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                topTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                leftTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: true, reservedSize: 40),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 26,
+                    getTitlesWidget: (value, meta) {
+                      final i = value.round();
+                      if (i < 0 || i >= points.length) {
+                        return const SizedBox.shrink();
+                      }
+                      if (i % labelStep != 0 && i != points.length - 1) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          formatDateShort(points[i].measuredAt),
+                          style: const TextStyle(
+                              fontSize: 10, color: AppColors.textSecondary),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              extraLinesData: !hasRange
+                  ? const ExtraLinesData()
+                  : ExtraLinesData(horizontalLines: [
+                      HorizontalLine(
+                        y: refMin,
+                        color: AppColors.textSecondary,
+                        strokeWidth: 1,
+                        dashArray: const [4, 4],
+                      ),
+                      HorizontalLine(
+                        y: refMax,
+                        color: AppColors.textSecondary,
+                        strokeWidth: 1,
+                        dashArray: const [4, 4],
+                      ),
+                    ]),
+              lineTouchData: LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipItems: (spots) => [
+                    for (final s in spots)
+                      LineTooltipItem(
+                        '${fmtLocal(points[s.x.toInt()].value)} ${widget.unit}\n'
+                        '${formatDate(points[s.x.toInt()].measuredAt)}',
+                        const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                  ],
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: [
+                    for (var i = 0; i < points.length; i++)
+                      FlSpot(i.toDouble(), points[i].value),
+                  ],
+                  isCurved: false,
+                  color: AppColors.primary,
+                  barWidth: 2,
+                  dotData: FlDotData(
+                    show: true,
+                    getDotPainter: (spot, percent, bar, index) =>
+                        FlDotCirclePainter(
+                      radius: 4,
+                      color: valueStatusColor(points[index].status),
+                      strokeColor: Colors.white,
+                      strokeWidth: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

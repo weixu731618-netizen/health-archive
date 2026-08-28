@@ -5,6 +5,7 @@ import '../main.dart';
 import '../models/body_area_health.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
+import '../widgets/normal_items_toggle.dart';
 import '../widgets/section_title.dart';
 import 'metric_history_page.dart';
 import 'report_detail_page.dart';
@@ -22,6 +23,7 @@ class _BodyPageState extends State<BodyPage> {
   List<HealthMetric> _real = [];
   bool _loading = true;
   String? _error;
+  bool _showNormalAreas = false;
 
   @override
   void initState() {
@@ -61,9 +63,16 @@ class _BodyPageState extends State<BodyPage> {
     }
   }
 
-  List<BodyAreaHealthSummary> get _bodyAreas => _real.isEmpty
-      ? buildFallbackBodyAreaHealth()
-      : buildBodyAreaHealthFromMetrics(_real);
+  List<BodyAreaHealthSummary> get _bodyAreas =>
+      buildBodyAreaHealthFromMetrics(_real);
+
+  /// 异常 / 需关注的部位：始终展示在前。
+  List<BodyAreaHealthSummary> get _attentionAreas =>
+      _bodyAreas.where((a) => a.priorityRank <= 1).toList();
+
+  /// 正常（含数据不足）的部位：默认折叠。
+  List<BodyAreaHealthSummary> get _normalAreas =>
+      _bodyAreas.where((a) => a.priorityRank > 1).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -93,15 +102,44 @@ class _BodyPageState extends State<BodyPage> {
                 child: Text(_error!,
                     style: const TextStyle(color: AppColors.textSecondary)),
               )
-            else
-              for (final area in _bodyAreas) ...[
+            else ...[
+              for (final area in _attentionAreas) ...[
                 _BodyAreaCard(
                   area: area,
-                  isExample: _real.isEmpty,
+                  isExample: false,
                   onTap: () => _openAreaDetail(context, area),
                 ),
                 const SizedBox(height: 12),
               ],
+              if (_attentionAreas.isEmpty)
+                for (final area in _normalAreas) ...[
+                  _BodyAreaCard(
+                    area: area,
+                    isExample: false,
+                    onTap: () => _openAreaDetail(context, area),
+                  ),
+                  const SizedBox(height: 12),
+                ]
+              else ...[
+                NormalItemsToggle(
+                  expanded: _showNormalAreas,
+                  hiddenCount: _normalAreas.length,
+                  onTap: () =>
+                      setState(() => _showNormalAreas = !_showNormalAreas),
+                ),
+                if (_showNormalAreas) ...[
+                  const SizedBox(height: 12),
+                  for (final area in _normalAreas) ...[
+                    _BodyAreaCard(
+                      area: area,
+                      isExample: false,
+                      onTap: () => _openAreaDetail(context, area),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ],
+              ],
+            ],
           ],
         ),
       ),
@@ -114,7 +152,7 @@ class _BodyPageState extends State<BodyPage> {
         builder: (_) => BodySystemDetailPage(
           area: area,
           allMetrics: _real,
-          isExample: _real.isEmpty,
+          isExample: false,
         ),
       ),
     );
@@ -173,6 +211,7 @@ class BodySystemDetailPage extends StatefulWidget {
 class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
   late List<HealthMetric> _allMetrics = widget.allMetrics;
   late BodyAreaHealthSummary _area = widget.area;
+  bool _showNormalMetrics = false;
 
   Future<void> _reload() async {
     final repo = appRepository;
@@ -208,6 +247,13 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
     return list;
   }
 
+  /// 每个指标去重后只保留最新一条：异常/需关注的排前，正常/数据不足的可折叠。
+  List<BodyAreaMetricEvidence> get _attentionMetrics =>
+      _area.metrics.where((m) => m.needsAttention).toList();
+
+  List<BodyAreaMetricEvidence> get _normalMetrics =>
+      _area.metrics.where((m) => !m.needsAttention).toList();
+
   Map<int, List<HealthMetric>> get _metricsByReport {
     final out = <int, List<HealthMetric>>{};
     for (final m in _metrics) {
@@ -237,11 +283,35 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
                 _EvidenceCard(metric: m),
                 const SizedBox(height: 12),
               ]
-            else
-              for (final m in _metrics) ...[
-                _RealMetricCard(metric: m, onTap: () => _openHistory(m)),
+            else ...[
+              for (final m in _attentionMetrics) ...[
+                _RealMetricCard(
+                    metric: m, onTap: () => _openHistoryByEvidence(m)),
                 const SizedBox(height: 12),
               ],
+              if (_attentionMetrics.isEmpty)
+                for (final m in _normalMetrics) ...[
+                  _RealMetricCard(
+                      metric: m, onTap: () => _openHistoryByEvidence(m)),
+                  const SizedBox(height: 12),
+                ]
+              else ...[
+                NormalItemsToggle(
+                  expanded: _showNormalMetrics,
+                  hiddenCount: _normalMetrics.length,
+                  onTap: () => setState(
+                      () => _showNormalMetrics = !_showNormalMetrics),
+                ),
+                if (_showNormalMetrics) ...[
+                  const SizedBox(height: 12),
+                  for (final m in _normalMetrics) ...[
+                    _RealMetricCard(
+                        metric: m, onTap: () => _openHistoryByEvidence(m)),
+                    const SizedBox(height: 12),
+                  ],
+                ],
+              ],
+            ],
             const SectionTitle(title: '历史趋势'),
             if (key == null)
               const _EmptyDataCard(message: '暂无足够数据形成趋势')
@@ -270,19 +340,6 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
         ),
       ),
     );
-  }
-
-  Future<void> _openHistory(HealthMetric m) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => MetricHistoryPage(
-          metricId: m.metricId,
-          metricName: m.metricName,
-          unit: m.unit,
-        ),
-      ),
-    );
-    if (mounted) _reload();
   }
 
   Future<void> _openHistoryByEvidence(BodyAreaMetricEvidence metric) async {
@@ -354,7 +411,7 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _RealMetricCard extends StatelessWidget {
-  final HealthMetric metric;
+  final BodyAreaMetricEvidence metric;
   final VoidCallback onTap;
 
   const _RealMetricCard({required this.metric, required this.onTap});
@@ -362,11 +419,13 @@ class _RealMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasRange = metric.referenceMin != null && metric.referenceMax != null;
+    final dateText =
+        metric.measuredAt == null ? '' : ' · ${formatDate(metric.measuredAt!)}';
     return Card(
       child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          metric.metricName,
+          metric.name,
           style: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
@@ -374,9 +433,9 @@ class _RealMetricCard extends StatelessWidget {
           ),
         ),
         subtitle: Text(
-          '${_fmt(metric.value)} ${metric.unit}'
+          '${metric.valueText}'
           '${hasRange ? ' · 参考 ${_fmt(metric.referenceMin!)}–${_fmt(metric.referenceMax!)}' : ''}'
-          ' · ${formatDate(metric.measuredAt)}',
+          '$dateText',
           style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         trailing: StatusChip(
