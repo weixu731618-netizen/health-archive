@@ -32,8 +32,10 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
       if (mounted) setState(() => _loading = false);
       return;
     }
-    // 先把「当前档案未完成的提醒」补成通知行，并把已过时间的标记为已送达。
+    // 先把「当前档案未完成的提醒」补成通知行，并把已过时间的标记为已送达；
+    // 再清掉 30 天前的旧通知——通知中心是「最近发生了什么」，不是永久归档。
     await repo.syncNotificationsFromReminders();
+    await repo.purgeOldNotifications();
     final notifications = await repo.getNotifications(limit: 50);
     if (mounted) {
       setState(() {
@@ -57,6 +59,12 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
                 _load();
               },
               child: const Text('全部已读'),
+            ),
+          if (_notifications.isNotEmpty)
+            IconButton(
+              tooltip: '全部清除',
+              icon: const Icon(Icons.delete_sweep_outlined),
+              onPressed: _clearAll,
             ),
         ],
       ),
@@ -85,34 +93,70 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
     );
   }
 
+  Future<void> _clearAll() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('清除全部通知记录？'),
+        content: const Text('只清这份通知列表，不影响你设置的提醒计划。'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('清除')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await appRepository?.clearNotifications();
+    _load();
+  }
+
   Widget _notificationTile(NotificationRecord n) {
     final unread = n.readAt == null && n.deliveredAt != null;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        dense: true,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: Icon(
-          n.category == 'medication'
-              ? Icons.medication_outlined
-              : Icons.event_available_outlined,
-          color: unread ? AppColors.primary : AppColors.textSecondary,
+    return Dismissible(
+      key: ValueKey('notif-${n.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20, bottom: 8),
+        child: const Icon(Icons.delete_outline, color: AppColors.abnormal),
+      ),
+      onDismissed: (_) async {
+        await appRepository?.deleteNotification(n.id);
+        setState(() => _notifications.removeWhere((x) => x.id == n.id));
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: ListTile(
+          dense: true,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          leading: Icon(
+            n.category == 'medication'
+                ? Icons.medication_outlined
+                : Icons.event_available_outlined,
+            color: unread ? AppColors.primary : AppColors.textSecondary,
+          ),
+          title: Text(n.title,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: unread ? FontWeight.w600 : FontWeight.w400)),
+          subtitle: Text(
+            '${formatDateCn(n.scheduledFor)} ${formatTime(n.scheduledFor)}'
+            '${n.deliveredAt == null ? ' · 待提醒' : ''}',
+            style:
+                const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          onTap: () async {
+            if (unread) {
+              await appRepository?.markNotificationRead(n.id);
+              _load();
+            }
+          },
         ),
-        title: Text(n.title,
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: unread ? FontWeight.w600 : FontWeight.w400)),
-        subtitle: Text(
-          '${formatDateCn(n.scheduledFor)} ${formatTime(n.scheduledFor)}'
-          '${n.deliveredAt == null ? ' · 待提醒' : ''}',
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        ),
-        onTap: () async {
-          if (unread) {
-            await appRepository?.markNotificationRead(n.id);
-            _load();
-          }
-        },
       ),
     );
   }

@@ -65,6 +65,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // 无数据时所有部位都是「数据不足」，默认折叠，先展开。
+    await tester.tap(find.textContaining('展开其余'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('肾脏/泌尿'), 200);
     await tester.tap(find.text('肾脏/泌尿'));
     await tester.pumpAndSettle();
 
@@ -139,9 +144,9 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.6.4+14'), findsOneWidget);
+    expect(find.text('版本 1.6.5+15'), findsOneWidget);
     expect(
-        find.text('首页减重：头像默认只留图标、待办卡收一行；记录页去掉说明行和"报告导入"标'),
+        find.text('身体页标题收短、正常部位默认折叠；记录页筛选去勾、报告卡去分享；通知可删可清、30 天自动清理'),
         findsOneWidget);
   });
 

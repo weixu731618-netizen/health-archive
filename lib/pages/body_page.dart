@@ -88,7 +88,7 @@ class _BodyPageState extends State<BodyPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('身体部位健康'),
+        title: const Text('身体'),
         actions: const [ProfileSwitcher()],
       ),
       body: RefreshIndicator(
@@ -104,8 +104,8 @@ class _BodyPageState extends State<BodyPage> {
               title: '疾病史',
               count: _diseaseCount,
               onTap: () => Navigator.of(context)
-                  .push(MaterialPageRoute(
-                      builder: (_) => const ConditionPage()))
+                  .push(
+                      MaterialPageRoute(builder: (_) => const ConditionPage()))
                   .then((_) => _load()),
             ),
             const SizedBox(height: 12),
@@ -114,8 +114,8 @@ class _BodyPageState extends State<BodyPage> {
               title: '当前用药',
               count: _medCount,
               onTap: () => Navigator.of(context)
-                  .push(MaterialPageRoute(
-                      builder: (_) => const MedicationPage()))
+                  .push(
+                      MaterialPageRoute(builder: (_) => const MedicationPage()))
                   .then((_) => _load()),
             ),
             const SizedBox(height: 12),
@@ -149,14 +149,16 @@ class _BodyPageState extends State<BodyPage> {
                 const SizedBox(height: 12),
               ],
               if (_attentionAreas.isEmpty)
-                for (final area in _normalAreas) ...[
-                  _BodyAreaCard(
-                    area: area,
-                    onTap: () => _openAreaDetail(context, area),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    '暂无异常 / 需关注的部位',
+                    style:
+                        TextStyle(fontSize: 14, color: AppColors.textSecondary),
                   ),
-                  const SizedBox(height: 12),
-                ]
-              else ...[
+                ),
+              // 正常 / 数据不足的部位一律折叠，默认收起，太长了。
+              if (_normalAreas.isNotEmpty) ...[
                 NormalItemsToggle(
                   expanded: _showNormalAreas,
                   hiddenCount: _normalAreas.length,
@@ -212,7 +214,8 @@ class _BackgroundTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tail = trailingText ?? (count != null && count! > 0 ? '$count 条' : null);
+    final tail =
+        trailingText ?? (count != null && count! > 0 ? '$count 条' : null);
     return Card(
       child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -378,8 +381,8 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
                 NormalItemsToggle(
                   expanded: _showNormalMetrics,
                   hiddenCount: _normalMetrics.length,
-                  onTap: () => setState(
-                      () => _showNormalMetrics = !_showNormalMetrics),
+                  onTap: () =>
+                      setState(() => _showNormalMetrics = !_showNormalMetrics),
                 ),
                 if (_showNormalMetrics) ...[
                   const SizedBox(height: 12),

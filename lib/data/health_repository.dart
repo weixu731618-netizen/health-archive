@@ -825,6 +825,21 @@ class HealthRepository {
   Future<void> deleteNotification(int id) =>
       (_db.delete(_db.notifications)..where((t) => t.id.equals(id))).go();
 
+  /// 清空当前档案的全部通知记录（用户主动「全部清除」）。
+  Future<void> clearNotifications() =>
+      (_db.delete(_db.notifications)
+            ..where((t) => t.profileId.equals(_activeProfileId)))
+          .go();
+
+  /// 自动清理：删掉计划时间早于 [keepDays] 天前的通知，避免越攒越多。
+  /// 通知中心是「最近发生了什么」，不是永久归档。
+  Future<void> purgeOldNotifications({int keepDays = 30}) {
+    final cutoff = DateTime.now().subtract(Duration(days: keepDays));
+    return (_db.delete(_db.notifications)
+          ..where((t) => t.scheduledFor.isSmallerThanValue(cutoff)))
+        .go();
+  }
+
   /// 幂等：把「当前档案未完成的提醒」落成 notifications 行——
   /// 复查提醒各 1 行（到期日 09:00），服药提醒补齐「今天」各时间点 1 行；
   /// 再把已过计划时间但未标记送达的行标记为已送达。返回本次新建条数。

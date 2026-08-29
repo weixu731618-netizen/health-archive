@@ -207,11 +207,10 @@ void main() {
 
     expect(find.text('CT · 图文报告'), findsOneWidget);
     expect(find.text('市中心医院'), findsOneWidget);
-    // 卡片瘦身：结论摘要 / 影响部位不再铺在卡片上，点开报告详情才看。
+    // 卡片瘦身：结论摘要 / 影响部位 / 分享按钮都不铺在卡片上，点开报告详情才有。
     expect(find.textContaining('未见明显异常密度影'), findsNothing);
     expect(find.textContaining('0 项指标'), findsNothing);
-    // A2：记录页每张报告卡片带一个「分享 / 导出」快捷入口。
-    expect(find.byIcon(Icons.ios_share), findsOneWidget);
+    expect(find.byIcon(Icons.ios_share), findsNothing);
   });
 
   testWidgets('影像/病理报告：既无指标也无识别文字时给出图文报告说明', (tester) async {

@@ -8,7 +8,6 @@ import '../models/metric_source.dart';
 import '../utils/format.dart';
 import '../widgets/profile_switcher.dart';
 import '../utils/records_filter.dart';
-import '../utils/report_export.dart';
 import 'daily_health_entry_page.dart';
 import 'daily_history_page.dart';
 import 'manual_metric_entry_page.dart';
@@ -180,8 +179,8 @@ class _RecordsPageState extends State<RecordsPage> {
                           icon: const Icon(Icons.close, size: 18),
                           onPressed: () {
                             _searchCtrl.clear();
-                            setState(() =>
-                                _filter = _filter.copyWith(query: ''));
+                            setState(
+                                () => _filter = _filter.copyWith(query: ''));
                           },
                         ),
                   border: OutlineInputBorder(
@@ -200,8 +199,11 @@ class _RecordsPageState extends State<RecordsPage> {
                 for (final (label, value) in _sourceFilters)
                   ChoiceChip(
                     label: Text(label),
+                    showCheckmark: false,
                     selected: _sourceFilter == value,
-                    onSelected: (_) => setState(() => _sourceFilter = value),
+                    // 再点一下选中的 chip → 取消筛选回到「全部」。
+                    onSelected: (sel) =>
+                        setState(() => _sourceFilter = sel ? value : 'all'),
                   ),
                 _FilterButton(
                   activeCount: _filter.activeCount,
@@ -247,7 +249,6 @@ class _RecordsPageState extends State<RecordsPage> {
                   report: r,
                   metricCount: _reportMetricCounts[r.id] ?? 0,
                   onTap: () => _openReport(context, r),
-                  onShare: () => _shareReport(r),
                   onEditTags: () => _editTags(r),
                 ),
                 const SizedBox(height: 12),
@@ -296,24 +297,6 @@ class _RecordsPageState extends State<RecordsPage> {
               hasAbnormalMetric: _reportHasAbnormal[r.id] ?? false,
             ))
         .toList();
-  }
-
-  Future<void> _shareReport(MedicalReport report) async {
-    try {
-      final shared = await shareReport(report);
-      if (!shared && mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-              const SnackBar(content: Text('该报告没有可导出的原图或文字')));
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('分享失败，请重试')));
-      }
-    }
   }
 
   Future<void> _openReport(BuildContext context, MedicalReport report) async {
@@ -428,7 +411,8 @@ class _ActiveFilterChips extends StatelessWidget {
 class RealEntry {
   final int? metricId;
   final int? dailyId;
-  final String? dailyType; // 日常记录的类型：blood_pressure / blood_glucose / weight / heart_rate
+  final String?
+      dailyType; // 日常记录的类型：blood_pressure / blood_glucose / weight / heart_rate
   final String title;
   final String subtitle;
   final String status;
@@ -497,22 +481,21 @@ String _valueText(double value, String unit) => '${fmtNum(value)} $unit';
 
 /// 根据数据来源类型返回展示文案。
 /// 来源类型的规范定义（含 Apple Health / 设备等未来预留项）见 [metric_source.dart]。
-String sourceTypeLabel(String sourceType) => metricSourceLabelFromWire(sourceType);
+String sourceTypeLabel(String sourceType) =>
+    metricSourceLabelFromWire(sourceType);
 
 /// 一份导入报告的时间线卡片：只三行——日期、医院、类型。
-/// 结论 / 影响部位 / 标签等详情点开报告看，卡片上不铺。
+/// 结论 / 影响部位 / 标签 / 分享 等都点开报告详情做，卡片上不铺。
 class _ReportTile extends StatelessWidget {
   final MedicalReport report;
   final int metricCount;
   final VoidCallback onTap;
-  final VoidCallback onShare;
   final VoidCallback onEditTags;
 
   const _ReportTile({
     required this.report,
     required this.metricCount,
     required this.onTap,
-    required this.onShare,
     required this.onEditTags,
   });
 
@@ -520,9 +503,8 @@ class _ReportTile extends StatelessWidget {
       report.reportType.isNotEmpty ? report.reportType : '化验单';
 
   /// 有指标 → 「类型 · N 项指标」；无指标（影像/病理等图文报告）→ 「类型 · 图文报告」。
-  String get _summaryLine => metricCount > 0
-      ? '$_typeLabel · $metricCount 项指标'
-      : '$_typeLabel · 图文报告';
+  String get _summaryLine =>
+      metricCount > 0 ? '$_typeLabel · $metricCount 项指标' : '$_typeLabel · 图文报告';
 
   @override
   Widget build(BuildContext context) {
@@ -536,26 +518,12 @@ class _ReportTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Text(
-                    formatDate(report.reportDate),
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: '分享 / 导出原件',
-                    icon: const Icon(Icons.ios_share, size: 18),
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                    color: AppColors.textSecondary,
-                    onPressed: onShare,
-                  ),
-                ],
+              Text(
+                formatDate(report.reportDate),
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary),
               ),
               const SizedBox(height: 6),
               Text(
@@ -723,8 +691,7 @@ class _FilterSheetState extends State<_FilterSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('筛选',
-                  style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -734,8 +701,8 @@ class _FilterSheetState extends State<_FilterSheet> {
               ),
               const SizedBox(height: 4),
               const Text('时间范围',
-                  style: TextStyle(
-                      fontSize: 13, color: AppColors.textSecondary)),
+                  style:
+                      TextStyle(fontSize: 13, color: AppColors.textSecondary)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
@@ -775,8 +742,8 @@ class _FilterSheetState extends State<_FilterSheet> {
                       FilterChip(
                         label: Text(t),
                         selected: _tags.contains(t),
-                        onSelected: (s) => setState(
-                            () => s ? _tags.add(t) : _tags.remove(t)),
+                        onSelected: (s) =>
+                            setState(() => s ? _tags.add(t) : _tags.remove(t)),
                       ),
                   ],
                 ),
@@ -795,8 +762,8 @@ class _FilterSheetState extends State<_FilterSheet> {
                       FilterChip(
                         label: Text(h),
                         selected: _hospitals.contains(h),
-                        onSelected: (s) => setState(() =>
-                            s ? _hospitals.add(h) : _hospitals.remove(h)),
+                        onSelected: (s) => setState(
+                            () => s ? _hospitals.add(h) : _hospitals.remove(h)),
                       ),
                   ],
                 ),
@@ -880,7 +847,8 @@ class _TagEditSheetState extends State<_TagEditSheet> {
         .where((t) => !_tags.contains(t))
         .toList();
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -889,13 +857,12 @@ class _TagEditSheetState extends State<_TagEditSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('报告标签',
-                  style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               if (_tags.isEmpty)
                 const Text('还没有标签',
-                    style: TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary))
+                    style:
+                        TextStyle(fontSize: 13, color: AppColors.textSecondary))
               else
                 Wrap(
                   spacing: 8,
