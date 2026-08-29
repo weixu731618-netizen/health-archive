@@ -1,4 +1,5 @@
 // B2：提醒 / 通知 仓库层 —— CRUD、按档案隔离、服药提醒 upsert/删除、通知落库。
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -35,8 +36,31 @@ void main() {
     expect(await repo.getRecheckReminderForMetric('UA'), isNull);
     expect((await repo.getActiveReminders(includeCompleted: true)), hasLength(1));
 
+    // 撤销完成：又变回待办
+    await repo.unmarkReminderCompleted(id);
+    expect((await repo.getActiveReminders()).single.id, id);
+    expect((await repo.getRecheckReminderForMetric('UA'))!.id, id);
+
     await repo.deleteReminder(id);
     expect(await repo.getActiveReminders(includeCompleted: true), isEmpty);
+  });
+
+  test('purgeCompletedReminders：已完成满 20 天的自动删除', () async {
+    await repo.ensureDefaultPersonProfile();
+    final oldId = await repo.insertReminder(kind: 'recheck', title: '旧复查');
+    final freshId = await repo.insertReminder(kind: 'recheck', title: '刚完成');
+    // 手动把 oldId 的 completedAt 设成 30 天前
+    await (db.update(db.reminders)..where((t) => t.id.equals(oldId))).write(
+      RemindersCompanion(
+        completedAt: Value(DateTime.now().subtract(const Duration(days: 30))),
+      ),
+    );
+    await repo.markReminderCompleted(freshId);
+
+    await repo.purgeCompletedReminders();
+
+    final left = await repo.getActiveReminders(includeCompleted: true);
+    expect(left.map((r) => r.id), [freshId]); // 旧的被清掉，刚完成的还在
   });
 
   test('服药提醒：setMedicationReminder 幂等 upsert；关闭时删除', () async {

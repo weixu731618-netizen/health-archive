@@ -52,6 +52,9 @@ Future<void> syncReminders() async {
   final repo = appRepository;
   if (repo == null) return;
   try {
+    await repo.purgeCompletedReminders(); // 已完成满 20 天的自动清掉
+  } catch (_) {}
+  try {
     await repo.syncNotificationsFromReminders();
   } catch (_) {}
   try {
@@ -238,8 +241,7 @@ class _PrivacyCover extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.health_and_safety,
-                  size: 56, color: AppColors.primary),
+              Icon(Icons.health_and_safety, size: 56, color: AppColors.primary),
               SizedBox(height: 12),
               Text(
                 '健康档案',

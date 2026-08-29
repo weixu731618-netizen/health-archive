@@ -54,39 +54,28 @@ class _RemindersPageState extends State<RemindersPage> {
     if (mounted) setState(() => _busy = false);
   }
 
-  Future<void> _complete(Reminder r) async {
+  /// 点圆圈：未完成 → 打勾完成；已完成 → 撤销回待办。
+  Future<void> _toggleDone(Reminder r) async {
     final repo = appRepository;
     if (repo == null || _busy) return;
     setState(() => _busy = true);
-    await repo.markReminderCompleted(r.id);
+    if (r.completedAt == null) {
+      await repo.markReminderCompleted(r.id);
+    } else {
+      await repo.unmarkReminderCompleted(r.id);
+    }
     await syncReminders();
     await _load();
     if (mounted) setState(() => _busy = false);
   }
 
-  Future<void> _delete(Reminder r) async {
+  /// 左滑永久删除（confirmDismiss 已弹过确认）。
+  Future<void> _remove(Reminder r) async {
     final repo = appRepository;
-    if (repo == null || _busy) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('删除提醒「${r.title}」？'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('删除')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    setState(() => _busy = true);
+    if (repo == null) return;
     await repo.deleteReminder(r.id);
     await syncReminders();
     await _load();
-    if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _addRecheck() async {
@@ -114,8 +103,7 @@ class _RemindersPageState extends State<RemindersPage> {
 
   @override
   Widget build(BuildContext context) {
-    final rechecks =
-        _reminders.where((r) => r.kind == 'recheck').toList();
+    final rechecks = _reminders.where((r) => r.kind == 'recheck').toList();
     final meds = _reminders.where((r) => r.kind == 'medication').toList();
     return Scaffold(
       appBar: AppBar(title: const Text('提醒')),
@@ -125,8 +113,7 @@ class _RemindersPageState extends State<RemindersPage> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
                 const _SectionLabel('复查提醒'),
-                if (rechecks.isEmpty)
-                  const _EmptyHint('异常指标可在「指标历史」页设置复查提醒'),
+                if (rechecks.isEmpty) const _EmptyHint('异常指标可在「指标历史」页设置复查提醒'),
                 for (final r in rechecks) _reminderTile(r),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
@@ -138,8 +125,7 @@ class _RemindersPageState extends State<RemindersPage> {
                 ),
                 const SizedBox(height: 16),
                 const _SectionLabel('服药提醒'),
-                if (meds.isEmpty)
-                  const _EmptyHint('在「用药记录」里编辑药品时可开启服药提醒'),
+                if (meds.isEmpty) const _EmptyHint('在「用药记录」里编辑药品时可开启服药提醒'),
                 for (final r in meds) _reminderTile(r),
               ],
             ),
@@ -158,42 +144,61 @@ class _RemindersPageState extends State<RemindersPage> {
         '每天 ${parseDailyTimes(r.dailyTimes).map((t) => t.text).join('、')}',
       if ((r.detail ?? '').isNotEmpty) r.detail!,
     ].join(' · ');
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          r.title,
-          style: TextStyle(
-            fontSize: 15,
-            decoration: done ? TextDecoration.lineThrough : null,
-            color: done ? AppColors.textSecondary : AppColors.textPrimary,
-          ),
-        ),
-        subtitle: Text(sub,
-            style:
-                const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isRecheck && !done)
-              IconButton(
-                tooltip: '标记已复查',
-                icon: const Icon(Icons.check_circle_outline,
-                    color: AppColors.primary),
-                onPressed: _busy ? null : () => _complete(r),
-              )
-            else if (!isRecheck)
-              Switch(
-                value: r.enabled,
-                onChanged: _busy ? null : (v) => _toggle(r, v),
-              ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline,
-                  color: AppColors.abnormal),
-              onPressed: _busy ? null : () => _delete(r),
-            ),
+    return Dismissible(
+      key: ValueKey('rem-${r.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24, bottom: 10),
+        child: const Icon(Icons.delete_outline, color: AppColors.abnormal),
+      ),
+      confirmDismiss: (_) => showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('移除提醒「${r.title}」？'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('移除')),
           ],
+        ),
+      ),
+      onDismissed: (_) => _remove(r),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 10),
+        child: ListTile(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          leading: isRecheck
+              ? IconButton(
+                  tooltip: done ? '撤销完成' : '标记已完成',
+                  icon: Icon(
+                    done ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: done ? AppColors.primary : AppColors.textSecondary,
+                  ),
+                  onPressed: _busy ? null : () => _toggleDone(r),
+                )
+              : null,
+          title: Text(
+            r.title,
+            style: TextStyle(
+              fontSize: 15,
+              decoration: done ? TextDecoration.lineThrough : null,
+              color: done ? AppColors.textSecondary : AppColors.textPrimary,
+            ),
+          ),
+          subtitle: Text(sub,
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary)),
+          trailing: isRecheck
+              ? null
+              : Switch(
+                  value: r.enabled,
+                  onChanged: _busy ? null : (v) => _toggle(r, v),
+                ),
         ),
       ),
     );
@@ -256,7 +261,8 @@ class _NewRecheckSheetState extends State<_NewRecheckSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -265,18 +271,16 @@ class _NewRecheckSheetState extends State<_NewRecheckSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('新建复查提醒',
-                  style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               TextField(
                 controller: _titleCtrl,
-                decoration:
-                    const InputDecoration(labelText: '提醒什么（如：复查甲功）'),
+                decoration: const InputDecoration(labelText: '提醒什么（如：复查甲功）'),
               ),
               const SizedBox(height: 16),
               const Text('多久之后',
-                  style: TextStyle(
-                      fontSize: 13, color: AppColors.textSecondary)),
+                  style:
+                      TextStyle(fontSize: 13, color: AppColors.textSecondary)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
@@ -301,12 +305,11 @@ class _NewRecheckSheetState extends State<_NewRecheckSheet> {
                   if (t.isEmpty) {
                     ScaffoldMessenger.of(context)
                       ..hideCurrentSnackBar()
-                      ..showSnackBar(
-                          const SnackBar(content: Text('请填写提醒内容')));
+                      ..showSnackBar(const SnackBar(content: Text('请填写提醒内容')));
                     return;
                   }
-                  Navigator.of(context).pop(
-                      _NewRecheckResult(t, _days, _noteCtrl.text.trim()));
+                  Navigator.of(context)
+                      .pop(_NewRecheckResult(t, _days, _noteCtrl.text.trim()));
                 },
                 style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14)),

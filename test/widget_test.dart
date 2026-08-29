@@ -144,9 +144,9 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.6.5+15'), findsOneWidget);
+    expect(find.text('版本 1.6.6+16'), findsOneWidget);
     expect(
-        find.text('身体页标题收短、正常部位默认折叠；记录页筛选去勾、报告卡去分享；通知可删可清、30 天自动清理'),
+        find.text('提醒改「打勾完成」（可撤销、20 天自动消失）；记录页来源筛选切 Tab 不丢'),
         findsOneWidget);
   });
 

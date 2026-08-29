@@ -13,6 +13,11 @@ import 'daily_history_page.dart';
 import 'manual_metric_entry_page.dart';
 import 'report_detail_page.dart';
 
+/// 记录页在切 Tab 时会整页重建（为了每次进来都加载最新数据），
+/// 用这个模块级变量把「来源筛选」的选择留住，切走再回来还是原来选的那个。
+/// App 重启后回到「全部」。
+String _recordsSourceFilter = 'all';
+
 /// 记录页面：仅展示用户实际录入或导入的数据。
 class RecordsPage extends StatefulWidget {
   const RecordsPage({super.key});
@@ -30,7 +35,7 @@ class _RecordsPageState extends State<RecordsPage> {
     ('日常记录', 'daily'),
     ('报告', 'report'),
   ];
-  String _sourceFilter = 'all';
+  String _sourceFilter = _recordsSourceFilter;
 
   /// 搜索框默认收起，点 AppBar 放大镜展开。
   bool _searchOpen = false;
@@ -202,8 +207,10 @@ class _RecordsPageState extends State<RecordsPage> {
                     showCheckmark: false,
                     selected: _sourceFilter == value,
                     // 再点一下选中的 chip → 取消筛选回到「全部」。
-                    onSelected: (sel) =>
-                        setState(() => _sourceFilter = sel ? value : 'all'),
+                    onSelected: (sel) => setState(() {
+                      _sourceFilter = sel ? value : 'all';
+                      _recordsSourceFilter = _sourceFilter; // 记住，切 Tab 不丢
+                    }),
                   ),
                 _FilterButton(
                   activeCount: _filter.activeCount,

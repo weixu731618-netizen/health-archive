@@ -173,7 +173,8 @@ class HealthRepository {
           .go();
       await (_db.delete(_db.reminders)..where((t) => t.profileId.equals(id)))
           .go();
-      await (_db.delete(_db.personProfiles)..where((t) => t.id.equals(id))).go();
+      await (_db.delete(_db.personProfiles)..where((t) => t.id.equals(id)))
+          .go();
     });
     if (_activeProfileId == id) _activeProfileId = defaultProfileId;
     return _activeProfileId;
@@ -233,7 +234,8 @@ class HealthRepository {
     String? notes,
     int? reportId, // V0.4A：所属报告 id，手工录入为 null
     String? rawName, // V0.4D：原报告指标名
-    String matchType = 'manual', // V0.4D：exact/alias/ai_suggested/unmatched/manual
+    String matchType =
+        'manual', // V0.4D：exact/alias/ai_suggested/unmatched/manual
     double? recognitionConfidence, // V0.4D：识别置信度
     String verificationStatus = 'user_confirmed',
     int? sourcePage,
@@ -277,8 +279,7 @@ class HealthRepository {
 
   /// 按 id 查询一条检查指标记录
   Future<HealthMetric?> getMetricById(int id) {
-    final q = _db.select(_db.healthMetrics)
-      ..where((t) => t.id.equals(id));
+    final q = _db.select(_db.healthMetrics)..where((t) => t.id.equals(id));
     return q.getSingleOrNull();
   }
 
@@ -304,7 +305,8 @@ class HealthRepository {
   Future<List<HealthMetric>> getMetricsByBodySystem(String bodySystem) {
     final q = _db.select(_db.healthMetrics)
       ..where((t) =>
-          t.profileId.equals(_activeProfileId) & t.bodySystem.equals(bodySystem))
+          t.profileId.equals(_activeProfileId) &
+          t.bodySystem.equals(bodySystem))
       ..orderBy([(t) => OrderingTerm.desc(t.measuredAt)]);
     return q.get();
   }
@@ -352,8 +354,7 @@ class HealthRepository {
 
   /// 按 id 查询一条日常记录
   Future<DailyHealthRecord?> getDailyById(int id) {
-    final q = _db.select(_db.dailyHealthRecords)
-      ..where((t) => t.id.equals(id));
+    final q = _db.select(_db.dailyHealthRecords)..where((t) => t.id.equals(id));
     return q.getSingleOrNull();
   }
 
@@ -364,7 +365,8 @@ class HealthRepository {
 
   /// 删除一条日常记录
   Future<int> deleteDaily(int id) {
-    return (_db.delete(_db.dailyHealthRecords)..where((t) => t.id.equals(id))).go();
+    return (_db.delete(_db.dailyHealthRecords)..where((t) => t.id.equals(id)))
+        .go();
   }
 
   /// 查询全部日常记录（按测量日期倒序，最新在前）
@@ -379,8 +381,7 @@ class HealthRepository {
   /// 按测量日期倒序。用于日常记录的趋势历史页。
   Future<List<DailyHealthRecord>> getDailyRecordsByType(String type) {
     final q = _db.select(_db.dailyHealthRecords)
-      ..where((t) =>
-          t.profileId.equals(_activeProfileId) & t.type.equals(type))
+      ..where((t) => t.profileId.equals(_activeProfileId) & t.type.equals(type))
       ..orderBy([(t) => OrderingTerm.desc(t.measuredAt)]);
     return q.get();
   }
@@ -424,8 +425,7 @@ class HealthRepository {
 
   /// 按 id 查询一份报告
   Future<MedicalReport?> getReportById(int id) {
-    final q = _db.select(_db.medicalReports)
-      ..where((t) => t.id.equals(id));
+    final q = _db.select(_db.medicalReports)..where((t) => t.id.equals(id));
     return q.getSingleOrNull();
   }
 
@@ -441,18 +441,21 @@ class HealthRepository {
   /// 删除一份报告及其关联的所有检查指标（级联删除）。
   /// 此操作带破坏性，调用方必须先弹二次确认。
   Future<void> deleteReportCascade(int reportId) async {
-    await (_db.delete(_db.healthMetrics)..where((t) => t.reportId.equals(reportId)))
+    await (_db.delete(_db.healthMetrics)
+          ..where((t) => t.reportId.equals(reportId)))
         .go();
-    await (_db.delete(_db.medicalReports)..where((t) => t.id.equals(reportId))).go();
+    await (_db.delete(_db.medicalReports)..where((t) => t.id.equals(reportId)))
+        .go();
   }
 
   /// 更新一份报告的识别状态（pending / processing / review / confirmed / failed）
   Future<bool> setReportStatus(int reportId, String status) async {
     return await (_db.update(_db.medicalReports)
-          ..where((t) => t.id.equals(reportId)))
-        .write(MedicalReportsCompanion(
-      recognitionStatus: Value(status),
-    )) > 0;
+              ..where((t) => t.id.equals(reportId)))
+            .write(MedicalReportsCompanion(
+          recognitionStatus: Value(status),
+        )) >
+        0;
   }
 
   // ---------- B3：报告标签 ----------
@@ -516,13 +519,13 @@ class HealthRepository {
   }) async {
     await ensureDefaultPersonProfile();
     return _db.into(_db.diseases).insert(DiseasesCompanion.insert(
-      profileId: Value(profileId ?? _activeProfileId),
-      name: name,
-      foundDate: Value(foundDate),
-      status: Value(status),
-      notes: Value(notes),
-      createdAt: DateTime.now(),
-    ));
+          profileId: Value(profileId ?? _activeProfileId),
+          name: name,
+          foundDate: Value(foundDate),
+          status: Value(status),
+          notes: Value(notes),
+          createdAt: DateTime.now(),
+        ));
   }
 
   Future<List<Disease>> getAllDiseases() {
@@ -556,18 +559,18 @@ class HealthRepository {
   }) async {
     await ensureDefaultPersonProfile();
     return _db.into(_db.medications).insert(MedicationsCompanion.insert(
-      profileId: Value(profileId ?? _activeProfileId),
-      name: name,
-      dosage: Value(dosage),
-      dosageUnit: Value(dosageUnit),
-      usage: Value(usage),
-      timesPerDay: Value(timesPerDay),
-      startDate: Value(startDate),
-      endDate: Value(endDate),
-      status: Value(status),
-      notes: Value(notes),
-      createdAt: DateTime.now(),
-    ));
+          profileId: Value(profileId ?? _activeProfileId),
+          name: name,
+          dosage: Value(dosage),
+          dosageUnit: Value(dosageUnit),
+          usage: Value(usage),
+          timesPerDay: Value(timesPerDay),
+          startDate: Value(startDate),
+          endDate: Value(endDate),
+          status: Value(status),
+          notes: Value(notes),
+          createdAt: DateTime.now(),
+        ));
   }
 
   Future<List<Medication>> getAllMedications() {
@@ -701,6 +704,26 @@ class HealthRepository {
         ),
       );
 
+  /// 撤销「已完成」——把复查提醒重新变回待办。
+  Future<void> unmarkReminderCompleted(int id) =>
+      (_db.update(_db.reminders)..where((t) => t.id.equals(id))).write(
+        RemindersCompanion(
+          completedAt: const Value(null),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+
+  /// 自动清理：已完成满 [keepDays] 天的提醒自动删除（像 iOS 提醒事项那样，
+  /// 打勾的过一阵就消失，不用手动删）。
+  Future<void> purgeCompletedReminders({int keepDays = 20}) {
+    final cutoff = DateTime.now().subtract(Duration(days: keepDays));
+    return (_db.delete(_db.reminders)
+          ..where((t) =>
+              t.completedAt.isNotNull() &
+              t.completedAt.isSmallerThanValue(cutoff)))
+        .go();
+  }
+
   Future<void> deleteReminder(int id) =>
       (_db.delete(_db.reminders)..where((t) => t.id.equals(id))).go();
 
@@ -761,10 +784,10 @@ class HealthRepository {
     }
   }
 
-  Future<void> deleteMedicationReminder(int medicationId) => (_db.delete(
-          _db.reminders)
-        ..where((t) => t.relatedMedicationId.equals(medicationId)))
-      .go();
+  Future<void> deleteMedicationReminder(int medicationId) =>
+      (_db.delete(_db.reminders)
+            ..where((t) => t.relatedMedicationId.equals(medicationId)))
+          .go();
 
   // ---------- B2：通知记录（应用内通知中心 + 系统推送共用）----------
 
@@ -816,20 +839,18 @@ class HealthRepository {
       (_db.update(_db.notifications)..where((t) => t.id.equals(id)))
           .write(NotificationsCompanion(readAt: Value(DateTime.now())));
 
-  Future<void> markAllNotificationsRead() =>
-      (_db.update(_db.notifications)
-            ..where((t) =>
-                t.profileId.equals(_activeProfileId) & t.readAt.isNull()))
-          .write(NotificationsCompanion(readAt: Value(DateTime.now())));
+  Future<void> markAllNotificationsRead() => (_db.update(_db.notifications)
+        ..where(
+            (t) => t.profileId.equals(_activeProfileId) & t.readAt.isNull()))
+      .write(NotificationsCompanion(readAt: Value(DateTime.now())));
 
   Future<void> deleteNotification(int id) =>
       (_db.delete(_db.notifications)..where((t) => t.id.equals(id))).go();
 
   /// 清空当前档案的全部通知记录（用户主动「全部清除」）。
-  Future<void> clearNotifications() =>
-      (_db.delete(_db.notifications)
-            ..where((t) => t.profileId.equals(_activeProfileId)))
-          .go();
+  Future<void> clearNotifications() => (_db.delete(_db.notifications)
+        ..where((t) => t.profileId.equals(_activeProfileId)))
+      .go();
 
   /// 自动清理：删掉计划时间早于 [keepDays] 天前的通知，避免越攒越多。
   /// 通知中心是「最近发生了什么」，不是永久归档。
@@ -851,14 +872,13 @@ class HealthRepository {
     var inserted = 0;
 
     bool has(int reminderId, DateTime when) => existing.any((n) =>
-        n.reminderId == reminderId &&
-        n.scheduledFor.isAtSameMomentAs(when));
+        n.reminderId == reminderId && n.scheduledFor.isAtSameMomentAs(when));
 
     for (final r in reminders) {
       if (!r.enabled) continue;
       if (r.kind == 'recheck' && r.dueDate != null) {
-        final when = DateTime(
-            r.dueDate!.year, r.dueDate!.month, r.dueDate!.day, 9);
+        final when =
+            DateTime(r.dueDate!.year, r.dueDate!.month, r.dueDate!.day, 9);
         if (!has(r.id, when)) {
           await insertNotification(
             reminderId: r.id,
