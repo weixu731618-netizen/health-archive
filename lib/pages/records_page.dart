@@ -12,7 +12,6 @@ import '../utils/report_export.dart';
 import 'daily_health_entry_page.dart';
 import 'daily_history_page.dart';
 import 'manual_metric_entry_page.dart';
-import 'medication_page.dart';
 import 'report_detail_page.dart';
 
 /// 记录页面：仅展示用户实际录入或导入的数据。
@@ -24,13 +23,21 @@ class RecordsPage extends StatefulWidget {
 }
 
 class _RecordsPageState extends State<RecordsPage> {
-  int _filterIndex = 0;
-  // 来源筛选目前放出「全部 / 报告 / 日常记录」。未来的来源（拍摄识别、用药、
-  // Apple Health、设备导入）在 models/metric_source.dart 的 visibleRecordSourceFilters
-  // 里登记后再加到这里，筛选按来源类型判定即可。
-  static const List<String> _filters = ['全部来源', '报告', '日常记录'];
+  /// 来源筛选：all / daily / report。未来的来源（拍摄识别、用药、Apple Health、
+  /// 设备导入）在 models/metric_source.dart 的 visibleRecordSourceFilters 里登记后
+  /// 再加进来即可。
+  static const List<(String, String)> _sourceFilters = [
+    ('全部', 'all'),
+    ('日常记录', 'daily'),
+    ('报告', 'report'),
+  ];
+  String _sourceFilter = 'all';
+
+  /// 搜索框默认收起，点 AppBar 放大镜展开。
+  bool _searchOpen = false;
 
   final TextEditingController _searchCtrl = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
   RecordFilter _filter = const RecordFilter();
 
   List<RealEntry> _real = [];
@@ -53,7 +60,22 @@ class _RecordsPageState extends State<RecordsPage> {
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _searchFocus.dispose();
     super.dispose();
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _searchOpen = !_searchOpen;
+      if (!_searchOpen) {
+        _searchCtrl.clear();
+        _filter = _filter.copyWith(query: '');
+      }
+    });
+    if (_searchOpen) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _searchFocus.requestFocus());
+    }
   }
 
   Future<void> _load() async {
@@ -123,7 +145,17 @@ class _RecordsPageState extends State<RecordsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('资料来源'),
-        actions: const [ProfileSwitcher()],
+        actions: [
+          IconButton(
+            tooltip: '搜索',
+            icon: Icon(
+              _searchOpen ? Icons.search_off : Icons.search,
+              color: _filter.query.isNotEmpty ? AppColors.primary : null,
+            ),
+            onPressed: _toggleSearch,
+          ),
+          const ProfileSwitcher(),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -134,75 +166,50 @@ class _RecordsPageState extends State<RecordsPage> {
             const Padding(
               padding: EdgeInsets.only(top: 4, bottom: 12),
               child: Text(
-                '报告、手工录入、日常记录和用药记录作为身体状态的来源证据保留在这里。',
+                '报告、手工录入和日常记录作为身体状态的来源证据保留在这里。',
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
             ),
-            Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                shape:
-                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                leading: const Icon(Icons.medication_outlined,
-                    color: AppColors.primary),
-                title: const Text('用药记录',
-                    style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
-                subtitle: const Text('当前档案的药物、剂量、用药周期与服药提醒',
-                    style: TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary)),
-                trailing: const Icon(Icons.chevron_right,
-                    color: AppColors.textSecondary),
-                onTap: () => Navigator.of(context)
-                    .push(MaterialPageRoute(
-                        builder: (_) => const MedicationPage()))
-                    .then((_) => _load()),
-              ),
-            ),
-            TextField(
-              controller: _searchCtrl,
-              onChanged: (v) =>
-                  setState(() => _filter = _filter.copyWith(query: v)),
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: '搜索医院、指标、报告内容、标签…',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: _filter.query.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          setState(() =>
-                              _filter = _filter.copyWith(query: ''));
-                        },
-                      ),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (int i = 0; i < _filters.length; i++) ...[
-                          ChoiceChip(
-                            label: Text(_filters[i]),
-                            selected: _filterIndex == i,
-                            onSelected: (_) =>
-                                setState(() => _filterIndex = i),
-                          ),
-                          if (i < _filters.length - 1)
-                            const SizedBox(width: 8),
-                        ],
-                      ],
-                    ),
+            if (_searchOpen) ...[
+              TextField(
+                controller: _searchCtrl,
+                focusNode: _searchFocus,
+                onChanged: (v) =>
+                    setState(() => _filter = _filter.copyWith(query: v)),
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  hintText: '搜索医院、指标、报告内容、标签…',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: _filter.query.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() =>
+                                _filter = _filter.copyWith(query: ''));
+                          },
+                        ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
                 ),
-                const SizedBox(width: 8),
+              ),
+              const SizedBox(height: 10),
+            ],
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (final (label, value) in _sourceFilters)
+                  ChoiceChip(
+                    label: Text(label),
+                    selected: _sourceFilter == value,
+                    onSelected: (_) => setState(() => _sourceFilter = value),
+                  ),
                 _FilterButton(
                   activeCount: _filter.activeCount,
                   onTap: _openFilterSheet,
@@ -272,13 +279,10 @@ class _RecordsPageState extends State<RecordsPage> {
   /// 来源 chip + 搜索/筛选条件叠加后的真实数据列表
   List<RealEntry> get _filteredReal {
     Iterable<RealEntry> list = _real;
-    switch (_filterIndex) {
-      case 1: // 报告
-        list = list.where((e) => e.source == '报告导入');
-        break;
-      case 2: // 日常记录
-        list = list.where((e) => e.source == '日常记录');
-        break;
+    if (_sourceFilter == 'report') {
+      list = list.where((e) => e.source == '报告导入');
+    } else if (_sourceFilter == 'daily') {
+      list = list.where((e) => e.source == '日常记录');
     }
     return list
         .where((e) => _filter.matchesEntry(
@@ -292,7 +296,7 @@ class _RecordsPageState extends State<RecordsPage> {
 
   /// 来源 chip + 搜索/筛选条件叠加后的报告列表
   List<MedicalReport> get _visibleReports {
-    if (_filterIndex == 2) return const []; // 日常记录筛选下不显示报告
+    if (_sourceFilter == 'daily') return const []; // 日常记录筛选下不显示报告
     return _reports
         .where((r) => _filter.matchesReport(
               r,

@@ -134,8 +134,9 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.6.0+10'), findsOneWidget);
-    expect(find.text('日常记录（血压 / 血糖 / 体重 / 心率）加趋势折线图'), findsOneWidget);
+    expect(find.text('版本 1.6.1+11'), findsOneWidget);
+    expect(find.text('记录页：搜索改放大镜、来源筛选换行不遮挡、去掉重复的用药入口'),
+        findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {
