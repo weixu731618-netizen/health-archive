@@ -12,7 +12,7 @@ void main() {
     appDatabase = null;
   });
 
-  testWidgets('精简首页：状态条 + 健康冷知识 + 需关注，不展示个人信息', (tester) async {
+  testWidgets('极简首页：只有待办提醒 + 健康冷知识', (tester) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -21,18 +21,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('首页'), findsWidgets);
-    // 状态条：说「N 项需关注 · 上次更新 …」，不出现姓名/年龄
-    expect(find.textContaining('项需关注'), findsOneWidget);
-    expect(find.text('当前个体'), findsNothing);
+    // 待办提醒卡（空库 → 无待办）
+    expect(find.text('今天没有待办提醒'), findsOneWidget);
     // 健康冷知识卡片
     expect(find.text('健康冷知识'), findsOneWidget);
-    // 需关注区块 + 查看全部身体部位
-    expect(find.text('需关注'), findsOneWidget);
-    expect(find.text('查看全部身体部位'), findsOneWidget);
-    // 空库不注入演示指标
-    expect(find.text('LDL-C 3.6 mmol/L'), findsNothing);
-    expect(find.text('HbA1c 6.8%'), findsNothing);
-    // 旧的「健康资料主题 / 优先关注部位」已从首页移除
+    // 不出现姓名 / 需关注列表 / 身体部位概览
+    expect(find.text('当前个体'), findsNothing);
+    expect(find.text('需关注'), findsNothing);
+    expect(find.text('查看全部身体部位'), findsNothing);
     expect(find.text('健康资料主题'), findsNothing);
     expect(find.text('优先关注部位'), findsNothing);
   });
