@@ -9,7 +9,6 @@ import 'data/health_repository.dart';
 import 'pages/add_page.dart';
 import 'pages/body_page.dart';
 import 'pages/home_page.dart';
-import 'pages/profile_page.dart';
 import 'pages/records_page.dart';
 import 'services/cloud_backup_service.dart';
 import 'services/identity_service.dart';
@@ -258,7 +257,8 @@ class _PrivacyCover extends StatelessWidget {
   }
 }
 
-/// App 主框架：底部固定 5 个 Tab
+/// App 主框架：底部三个 Tab（首页 / 身体 / 记录）。
+/// 「我的 / 个人中心」不再占一级导航，收进每页右上角的头像入口（见 [ProfileSwitcher]）。
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -270,7 +270,7 @@ class _MainShellState extends State<MainShell> {
   int _index = 0;
 
   /// 每次切换 Tab 都重新构建对应页面，确保「记录」「身体」等页能加载到最新保存的数据。
-  /// 「添加」不再是底部 Tab，改为悬浮按钮，见 [build] 里的 floatingActionButton。
+  /// 「添加」不是底部 Tab，改为悬浮按钮，见 [build] 里的 floatingActionButton。
   Widget _buildPage(int index) {
     switch (index) {
       case 0:
@@ -279,8 +279,6 @@ class _MainShellState extends State<MainShell> {
         return const BodyPage();
       case 2:
         return const RecordsPage();
-      case 3:
-        return const ProfilePage();
       default:
         return const HomePage();
     }
@@ -322,11 +320,6 @@ class _MainShellState extends State<MainShell> {
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
             label: '记录',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: '我的',
           ),
         ],
       ),

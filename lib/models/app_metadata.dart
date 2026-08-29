@@ -1,7 +1,7 @@
 class AppMetadata {
   const AppMetadata._();
 
-  static const String versionName = '1.4.0';
-  static const int versionCode = 8;
-  static const String buildLabel = '「我的」只留账户设置；疾病史/用药/摘要归入「身体」';
+  static const String versionName = '1.5.0';
+  static const int versionCode = 9;
+  static const String buildLabel = '三 Tab：首页 / 身体 / 记录；「我的」收进右上角头像';
 }

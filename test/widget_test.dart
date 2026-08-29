@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:health_archive/main.dart';
 import 'package:health_archive/pages/about_page.dart';
+import 'package:health_archive/widgets/profile_switcher.dart';
 
 void main() {
   setUp(() {
@@ -32,20 +33,22 @@ void main() {
     expect(find.text('查看全部身体部位'), findsNothing);
   });
 
-  testWidgets('App 启动后显示底部 4 个 Tab 与悬浮添加按钮', (tester) async {
+  testWidgets('App 启动后显示底部 3 个 Tab 与悬浮添加按钮', (tester) async {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
     expect(find.text('首页'), findsWidgets);
 
     final Finder navBar = find.byType(NavigationBar);
-    for (final label in ['首页', '身体', '记录', '我的']) {
+    for (final label in ['首页', '身体', '记录']) {
       expect(
         find.descendant(of: navBar, matching: find.text(label)),
         findsOneWidget,
         reason: '底部导航应包含「$label」',
       );
     }
+    // 「我的」不再占底部 Tab，收进右上角头像。
+    expect(find.descendant(of: navBar, matching: find.text('我的')), findsNothing);
     expect(find.descendant(of: navBar, matching: find.text('添加')), findsNothing);
     expect(find.byType(FloatingActionButton), findsOneWidget);
   });
@@ -111,16 +114,14 @@ void main() {
     expect(find.text('对准化验单拍照，确保文字清晰'), findsOneWidget);
   });
 
-  testWidgets('我的页隐藏云端备份入口并可进入关于页', (tester) async {
+  testWidgets('从右上角头像进入设置，可打开关于页', (tester) async {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(NavigationBar),
-        matching: find.text('我的'),
-      ),
-    );
+    // 右上角头像入口（首页 AppBar）→ 弹出菜单 → 设置
+    await tester.tap(find.byType(ProfileSwitcher));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('设置'));
     await tester.pumpAndSettle();
 
     expect(find.text('账号与云端备份'), findsNothing);
@@ -133,8 +134,8 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.4.0+8'), findsOneWidget);
-    expect(find.text('「我的」只留账户设置；疾病史/用药/摘要归入「身体」'), findsOneWidget);
+    expect(find.text('版本 1.5.0+9'), findsOneWidget);
+    expect(find.text('三 Tab：首页 / 身体 / 记录；「我的」收进右上角头像'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {
