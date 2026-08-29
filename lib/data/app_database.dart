@@ -23,6 +23,9 @@ class HealthMetrics extends Table {
   TextColumn get status => text()();
   TextColumn get bodySystem => text()();
   DateTimeColumn get measuredAt => dateTime()();
+  // 来源类型。规范值与未来预留项（apple_health / device / imported_file）见
+  // models/metric_source.dart。外部来源接入时会在同一次迁移里补一个可空的
+  // source_id 列（HealthKit 样本 UUID / 设备 id 等）；报告来源当前用 reportId 承担。
   TextColumn get sourceType => text().withDefault(const Constant('manual'))();
   TextColumn get notes => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();

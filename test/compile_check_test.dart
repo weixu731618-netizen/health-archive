@@ -9,6 +9,7 @@ import 'package:health_archive/data/health_repository.dart';
 import 'package:health_archive/models/body_area_health.dart';
 import 'package:health_archive/models/app_metadata.dart';
 import 'package:health_archive/models/metric_dictionary.dart';
+import 'package:health_archive/models/metric_source.dart';
 
 // 页面
 import 'package:health_archive/pages/manual_metric_entry_page.dart';
@@ -51,6 +52,7 @@ import 'package:health_archive/widgets/profile_switcher.dart';
 
 // B2：备忘 / 提醒 + 本地通知 + 远程推送骨架
 import 'package:health_archive/pages/reminders_page.dart';
+import 'package:health_archive/pages/notification_center_page.dart';
 import 'package:health_archive/widgets/health_tip_card.dart';
 import 'package:health_archive/data/health_tips.dart';
 import 'package:health_archive/services/notification_service.dart';
@@ -103,8 +105,8 @@ void main() {
     expect(matchMetricId('糖化血红蛋白'), 'HBA1C');
     expect(bodySystemForMetric('HBA1C'), '血糖代谢');
     expect(bodyAreaForSystem('血糖代谢'), '代谢');
-    expect(AppMetadata.versionName, '1.2.0');
-    expect(AppMetadata.versionCode, 5);
+    expect(AppMetadata.versionName, '1.3.0');
+    expect(AppMetadata.versionCode, 6);
     // V0.4C-1：OCR 服务与调试页
     expect(ReportOcrService, isA<Type>());
     expect(RemoteOcrService, isA<Type>());
@@ -125,6 +127,7 @@ void main() {
     expect(kMemberRelationships.contains('配偶'), isTrue);
     // B2：备忘 / 提醒
     expect(RemindersPage, isA<Type>());
+    expect(NotificationCenterPage, isA<Type>());
     expect(HealthTipCard, isA<Type>());
     expect(kHealthTips, isNotEmpty);
     expect(NotificationService.instance, isNotNull);
@@ -150,5 +153,10 @@ void main() {
     // V0.5.1：本地完整备份（免服务器）
     expect(LocalBackupService, isA<Type>());
     expect(SnapshotImporter, isA<Type>());
+    // 第三阶段：来源体系（含未来预留项）
+    expect(metricSourceKindFromWire('report_import'), MetricSourceKind.reportOcr);
+    expect(metricSourceLabelFromWire('daily'), '日常记录');
+    expect(metricSourceWire(MetricSourceKind.appleHealth), 'apple_health');
+    expect(visibleRecordSourceFilters, isNotEmpty);
   });
 }

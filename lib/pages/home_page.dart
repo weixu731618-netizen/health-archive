@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../widgets/health_tip_card.dart';
 import '../widgets/profile_switcher.dart';
-import 'reminders_page.dart';
+import 'notification_center_page.dart';
 
 /// 内容区域的最大宽度：宽屏下避免卡片无限拉宽。
 const double _kContentMaxWidth = 720;
 
-/// 首页：AppBar 一个提醒铃铛（有未读带红点）+ 档案切换器；正文只有健康冷知识。
-/// 健康状况看板在「身体」tab；提醒管理在铃铛点进去的「提醒」页。
+/// 首页：AppBar 一个通知铃铛（有未读带红点）+ 档案切换器；正文只有「今日一则」。
+/// 健康状况看板在「身体」tab；铃铛进入「通知中心」（只看实际产生的通知），
+/// 提醒的管理（复查 / 服药计划）在「我的 → 提醒」。
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -38,8 +39,8 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _openReminders() => Navigator.of(context)
-      .push(MaterialPageRoute(builder: (_) => const RemindersPage()))
+  Future<void> _openNotifications() => Navigator.of(context)
+      .push(MaterialPageRoute(builder: (_) => const NotificationCenterPage()))
       .then((_) => _load());
 
   @override
@@ -48,7 +49,7 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('首页'),
         actions: [
-          _BellAction(unread: _unread, onTap: _openReminders),
+          _BellAction(unread: _unread, onTap: _openNotifications),
           const ProfileSwitcher(),
         ],
       ),
@@ -81,7 +82,7 @@ class _BellAction extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         IconButton(
-          tooltip: '提醒',
+          tooltip: '通知',
           icon: const Icon(Icons.notifications_none),
           onPressed: onTap,
         ),

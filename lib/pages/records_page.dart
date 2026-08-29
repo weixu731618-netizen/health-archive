@@ -4,11 +4,13 @@ import '../data/app_database.dart';
 import '../data/health_repository.dart';
 import '../main.dart';
 import '../models/body_area_health.dart';
+import '../models/metric_source.dart';
 import '../utils/format.dart';
 import '../utils/records_filter.dart';
 import '../utils/report_export.dart';
 import 'daily_health_entry_page.dart';
 import 'manual_metric_entry_page.dart';
+import 'medication_page.dart';
 import 'report_detail_page.dart';
 
 /// 记录页面：仅展示用户实际录入或导入的数据。
@@ -21,6 +23,9 @@ class RecordsPage extends StatefulWidget {
 
 class _RecordsPageState extends State<RecordsPage> {
   int _filterIndex = 0;
+  // 来源筛选目前放出「全部 / 报告 / 日常记录」。未来的来源（拍摄识别、用药、
+  // Apple Health、设备导入）在 models/metric_source.dart 的 visibleRecordSourceFilters
+  // 里登记后再加到这里，筛选按来源类型判定即可。
   static const List<String> _filters = ['全部来源', '报告', '日常记录'];
 
   final TextEditingController _searchCtrl = TextEditingController();
@@ -124,8 +129,28 @@ class _RecordsPageState extends State<RecordsPage> {
             const Padding(
               padding: EdgeInsets.only(top: 4, bottom: 12),
               child: Text(
-                '报告、手工录入和日常记录作为身体状态的来源证据保留在这里。',
+                '报告、手工录入、日常记录和用药记录作为身体状态的来源证据保留在这里。',
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+            ),
+            Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                shape:
+                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                leading: const Icon(Icons.medication_outlined,
+                    color: AppColors.primary),
+                title: const Text('用药记录',
+                    style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
+                subtitle: const Text('当前档案的药物、剂量、用药周期与服药提醒',
+                    style: TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary)),
+                trailing: const Icon(Icons.chevron_right,
+                    color: AppColors.textSecondary),
+                onTap: () => Navigator.of(context)
+                    .push(MaterialPageRoute(
+                        builder: (_) => const MedicationPage()))
+                    .then((_) => _load()),
               ),
             ),
             TextField(
@@ -464,23 +489,8 @@ String fmtNum(num v) {
 String _valueText(double value, String unit) => '${fmtNum(value)} $unit';
 
 /// 根据数据来源类型返回展示文案。
-/// 目前只使用 manual / daily；future_ocr / future_hospital 为未来扩展保留占位分支。
-String sourceTypeLabel(String sourceType) {
-  switch (sourceType) {
-    case 'manual':
-      return '手工录入';
-    case 'report_import':
-      return '报告导入';
-    case 'daily':
-      return '日常记录';
-    case 'future_ocr':
-      return '拍摄识别';
-    case 'future_hospital':
-      return '医院同步';
-    default:
-      return '手工录入';
-  }
-}
+/// 来源类型的规范定义（含 Apple Health / 设备等未来预留项）见 [metric_source.dart]。
+String sourceTypeLabel(String sourceType) => metricSourceLabelFromWire(sourceType);
 
 /// 一份导入报告的时间线卡片
 class _ReportTile extends StatelessWidget {

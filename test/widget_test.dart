@@ -12,7 +12,7 @@ void main() {
     appDatabase = null;
   });
 
-  testWidgets('极简首页：铃铛 + 健康冷知识', (tester) async {
+  testWidgets('极简首页：铃铛 + 今日一则', (tester) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -23,8 +23,8 @@ void main() {
     expect(find.text('首页'), findsWidgets);
     // AppBar 提醒铃铛
     expect(find.byIcon(Icons.notifications_none), findsOneWidget);
-    // 正文只有健康冷知识卡片
-    expect(find.text('健康冷知识'), findsOneWidget);
+    // 正文只有「今日一则」卡片
+    expect(find.text('今日一则'), findsOneWidget);
     // 待办卡 / 姓名 / 需关注列表都不在
     expect(find.text('今天没有待办提醒'), findsNothing);
     expect(find.text('当前个体'), findsNothing);
@@ -133,8 +133,8 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.2.0+5'), findsOneWidget);
-    expect(find.text('后台隐私遮罩 + 备份加密 + 悬浮添加按钮'), findsOneWidget);
+    expect(find.text('版本 1.3.0+6'), findsOneWidget);
+    expect(find.text('今日一则 + 通知/提醒分离 + 用药进记录 + 指标来源体系'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {

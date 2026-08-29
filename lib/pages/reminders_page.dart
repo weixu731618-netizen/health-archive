@@ -6,8 +6,9 @@ import '../services/notification_service.dart';
 import '../utils/format.dart';
 import '../utils/reminder_schedule.dart';
 
-/// B2：提醒中心。当前档案的复查提醒 + 服药提醒，可开关 / 删除 / 标记已复查；
-/// 下方是最近的通知记录。系统通知（本地 + 远程 APNs）与这里共用同一份数据。
+/// B2 / §2-15：提醒管理页。「我的 → 提醒」进入。
+/// 只管理当前档案的复查提醒 + 服药提醒（新建 / 开关 / 删除 / 标记已复查）。
+/// 实际产生的通知历史在首页铃铛的「通知中心」，两者分开、不混在一页。
 class RemindersPage extends StatefulWidget {
   const RemindersPage({super.key});
 
@@ -17,7 +18,6 @@ class RemindersPage extends StatefulWidget {
 
 class _RemindersPageState extends State<RemindersPage> {
   List<Reminder> _reminders = [];
-  List<NotificationRecord> _notifications = [];
   bool _loading = true;
   bool _busy = false;
 
@@ -33,13 +33,12 @@ class _RemindersPageState extends State<RemindersPage> {
       setState(() => _loading = false);
       return;
     }
+    // 提醒有增删改后同步通知表，让「通知中心」拿到最新数据。
     await repo.syncNotificationsFromReminders();
     final reminders = await repo.getActiveReminders(includeCompleted: true);
-    final notifications = await repo.getNotifications(limit: 50);
     if (mounted) {
       setState(() {
         _reminders = reminders;
-        _notifications = notifications;
         _loading = false;
       });
     }
@@ -119,19 +118,7 @@ class _RemindersPageState extends State<RemindersPage> {
         _reminders.where((r) => r.kind == 'recheck').toList();
     final meds = _reminders.where((r) => r.kind == 'medication').toList();
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('提醒'),
-        actions: [
-          if (_notifications.any((n) => n.readAt == null))
-            TextButton(
-              onPressed: () async {
-                await appRepository?.markAllNotificationsRead();
-                _load();
-              },
-              child: const Text('全部已读'),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('提醒')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -154,11 +141,6 @@ class _RemindersPageState extends State<RemindersPage> {
                 if (meds.isEmpty)
                   const _EmptyHint('在「用药记录」里编辑药品时可开启服药提醒'),
                 for (final r in meds) _reminderTile(r),
-                const SizedBox(height: 16),
-                const _SectionLabel('最近通知'),
-                if (_notifications.isEmpty)
-                  const _EmptyHint('还没有通知记录'),
-                for (final n in _notifications) _notificationTile(n),
               ],
             ),
     );
@@ -213,38 +195,6 @@ class _RemindersPageState extends State<RemindersPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _notificationTile(NotificationRecord n) {
-    final unread = n.readAt == null && n.deliveredAt != null;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        dense: true,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: Icon(
-          n.category == 'medication'
-              ? Icons.medication_outlined
-              : Icons.event_available_outlined,
-          color: unread ? AppColors.primary : AppColors.textSecondary,
-        ),
-        title: Text(n.title,
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: unread ? FontWeight.w600 : FontWeight.w400)),
-        subtitle: Text(
-          '${formatDateCn(n.scheduledFor)} ${formatTime(n.scheduledFor)}'
-          '${n.deliveredAt == null ? ' · 待提醒' : ''}',
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        ),
-        onTap: () async {
-          if (unread) {
-            await appRepository?.markNotificationRead(n.id);
-            _load();
-          }
-        },
       ),
     );
   }

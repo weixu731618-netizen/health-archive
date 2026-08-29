@@ -4,8 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/health_tips.dart';
 import '../main.dart';
 
-/// 首页「健康冷知识」卡片：每天一条（按日期取），可「换一条」。
-/// 「换一条」的偏移量存在 SharedPreferences 里，跨启动保留。
+/// 首页「今日一则」卡片：每天一条（按日期取），可「换一则」。
+/// 「换一则」的偏移量存在 SharedPreferences 里，跨启动保留。
+/// 只显示一条，不做 Feed / 文章列表 / 无限下滑。
 class HealthTipCard extends StatefulWidget {
   const HealthTipCard({super.key});
 
@@ -41,7 +42,7 @@ class _HealthTipCardState extends State<HealthTipCard> {
 
   HealthTip get _tip {
     if (kHealthTips.isEmpty) {
-      return const HealthTip('健康冷知识', '内容整理中。');
+      return const HealthTip('今日一则', '内容整理中。');
     }
     final daysSinceEpoch =
         DateTime.now().difference(DateTime(2020)).inDays;
@@ -63,7 +64,7 @@ class _HealthTipCardState extends State<HealthTipCard> {
                 Icon(Icons.lightbulb_outline,
                     size: 18, color: AppColors.primary),
                 SizedBox(width: 6),
-                Text('健康冷知识',
+                Text('今日一则',
                     style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -94,7 +95,7 @@ class _HealthTipCardState extends State<HealthTipCard> {
                 child: TextButton.icon(
                   onPressed: _nextTip,
                   icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('换一条'),
+                  label: const Text('换一则'),
                   style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(horizontal: 8)),
