@@ -229,6 +229,7 @@ class HealthRepository {
     required String bodySystem,
     required DateTime measuredAt,
     String sourceType = 'manual',
+    String? sourceId, // 3-1：通用来源标识（HealthKit 样本 id / 设备 id 等），可空
     String? notes,
     int? reportId, // V0.4A：所属报告 id，手工录入为 null
     String? rawName, // V0.4D：原报告指标名
@@ -259,6 +260,7 @@ class HealthRepository {
             bodySystem: bodySystem,
             measuredAt: measuredAt,
             sourceType: Value(sourceType),
+            sourceId: Value(sourceId),
             notes: Value(notes),
             reportId: Value(reportId),
             rawName: Value(rawName),
@@ -535,6 +537,7 @@ class HealthRepository {
     required String name,
     String? dosage,
     String? dosageUnit,
+    String? usage,
     String? timesPerDay,
     DateTime? startDate,
     DateTime? endDate,
@@ -547,6 +550,7 @@ class HealthRepository {
       name: name,
       dosage: Value(dosage),
       dosageUnit: Value(dosageUnit),
+      usage: Value(usage),
       timesPerDay: Value(timesPerDay),
       startDate: Value(startDate),
       endDate: Value(endDate),
@@ -969,6 +973,7 @@ class HealthRepository {
             'bodySystem': m.bodySystem,
             'measuredAt': iso(m.measuredAt),
             'sourceType': m.sourceType,
+            'sourceId': m.sourceId,
             'notes': m.notes,
             'reportId': m.reportId,
             'verificationStatus': m.verificationStatus,
@@ -1025,6 +1030,7 @@ class HealthRepository {
             'name': m.name,
             'dosage': m.dosage,
             'dosageUnit': m.dosageUnit,
+            'usage': m.usage,
             'timesPerDay': m.timesPerDay,
             'startDate': iso(m.startDate),
             'endDate': iso(m.endDate),

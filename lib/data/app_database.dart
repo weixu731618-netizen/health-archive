@@ -24,9 +24,11 @@ class HealthMetrics extends Table {
   TextColumn get bodySystem => text()();
   DateTimeColumn get measuredAt => dateTime()();
   // 来源类型。规范值与未来预留项（apple_health / device / imported_file）见
-  // models/metric_source.dart。外部来源接入时会在同一次迁移里补一个可空的
-  // source_id 列（HealthKit 样本 UUID / 设备 id 等）；报告来源当前用 reportId 承担。
+  // models/metric_source.dart。
   TextColumn get sourceType => text().withDefault(const Constant('manual'))();
+  // 通用来源标识（可空）：外部来源接入时填 HealthKit 样本 UUID / 设备 id /
+  // 导入文件名等，用于去重与回溯。报告来源另有 reportId；手工 / 日常录入留空。
+  TextColumn get sourceId => text().nullable()();
   TextColumn get notes => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   // V0.4A：所属报告 id，可空。手工录入为 null；报告导入为对应 medical_reports.id。
@@ -93,6 +95,7 @@ class Medications extends Table {
   TextColumn get name => text()();
   TextColumn get dosage => text().nullable()(); // 剂量（保留原文，如 5）
   TextColumn get dosageUnit => text().nullable()(); // 单位，如 mg
+  TextColumn get usage => text().nullable()(); // 用法，如 口服 / 外用 / 饭前 / 饭后
   TextColumn get timesPerDay => text().nullable()(); // 每日次数（如 2）
   DateTimeColumn get startDate => dateTime().nullable()();
   DateTimeColumn get endDate => dateTime().nullable()();
@@ -209,8 +212,9 @@ class AppDatabase extends _$AppDatabase {
   /// B1：6→7（person_profiles.height_cm，把单行 user_profile 的本人资料并入档案 1）。
   /// B2：7→8（reminders 备忘 / 提醒表 + notifications 通知记录表）。
   /// B3：8→9（medical_reports.tags 报告标签）。
+  /// 3-1：9→10（medications.usage 用法；health_metrics.source_id 通用来源标识）。
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -295,6 +299,11 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 9) {
             await m.addColumn(medicalReports, medicalReports.tags);
+          }
+          // 3-1：用药「用法」+ 指标「通用来源标识」。均为可空列，纯新增，不动已有行。
+          if (from < 10) {
+            await m.addColumn(medications, medications.usage);
+            await m.addColumn(healthMetrics, healthMetrics.sourceId);
           }
         },
       );

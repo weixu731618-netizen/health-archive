@@ -99,6 +99,7 @@ class _MedicationPageState extends State<MedicationPage> {
                         '${m.dosage}${m.dosageUnit ?? ''}'
                       else if (m.dosageUnit != null)
                         m.dosageUnit!,
+                      if ((m.usage ?? '').isNotEmpty) m.usage!,
                       if (m.timesPerDay != null) '每日 ${m.timesPerDay ?? ''} 次',
                       if (m.startDate != null) '起 ${formatDate(m.startDate!)}',
                       if (m.endDate != null) '止 ${formatDate(m.endDate!)}',
@@ -142,6 +143,7 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _dosageCtrl;
   late final TextEditingController _unitCtrl;
+  late final TextEditingController _usageCtrl;
   late final TextEditingController _timesCtrl;
   late final TextEditingController _notesCtrl;
   late String _status = '当前使用';
@@ -163,6 +165,7 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
     _nameCtrl = TextEditingController(text: m?.name ?? '');
     _dosageCtrl = TextEditingController(text: m?.dosage ?? '');
     _unitCtrl = TextEditingController(text: m?.dosageUnit ?? '');
+    _usageCtrl = TextEditingController(text: m?.usage ?? '');
     _timesCtrl = TextEditingController(text: m?.timesPerDay ?? '');
     _notesCtrl = TextEditingController(text: m?.notes ?? '');
     _status = m?.status ?? '当前使用';
@@ -217,6 +220,7 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
       _nameCtrl,
       _dosageCtrl,
       _unitCtrl,
+      _usageCtrl,
       _timesCtrl,
       _notesCtrl
     ]) {
@@ -239,6 +243,8 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
             _dosageCtrl.text.trim().isEmpty ? null : _dosageCtrl.text.trim()),
         dosageUnit: drift.Value(
             _unitCtrl.text.trim().isEmpty ? null : _unitCtrl.text.trim()),
+        usage: drift.Value(
+            _usageCtrl.text.trim().isEmpty ? null : _usageCtrl.text.trim()),
         timesPerDay: drift.Value(
             _timesCtrl.text.trim().isEmpty ? null : _timesCtrl.text.trim()),
         startDate: drift.Value(_start),
@@ -255,6 +261,7 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
             _dosageCtrl.text.trim().isEmpty ? null : _dosageCtrl.text.trim(),
         dosageUnit:
             _unitCtrl.text.trim().isEmpty ? null : _unitCtrl.text.trim(),
+        usage: _usageCtrl.text.trim().isEmpty ? null : _usageCtrl.text.trim(),
         timesPerDay:
             _timesCtrl.text.trim().isEmpty ? null : _timesCtrl.text.trim(),
         startDate: _start,
@@ -322,6 +329,13 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
                     child: TextFormField(
                         controller: _timesCtrl, decoration: _input('每日次数'))),
               ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _usageCtrl,
+              decoration: _input('用法（选填）').copyWith(
+                hintText: '口服 / 外用 / 饭前 / 饭后 / 含服…',
+              ),
             ),
             const SizedBox(height: 12),
             ListTile(

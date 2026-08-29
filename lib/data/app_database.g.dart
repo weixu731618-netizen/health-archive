@@ -121,6 +121,12 @@ class $HealthMetricsTable extends HealthMetrics
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('manual'));
+  static const VerificationMeta _sourceIdMeta =
+      const VerificationMeta('sourceId');
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+      'source_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -198,6 +204,7 @@ class $HealthMetricsTable extends HealthMetrics
         bodySystem,
         measuredAt,
         sourceType,
+        sourceId,
         notes,
         createdAt,
         reportId,
@@ -325,6 +332,10 @@ class $HealthMetricsTable extends HealthMetrics
           sourceType.isAcceptableOrUnknown(
               data['source_type']!, _sourceTypeMeta));
     }
+    if (data.containsKey('source_id')) {
+      context.handle(_sourceIdMeta,
+          sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta));
+    }
     if (data.containsKey('notes')) {
       context.handle(
           _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
@@ -416,6 +427,8 @@ class $HealthMetricsTable extends HealthMetrics
           .read(DriftSqlType.dateTime, data['${effectivePrefix}measured_at'])!,
       sourceType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}source_type'])!,
+      sourceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_id']),
       notes: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}notes']),
       createdAt: attachedDatabase.typeMapping
@@ -463,6 +476,7 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
   final String bodySystem;
   final DateTime measuredAt;
   final String sourceType;
+  final String? sourceId;
   final String? notes;
   final DateTime createdAt;
   final int? reportId;
@@ -491,6 +505,7 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
       required this.bodySystem,
       required this.measuredAt,
       required this.sourceType,
+      this.sourceId,
       this.notes,
       required this.createdAt,
       this.reportId,
@@ -537,6 +552,9 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
     map['body_system'] = Variable<String>(bodySystem);
     map['measured_at'] = Variable<DateTime>(measuredAt);
     map['source_type'] = Variable<String>(sourceType);
+    if (!nullToAbsent || sourceId != null) {
+      map['source_id'] = Variable<String>(sourceId);
+    }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
@@ -597,6 +615,9 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
       bodySystem: Value(bodySystem),
       measuredAt: Value(measuredAt),
       sourceType: Value(sourceType),
+      sourceId: sourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceId),
       notes:
           notes == null && nullToAbsent ? const Value.absent() : Value(notes),
       createdAt: Value(createdAt),
@@ -644,6 +665,7 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
       bodySystem: serializer.fromJson<String>(json['bodySystem']),
       measuredAt: serializer.fromJson<DateTime>(json['measuredAt']),
       sourceType: serializer.fromJson<String>(json['sourceType']),
+      sourceId: serializer.fromJson<String?>(json['sourceId']),
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       reportId: serializer.fromJson<int?>(json['reportId']),
@@ -680,6 +702,7 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
       'bodySystem': serializer.toJson<String>(bodySystem),
       'measuredAt': serializer.toJson<DateTime>(measuredAt),
       'sourceType': serializer.toJson<String>(sourceType),
+      'sourceId': serializer.toJson<String?>(sourceId),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'reportId': serializer.toJson<int?>(reportId),
@@ -712,6 +735,7 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
           String? bodySystem,
           DateTime? measuredAt,
           String? sourceType,
+          Value<String?> sourceId = const Value.absent(),
           Value<String?> notes = const Value.absent(),
           DateTime? createdAt,
           Value<int?> reportId = const Value.absent(),
@@ -749,6 +773,7 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
         bodySystem: bodySystem ?? this.bodySystem,
         measuredAt: measuredAt ?? this.measuredAt,
         sourceType: sourceType ?? this.sourceType,
+        sourceId: sourceId.present ? sourceId.value : this.sourceId,
         notes: notes.present ? notes.value : this.notes,
         createdAt: createdAt ?? this.createdAt,
         reportId: reportId.present ? reportId.value : this.reportId,
@@ -801,6 +826,7 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
           data.measuredAt.present ? data.measuredAt.value : this.measuredAt,
       sourceType:
           data.sourceType.present ? data.sourceType.value : this.sourceType,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       reportId: data.reportId.present ? data.reportId.value : this.reportId,
@@ -841,6 +867,7 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
           ..write('bodySystem: $bodySystem, ')
           ..write('measuredAt: $measuredAt, ')
           ..write('sourceType: $sourceType, ')
+          ..write('sourceId: $sourceId, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('reportId: $reportId, ')
@@ -874,6 +901,7 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
         bodySystem,
         measuredAt,
         sourceType,
+        sourceId,
         notes,
         createdAt,
         reportId,
@@ -906,6 +934,7 @@ class HealthMetric extends DataClass implements Insertable<HealthMetric> {
           other.bodySystem == this.bodySystem &&
           other.measuredAt == this.measuredAt &&
           other.sourceType == this.sourceType &&
+          other.sourceId == this.sourceId &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt &&
           other.reportId == this.reportId &&
@@ -936,6 +965,7 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
   final Value<String> bodySystem;
   final Value<DateTime> measuredAt;
   final Value<String> sourceType;
+  final Value<String?> sourceId;
   final Value<String?> notes;
   final Value<DateTime> createdAt;
   final Value<int?> reportId;
@@ -964,6 +994,7 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
     this.bodySystem = const Value.absent(),
     this.measuredAt = const Value.absent(),
     this.sourceType = const Value.absent(),
+    this.sourceId = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.reportId = const Value.absent(),
@@ -993,6 +1024,7 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
     required String bodySystem,
     required DateTime measuredAt,
     this.sourceType = const Value.absent(),
+    this.sourceId = const Value.absent(),
     this.notes = const Value.absent(),
     required DateTime createdAt,
     this.reportId = const Value.absent(),
@@ -1029,6 +1061,7 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
     Expression<String>? bodySystem,
     Expression<DateTime>? measuredAt,
     Expression<String>? sourceType,
+    Expression<String>? sourceId,
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
     Expression<int>? reportId,
@@ -1059,6 +1092,7 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
       if (bodySystem != null) 'body_system': bodySystem,
       if (measuredAt != null) 'measured_at': measuredAt,
       if (sourceType != null) 'source_type': sourceType,
+      if (sourceId != null) 'source_id': sourceId,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
       if (reportId != null) 'report_id': reportId,
@@ -1091,6 +1125,7 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
       Value<String>? bodySystem,
       Value<DateTime>? measuredAt,
       Value<String>? sourceType,
+      Value<String?>? sourceId,
       Value<String?>? notes,
       Value<DateTime>? createdAt,
       Value<int?>? reportId,
@@ -1119,6 +1154,7 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
       bodySystem: bodySystem ?? this.bodySystem,
       measuredAt: measuredAt ?? this.measuredAt,
       sourceType: sourceType ?? this.sourceType,
+      sourceId: sourceId ?? this.sourceId,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       reportId: reportId ?? this.reportId,
@@ -1189,6 +1225,9 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
     if (sourceType.present) {
       map['source_type'] = Variable<String>(sourceType.value);
     }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
@@ -1241,6 +1280,7 @@ class HealthMetricsCompanion extends UpdateCompanion<HealthMetric> {
           ..write('bodySystem: $bodySystem, ')
           ..write('measuredAt: $measuredAt, ')
           ..write('sourceType: $sourceType, ')
+          ..write('sourceId: $sourceId, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('reportId: $reportId, ')
@@ -2670,6 +2710,11 @@ class $MedicationsTable extends Medications
   late final GeneratedColumn<String> dosageUnit = GeneratedColumn<String>(
       'dosage_unit', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _usageMeta = const VerificationMeta('usage');
+  @override
+  late final GeneratedColumn<String> usage = GeneratedColumn<String>(
+      'usage', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _timesPerDayMeta =
       const VerificationMeta('timesPerDay');
   @override
@@ -2713,6 +2758,7 @@ class $MedicationsTable extends Medications
         name,
         dosage,
         dosageUnit,
+        usage,
         timesPerDay,
         startDate,
         endDate,
@@ -2752,6 +2798,10 @@ class $MedicationsTable extends Medications
           _dosageUnitMeta,
           dosageUnit.isAcceptableOrUnknown(
               data['dosage_unit']!, _dosageUnitMeta));
+    }
+    if (data.containsKey('usage')) {
+      context.handle(
+          _usageMeta, usage.isAcceptableOrUnknown(data['usage']!, _usageMeta));
     }
     if (data.containsKey('times_per_day')) {
       context.handle(
@@ -2800,6 +2850,8 @@ class $MedicationsTable extends Medications
           .read(DriftSqlType.string, data['${effectivePrefix}dosage']),
       dosageUnit: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}dosage_unit']),
+      usage: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}usage']),
       timesPerDay: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}times_per_day']),
       startDate: attachedDatabase.typeMapping
@@ -2827,6 +2879,7 @@ class Medication extends DataClass implements Insertable<Medication> {
   final String name;
   final String? dosage;
   final String? dosageUnit;
+  final String? usage;
   final String? timesPerDay;
   final DateTime? startDate;
   final DateTime? endDate;
@@ -2839,6 +2892,7 @@ class Medication extends DataClass implements Insertable<Medication> {
       required this.name,
       this.dosage,
       this.dosageUnit,
+      this.usage,
       this.timesPerDay,
       this.startDate,
       this.endDate,
@@ -2856,6 +2910,9 @@ class Medication extends DataClass implements Insertable<Medication> {
     }
     if (!nullToAbsent || dosageUnit != null) {
       map['dosage_unit'] = Variable<String>(dosageUnit);
+    }
+    if (!nullToAbsent || usage != null) {
+      map['usage'] = Variable<String>(usage);
     }
     if (!nullToAbsent || timesPerDay != null) {
       map['times_per_day'] = Variable<String>(timesPerDay);
@@ -2884,6 +2941,8 @@ class Medication extends DataClass implements Insertable<Medication> {
       dosageUnit: dosageUnit == null && nullToAbsent
           ? const Value.absent()
           : Value(dosageUnit),
+      usage:
+          usage == null && nullToAbsent ? const Value.absent() : Value(usage),
       timesPerDay: timesPerDay == null && nullToAbsent
           ? const Value.absent()
           : Value(timesPerDay),
@@ -2909,6 +2968,7 @@ class Medication extends DataClass implements Insertable<Medication> {
       name: serializer.fromJson<String>(json['name']),
       dosage: serializer.fromJson<String?>(json['dosage']),
       dosageUnit: serializer.fromJson<String?>(json['dosageUnit']),
+      usage: serializer.fromJson<String?>(json['usage']),
       timesPerDay: serializer.fromJson<String?>(json['timesPerDay']),
       startDate: serializer.fromJson<DateTime?>(json['startDate']),
       endDate: serializer.fromJson<DateTime?>(json['endDate']),
@@ -2926,6 +2986,7 @@ class Medication extends DataClass implements Insertable<Medication> {
       'name': serializer.toJson<String>(name),
       'dosage': serializer.toJson<String?>(dosage),
       'dosageUnit': serializer.toJson<String?>(dosageUnit),
+      'usage': serializer.toJson<String?>(usage),
       'timesPerDay': serializer.toJson<String?>(timesPerDay),
       'startDate': serializer.toJson<DateTime?>(startDate),
       'endDate': serializer.toJson<DateTime?>(endDate),
@@ -2941,6 +3002,7 @@ class Medication extends DataClass implements Insertable<Medication> {
           String? name,
           Value<String?> dosage = const Value.absent(),
           Value<String?> dosageUnit = const Value.absent(),
+          Value<String?> usage = const Value.absent(),
           Value<String?> timesPerDay = const Value.absent(),
           Value<DateTime?> startDate = const Value.absent(),
           Value<DateTime?> endDate = const Value.absent(),
@@ -2953,6 +3015,7 @@ class Medication extends DataClass implements Insertable<Medication> {
         name: name ?? this.name,
         dosage: dosage.present ? dosage.value : this.dosage,
         dosageUnit: dosageUnit.present ? dosageUnit.value : this.dosageUnit,
+        usage: usage.present ? usage.value : this.usage,
         timesPerDay: timesPerDay.present ? timesPerDay.value : this.timesPerDay,
         startDate: startDate.present ? startDate.value : this.startDate,
         endDate: endDate.present ? endDate.value : this.endDate,
@@ -2968,6 +3031,7 @@ class Medication extends DataClass implements Insertable<Medication> {
       dosage: data.dosage.present ? data.dosage.value : this.dosage,
       dosageUnit:
           data.dosageUnit.present ? data.dosageUnit.value : this.dosageUnit,
+      usage: data.usage.present ? data.usage.value : this.usage,
       timesPerDay:
           data.timesPerDay.present ? data.timesPerDay.value : this.timesPerDay,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
@@ -2986,6 +3050,7 @@ class Medication extends DataClass implements Insertable<Medication> {
           ..write('name: $name, ')
           ..write('dosage: $dosage, ')
           ..write('dosageUnit: $dosageUnit, ')
+          ..write('usage: $usage, ')
           ..write('timesPerDay: $timesPerDay, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
@@ -2998,7 +3063,7 @@ class Medication extends DataClass implements Insertable<Medication> {
 
   @override
   int get hashCode => Object.hash(id, profileId, name, dosage, dosageUnit,
-      timesPerDay, startDate, endDate, status, notes, createdAt);
+      usage, timesPerDay, startDate, endDate, status, notes, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3008,6 +3073,7 @@ class Medication extends DataClass implements Insertable<Medication> {
           other.name == this.name &&
           other.dosage == this.dosage &&
           other.dosageUnit == this.dosageUnit &&
+          other.usage == this.usage &&
           other.timesPerDay == this.timesPerDay &&
           other.startDate == this.startDate &&
           other.endDate == this.endDate &&
@@ -3022,6 +3088,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
   final Value<String> name;
   final Value<String?> dosage;
   final Value<String?> dosageUnit;
+  final Value<String?> usage;
   final Value<String?> timesPerDay;
   final Value<DateTime?> startDate;
   final Value<DateTime?> endDate;
@@ -3034,6 +3101,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
     this.name = const Value.absent(),
     this.dosage = const Value.absent(),
     this.dosageUnit = const Value.absent(),
+    this.usage = const Value.absent(),
     this.timesPerDay = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
@@ -3047,6 +3115,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
     required String name,
     this.dosage = const Value.absent(),
     this.dosageUnit = const Value.absent(),
+    this.usage = const Value.absent(),
     this.timesPerDay = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
@@ -3061,6 +3130,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
     Expression<String>? name,
     Expression<String>? dosage,
     Expression<String>? dosageUnit,
+    Expression<String>? usage,
     Expression<String>? timesPerDay,
     Expression<DateTime>? startDate,
     Expression<DateTime>? endDate,
@@ -3074,6 +3144,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
       if (name != null) 'name': name,
       if (dosage != null) 'dosage': dosage,
       if (dosageUnit != null) 'dosage_unit': dosageUnit,
+      if (usage != null) 'usage': usage,
       if (timesPerDay != null) 'times_per_day': timesPerDay,
       if (startDate != null) 'start_date': startDate,
       if (endDate != null) 'end_date': endDate,
@@ -3089,6 +3160,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
       Value<String>? name,
       Value<String?>? dosage,
       Value<String?>? dosageUnit,
+      Value<String?>? usage,
       Value<String?>? timesPerDay,
       Value<DateTime?>? startDate,
       Value<DateTime?>? endDate,
@@ -3101,6 +3173,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
       name: name ?? this.name,
       dosage: dosage ?? this.dosage,
       dosageUnit: dosageUnit ?? this.dosageUnit,
+      usage: usage ?? this.usage,
       timesPerDay: timesPerDay ?? this.timesPerDay,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
@@ -3127,6 +3200,9 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
     }
     if (dosageUnit.present) {
       map['dosage_unit'] = Variable<String>(dosageUnit.value);
+    }
+    if (usage.present) {
+      map['usage'] = Variable<String>(usage.value);
     }
     if (timesPerDay.present) {
       map['times_per_day'] = Variable<String>(timesPerDay.value);
@@ -3157,6 +3233,7 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
           ..write('name: $name, ')
           ..write('dosage: $dosage, ')
           ..write('dosageUnit: $dosageUnit, ')
+          ..write('usage: $usage, ')
           ..write('timesPerDay: $timesPerDay, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
@@ -5175,6 +5252,7 @@ typedef $$HealthMetricsTableCreateCompanionBuilder = HealthMetricsCompanion
   required String bodySystem,
   required DateTime measuredAt,
   Value<String> sourceType,
+  Value<String?> sourceId,
   Value<String?> notes,
   required DateTime createdAt,
   Value<int?> reportId,
@@ -5205,6 +5283,7 @@ typedef $$HealthMetricsTableUpdateCompanionBuilder = HealthMetricsCompanion
   Value<String> bodySystem,
   Value<DateTime> measuredAt,
   Value<String> sourceType,
+  Value<String?> sourceId,
   Value<String?> notes,
   Value<DateTime> createdAt,
   Value<int?> reportId,
@@ -5281,6 +5360,9 @@ class $$HealthMetricsTableFilterComposer
 
   ColumnFilters<String> get sourceType => $composableBuilder(
       column: $table.sourceType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+      column: $table.sourceId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnFilters(column));
@@ -5383,6 +5465,9 @@ class $$HealthMetricsTableOrderingComposer
   ColumnOrderings<String> get sourceType => $composableBuilder(
       column: $table.sourceType, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+      column: $table.sourceId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnOrderings(column));
 
@@ -5477,6 +5562,9 @@ class $$HealthMetricsTableAnnotationComposer
   GeneratedColumn<String> get sourceType => $composableBuilder(
       column: $table.sourceType, builder: (column) => column);
 
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
@@ -5549,6 +5637,7 @@ class $$HealthMetricsTableTableManager extends RootTableManager<
             Value<String> bodySystem = const Value.absent(),
             Value<DateTime> measuredAt = const Value.absent(),
             Value<String> sourceType = const Value.absent(),
+            Value<String?> sourceId = const Value.absent(),
             Value<String?> notes = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<int?> reportId = const Value.absent(),
@@ -5578,6 +5667,7 @@ class $$HealthMetricsTableTableManager extends RootTableManager<
             bodySystem: bodySystem,
             measuredAt: measuredAt,
             sourceType: sourceType,
+            sourceId: sourceId,
             notes: notes,
             createdAt: createdAt,
             reportId: reportId,
@@ -5607,6 +5697,7 @@ class $$HealthMetricsTableTableManager extends RootTableManager<
             required String bodySystem,
             required DateTime measuredAt,
             Value<String> sourceType = const Value.absent(),
+            Value<String?> sourceId = const Value.absent(),
             Value<String?> notes = const Value.absent(),
             required DateTime createdAt,
             Value<int?> reportId = const Value.absent(),
@@ -5636,6 +5727,7 @@ class $$HealthMetricsTableTableManager extends RootTableManager<
             bodySystem: bodySystem,
             measuredAt: measuredAt,
             sourceType: sourceType,
+            sourceId: sourceId,
             notes: notes,
             createdAt: createdAt,
             reportId: reportId,
@@ -6356,6 +6448,7 @@ typedef $$MedicationsTableCreateCompanionBuilder = MedicationsCompanion
   required String name,
   Value<String?> dosage,
   Value<String?> dosageUnit,
+  Value<String?> usage,
   Value<String?> timesPerDay,
   Value<DateTime?> startDate,
   Value<DateTime?> endDate,
@@ -6370,6 +6463,7 @@ typedef $$MedicationsTableUpdateCompanionBuilder = MedicationsCompanion
   Value<String> name,
   Value<String?> dosage,
   Value<String?> dosageUnit,
+  Value<String?> usage,
   Value<String?> timesPerDay,
   Value<DateTime?> startDate,
   Value<DateTime?> endDate,
@@ -6401,6 +6495,9 @@ class $$MedicationsTableFilterComposer
 
   ColumnFilters<String> get dosageUnit => $composableBuilder(
       column: $table.dosageUnit, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get usage => $composableBuilder(
+      column: $table.usage, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get timesPerDay => $composableBuilder(
       column: $table.timesPerDay, builder: (column) => ColumnFilters(column));
@@ -6445,6 +6542,9 @@ class $$MedicationsTableOrderingComposer
   ColumnOrderings<String> get dosageUnit => $composableBuilder(
       column: $table.dosageUnit, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get usage => $composableBuilder(
+      column: $table.usage, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get timesPerDay => $composableBuilder(
       column: $table.timesPerDay, builder: (column) => ColumnOrderings(column));
 
@@ -6487,6 +6587,9 @@ class $$MedicationsTableAnnotationComposer
 
   GeneratedColumn<String> get dosageUnit => $composableBuilder(
       column: $table.dosageUnit, builder: (column) => column);
+
+  GeneratedColumn<String> get usage =>
+      $composableBuilder(column: $table.usage, builder: (column) => column);
 
   GeneratedColumn<String> get timesPerDay => $composableBuilder(
       column: $table.timesPerDay, builder: (column) => column);
@@ -6535,6 +6638,7 @@ class $$MedicationsTableTableManager extends RootTableManager<
             Value<String> name = const Value.absent(),
             Value<String?> dosage = const Value.absent(),
             Value<String?> dosageUnit = const Value.absent(),
+            Value<String?> usage = const Value.absent(),
             Value<String?> timesPerDay = const Value.absent(),
             Value<DateTime?> startDate = const Value.absent(),
             Value<DateTime?> endDate = const Value.absent(),
@@ -6548,6 +6652,7 @@ class $$MedicationsTableTableManager extends RootTableManager<
             name: name,
             dosage: dosage,
             dosageUnit: dosageUnit,
+            usage: usage,
             timesPerDay: timesPerDay,
             startDate: startDate,
             endDate: endDate,
@@ -6561,6 +6666,7 @@ class $$MedicationsTableTableManager extends RootTableManager<
             required String name,
             Value<String?> dosage = const Value.absent(),
             Value<String?> dosageUnit = const Value.absent(),
+            Value<String?> usage = const Value.absent(),
             Value<String?> timesPerDay = const Value.absent(),
             Value<DateTime?> startDate = const Value.absent(),
             Value<DateTime?> endDate = const Value.absent(),
@@ -6574,6 +6680,7 @@ class $$MedicationsTableTableManager extends RootTableManager<
             name: name,
             dosage: dosage,
             dosageUnit: dosageUnit,
+            usage: usage,
             timesPerDay: timesPerDay,
             startDate: startDate,
             endDate: endDate,

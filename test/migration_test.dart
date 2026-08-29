@@ -72,6 +72,15 @@ void main() {
       expect(medications.single.name, '氨氯地平');
       expect(medications.single.profileId, HealthRepository.defaultProfileId);
 
+      // 3-1（9→10）：新增的可空列在旧数据上应为 NULL，且不影响其它字段。
+      expect(medications.single.usage, isNull);
+      expect(metrics.single.sourceId, isNull);
+      // 新列可正常写入。
+      await repo.insertMedication(name: '二甲双胍', usage: '口服 · 饭后');
+      final withUsage = (await db.select(db.medications).get())
+          .firstWhere((m) => m.name == '二甲双胍');
+      expect(withUsage.usage, '口服 · 饭后');
+
       // 迁移后默认档案应存在且能通过普通读接口查到刚才这些数据。
       final metricsByRepo = await repo.getMetricsByReport(reports.single.id);
       expect(metricsByRepo, isEmpty); // 该指标未关联报告，这里只验证查询本身不报错
