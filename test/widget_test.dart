@@ -133,8 +133,8 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.3.1+7'), findsOneWidget);
-    expect(find.text('用药「用法」字段 + 指标通用来源标识（schema 10）'), findsOneWidget);
+    expect(find.text('版本 1.4.0+8'), findsOneWidget);
+    expect(find.text('「我的」只留账户设置；疾病史/用药/摘要归入「身体」'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {

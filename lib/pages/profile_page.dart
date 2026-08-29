@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../models/app_metadata.dart';
 import 'about_page.dart';
-import 'condition_page.dart';
 import 'family_members_page.dart';
-import 'medical_summary_page.dart';
-import 'medication_page.dart';
+import 'notification_center_page.dart';
 import 'privacy_page.dart';
-import 'profile_edit_page.dart';
 import 'reminders_page.dart';
 
-/// 我的页面：个人资料卡 + 设置列表
+/// 我的页面：只放**账户与设置**——不随当前健康档案人物变化的东西。
+/// 疾病史 / 用药记录 / 给医生看的摘要这些属于「当前人物的健康背景」，已挪到「身体」页；
+/// 个人资料编辑并入「家庭成员」（点某个人 → 编辑资料）。
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -19,11 +19,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  String _nickname = '徐先生';
-  String _gender = '';
-  double? _heightCm;
-  int _diseaseCount = 0;
-  int _medicationCount = 0;
+  int _memberCount = 1;
 
   @override
   void initState() {
@@ -34,20 +30,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _load() async {
     final repo = appRepository;
     if (repo == null) return;
-    final profile = await repo.getProfile();
-    final diseases = await repo.getAllDiseases();
-    final meds = await repo.getAllMedications();
-    if (mounted) {
-      setState(() {
-        if (profile != null) {
-          _nickname = profile.nickname.isEmpty ? '未设置昵称' : profile.nickname;
-          _gender = profile.gender;
-          _heightCm = profile.heightCm;
-        }
-        _diseaseCount = diseases.length;
-        _medicationCount = meds.length;
-      });
-    }
+    final people = await repo.getAllPersonProfiles();
+    if (mounted) setState(() => _memberCount = people.length);
   }
 
   Future<void> _open(Widget page) async {
@@ -60,134 +44,47 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       appBar: AppBar(title: const Text('我的')),
       body: ListView(
-        // 底部多留一点空间，避免最后一项被悬浮的"添加"按钮挡住。
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
-          // 个人资料卡
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      _nickname.isNotEmpty ? _nickname.substring(0, 1) : '徐',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _nickname,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        if ((appRepository?.activeProfileId ?? 1) != 1)
-                          Container(
-                            margin: const EdgeInsets.only(top: 4, bottom: 2),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text('当前查看的是家庭成员',
-                                style: TextStyle(
-                                    fontSize: 11, color: AppColors.primary)),
-                          ),
-                        Text(
-                          _gender.isEmpty ? '请补全个人资料' : '性别：$_gender',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        Text(
-                          _heightCm == null
-                              ? '去「个人资料」补全身高等'
-                              : '身高 ${_fmtHeight(_heightCm!)} cm',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => _open(const ProfileEditPage()),
-                    icon: const Icon(Icons.edit_outlined,
-                        color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
           const _GroupLabel('档案'),
           _SettingTile(
-            title: '个人资料',
-            onTap: () => _open(const ProfileEditPage()),
-          ),
-          _SettingTile(
+            icon: Icons.people_alt_outlined,
             title: '家庭成员',
+            trailing: '$_memberCount 人',
+            subtitle: '新增 / 编辑 / 删除档案人物，编辑个人资料也在这里',
             onTap: () => _open(const FamilyMembersPage()),
           ),
-          const _GroupLabel('健康记录'),
+          const _GroupLabel('提醒与通知'),
           _SettingTile(
-            title: '疾病史',
-            trailing: _diseaseCount > 0 ? '$_diseaseCount条' : null,
-            onTap: () => _open(const ConditionPage()),
-          ),
-          _SettingTile(
-            title: '用药记录',
-            trailing: _medicationCount > 0 ? '$_medicationCount条' : null,
-            onTap: () => _open(const MedicationPage()),
-          ),
-          _SettingTile(
-            title: '提醒',
+            icon: Icons.alarm_outlined,
+            title: '提醒设置',
+            subtitle: '复查提醒、服药计划',
             onTap: () => _open(const RemindersPage()),
           ),
-          const _GroupLabel('就医'),
           _SettingTile(
-            title: '给医生看的摘要',
-            trailing: '导出',
-            onTap: () => _open(const MedicalSummaryPage()),
+            icon: Icons.notifications_none,
+            title: '通知',
+            subtitle: '已产生的通知记录（与首页铃铛同一处）',
+            onTap: () => _open(const NotificationCenterPage()),
           ),
           const _GroupLabel('数据'),
           _SettingTile(
+            icon: Icons.shield_outlined,
             title: '数据与隐私',
+            subtitle: '备份与恢复、导出全部数据、清除本机数据',
             onTap: () => _open(const PrivacyPage()),
           ),
+          const _GroupLabel('关于'),
           _SettingTile(
+            icon: Icons.info_outline,
             title: '关于健康档案',
+            trailing: 'v${AppMetadata.versionName}',
             onTap: () => _open(const AboutPage()),
           ),
         ],
       ),
     );
   }
-
-  static String _fmtHeight(double v) =>
-      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
 }
 
 class _GroupLabel extends StatelessWidget {
@@ -210,12 +107,16 @@ class _GroupLabel extends StatelessWidget {
 }
 
 class _SettingTile extends StatelessWidget {
+  final IconData icon;
   final String title;
+  final String? subtitle;
   final String? trailing;
   final VoidCallback onTap;
 
   const _SettingTile({
+    required this.icon,
     required this.title,
+    this.subtitle,
     this.trailing,
     required this.onTap,
   });
@@ -227,10 +128,18 @@ class _SettingTile extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        leading: Icon(icon, color: AppColors.textSecondary),
         title: Text(
           title,
           style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
         ),
+        subtitle: subtitle == null
+            ? null
+            : Text(
+                subtitle!,
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary),
+              ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -238,9 +147,7 @@ class _SettingTile extends StatelessWidget {
               Text(
                 trailing!,
                 style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
+                    fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(width: 4),
             ],

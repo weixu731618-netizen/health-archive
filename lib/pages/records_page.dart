@@ -6,6 +6,7 @@ import '../main.dart';
 import '../models/body_area_health.dart';
 import '../models/metric_source.dart';
 import '../utils/format.dart';
+import '../widgets/profile_switcher.dart';
 import '../utils/records_filter.dart';
 import '../utils/report_export.dart';
 import 'daily_health_entry_page.dart';
@@ -119,7 +120,10 @@ class _RecordsPageState extends State<RecordsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('资料来源')),
+      appBar: AppBar(
+        title: const Text('资料来源'),
+        actions: const [ProfileSwitcher()],
+      ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(

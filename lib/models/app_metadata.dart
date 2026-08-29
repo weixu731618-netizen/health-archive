@@ -1,7 +1,7 @@
 class AppMetadata {
   const AppMetadata._();
 
-  static const String versionName = '1.3.1';
-  static const int versionCode = 7;
-  static const String buildLabel = '用药「用法」字段 + 指标通用来源标识（schema 10）';
+  static const String versionName = '1.4.0';
+  static const int versionCode = 8;
+  static const String buildLabel = '「我的」只留账户设置；疾病史/用药/摘要归入「身体」';
 }

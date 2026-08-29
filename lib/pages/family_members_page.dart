@@ -75,6 +75,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
         relationship: data.relationship,
         sex: data.sex,
         dateOfBirth: data.birth,
+        heightCm: data.heightCm,
       );
       await _load();
       if (mounted) _toast('已添加');
@@ -103,7 +104,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
             : data.relationship,
         sex: data.sex,
         dateOfBirth: data.birth,
-        heightCm: p.heightCm,
+        heightCm: data.heightCm,
       );
       await _load();
       // 改的是当前档案时，通知各页面刷新显示的名字。
@@ -253,7 +254,9 @@ class _MemberFormResult {
   final String relationship;
   final String? sex;
   final DateTime? birth;
-  const _MemberFormResult(this.name, this.relationship, this.sex, this.birth);
+  final double? heightCm;
+  const _MemberFormResult(
+      this.name, this.relationship, this.sex, this.birth, this.heightCm);
 }
 
 class _MemberFormSheet extends StatefulWidget {
@@ -266,6 +269,7 @@ class _MemberFormSheet extends StatefulWidget {
 
 class _MemberFormSheetState extends State<_MemberFormSheet> {
   late final TextEditingController _nameCtrl;
+  late final TextEditingController _heightCtrl;
   late String _relationship;
   String _sex = '';
   DateTime? _birth;
@@ -279,6 +283,8 @@ class _MemberFormSheetState extends State<_MemberFormSheet> {
     super.initState();
     final e = widget.existing;
     _nameCtrl = TextEditingController(text: e?.displayName ?? '');
+    _heightCtrl = TextEditingController(
+        text: e?.heightCm == null ? '' : _fmtHeight(e!.heightCm!));
     _relationship = e == null || e.id == HealthRepository.defaultProfileId
         ? kMemberRelationships.first
         : (kMemberRelationships.contains(e.relationship)
@@ -288,9 +294,13 @@ class _MemberFormSheetState extends State<_MemberFormSheet> {
     _birth = e?.dateOfBirth;
   }
 
+  static String _fmtHeight(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _heightCtrl.dispose();
     super.dispose();
   }
 
@@ -370,6 +380,16 @@ class _MemberFormSheetState extends State<_MemberFormSheet> {
                 },
               ),
               const SizedBox(height: 12),
+              TextField(
+                controller: _heightCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: '身高（选填）',
+                  suffixText: 'cm',
+                ),
+              ),
+              const SizedBox(height: 12),
               FilledButton(
                 onPressed: () {
                   final name = _nameCtrl.text.trim();
@@ -385,6 +405,7 @@ class _MemberFormSheetState extends State<_MemberFormSheet> {
                     _relationship,
                     _sex.isEmpty ? null : _sex,
                     _birth,
+                    double.tryParse(_heightCtrl.text.trim()),
                   ));
                 },
                 style: FilledButton.styleFrom(

@@ -105,8 +105,8 @@ void main() {
     expect(matchMetricId('糖化血红蛋白'), 'HBA1C');
     expect(bodySystemForMetric('HBA1C'), '血糖代谢');
     expect(bodyAreaForSystem('血糖代谢'), '代谢');
-    expect(AppMetadata.versionName, '1.3.1');
-    expect(AppMetadata.versionCode, 7);
+    expect(AppMetadata.versionName, '1.4.0');
+    expect(AppMetadata.versionCode, 8);
     // V0.4C-1：OCR 服务与调试页
     expect(ReportOcrService, isA<Type>());
     expect(RemoteOcrService, isA<Type>());
