@@ -10,6 +10,7 @@ import '../widgets/profile_switcher.dart';
 import '../utils/records_filter.dart';
 import '../utils/report_export.dart';
 import 'daily_health_entry_page.dart';
+import 'daily_history_page.dart';
 import 'manual_metric_entry_page.dart';
 import 'medication_page.dart';
 import 'report_detail_page.dart';
@@ -329,9 +330,12 @@ class _RecordsPageState extends State<RecordsPage> {
   }
 
   Future<void> _openReal(BuildContext context, RealEntry entry) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => EntryDetailPage(entry: entry)),
-    );
+    // 日常记录（血压 / 血糖 / 体重 / 心率）→ 带折线图的历史页；
+    // 手工录入的化验指标 → 单条详情页。
+    final Widget page = entry.dailyType != null
+        ? DailyHistoryPage(type: entry.dailyType!)
+        : EntryDetailPage(entry: entry);
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
     if (mounted) _load();
   }
 
@@ -428,6 +432,7 @@ class _ActiveFilterChips extends StatelessWidget {
 class RealEntry {
   final int? metricId;
   final int? dailyId;
+  final String? dailyType; // 日常记录的类型：blood_pressure / blood_glucose / weight / heart_rate
   final String title;
   final String subtitle;
   final String status;
@@ -437,6 +442,7 @@ class RealEntry {
   RealEntry.metric(HealthMetric m)
       : metricId = m.id,
         dailyId = null,
+        dailyType = null,
         title = m.metricName,
         subtitle = _valueText(m.value, m.unit) +
             (m.referenceMin == null || m.referenceMax == null
@@ -449,6 +455,7 @@ class RealEntry {
   RealEntry.daily(DailyHealthRecord d)
       : metricId = null,
         dailyId = d.id,
+        dailyType = d.type,
         title = _dailyTitle(d),
         subtitle = _dailySubtitle(d),
         status = '',

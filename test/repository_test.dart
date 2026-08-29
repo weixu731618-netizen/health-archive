@@ -85,4 +85,35 @@ void main() {
     expect(await repo.deleteDaily(inserted.id), greaterThan(0));
     expect(await repo.getAllDailyRecords(), isEmpty);
   });
+
+  test('getDailyRecordsByType：按类型过滤，倒序', () async {
+    await repo.insertDaily(
+        type: 'blood_pressure',
+        value1: 130,
+        value2: 85,
+        unit: 'mmHg',
+        measuredAt: DateTime(2026, 8, 10));
+    await repo.insertDaily(
+        type: 'blood_pressure',
+        value1: 122,
+        value2: 78,
+        unit: 'mmHg',
+        measuredAt: DateTime(2026, 8, 20));
+    await repo.insertDaily(
+        type: 'blood_glucose',
+        value1: 6.4,
+        unit: 'mmol/L',
+        measuredAt: DateTime(2026, 8, 15));
+
+    final bp = await repo.getDailyRecordsByType('blood_pressure');
+    expect(bp, hasLength(2));
+    // 倒序：最新在前
+    expect(bp.first.measuredAt, DateTime(2026, 8, 20));
+
+    final glu = await repo.getDailyRecordsByType('blood_glucose');
+    expect(glu, hasLength(1));
+    expect(glu.first.value1, 6.4);
+
+    expect(await repo.getDailyRecordsByType('heart_rate'), isEmpty);
+  });
 }

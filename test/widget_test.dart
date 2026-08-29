@@ -134,8 +134,8 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.5.0+9'), findsOneWidget);
-    expect(find.text('三 Tab：首页 / 身体 / 记录；「我的」收进右上角头像'), findsOneWidget);
+    expect(find.text('版本 1.6.0+10'), findsOneWidget);
+    expect(find.text('日常记录（血压 / 血糖 / 体重 / 心率）加趋势折线图'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {

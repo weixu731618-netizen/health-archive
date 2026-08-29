@@ -375,6 +375,16 @@ class HealthRepository {
     return q.get();
   }
 
+  /// 查询某一类日常记录的历史（weight / blood_pressure / blood_glucose / heart_rate），
+  /// 按测量日期倒序。用于日常记录的趋势历史页。
+  Future<List<DailyHealthRecord>> getDailyRecordsByType(String type) {
+    final q = _db.select(_db.dailyHealthRecords)
+      ..where((t) =>
+          t.profileId.equals(_activeProfileId) & t.type.equals(type))
+      ..orderBy([(t) => OrderingTerm.desc(t.measuredAt)]);
+    return q.get();
+  }
+
   // ---------- 化验单报告（V0.4A） ----------
 
   /// 新增一份报告，返回其 id。

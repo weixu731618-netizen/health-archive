@@ -14,6 +14,7 @@ import 'package:health_archive/models/metric_source.dart';
 // 页面
 import 'package:health_archive/pages/manual_metric_entry_page.dart';
 import 'package:health_archive/pages/daily_health_entry_page.dart';
+import 'package:health_archive/pages/daily_history_page.dart';
 import 'package:health_archive/pages/metric_history_page.dart';
 import 'package:health_archive/pages/body_page.dart';
 import 'package:health_archive/pages/records_page.dart';
@@ -85,6 +86,7 @@ void main() {
     expect(AppDatabase, isA<Type>());
     expect(ManualMetricEntryPage, isA<Type>());
     expect(DailyHealthEntryPage, isA<Type>());
+    expect(DailyHistoryPage, isA<Type>());
     expect(DailyEntryType.values.length, 4);
     expect(MetricHistoryPage, isA<Type>());
     expect(BodyPage, isA<Type>());
@@ -105,8 +107,8 @@ void main() {
     expect(matchMetricId('糖化血红蛋白'), 'HBA1C');
     expect(bodySystemForMetric('HBA1C'), '血糖代谢');
     expect(bodyAreaForSystem('血糖代谢'), '代谢');
-    expect(AppMetadata.versionName, '1.5.0');
-    expect(AppMetadata.versionCode, 9);
+    expect(AppMetadata.versionName, '1.6.0');
+    expect(AppMetadata.versionCode, 10);
     // V0.4C-1：OCR 服务与调试页
     expect(ReportOcrService, isA<Type>());
     expect(RemoteOcrService, isA<Type>());
