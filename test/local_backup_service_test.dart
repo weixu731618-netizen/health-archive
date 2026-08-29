@@ -65,6 +65,7 @@ void main() {
       reportDate: DateTime(2026, 8, 1),
       reportType: '血常规',
       sourceImagePath: savedImagePath,
+      rawText: '血常规各项均在参考范围内',
       recognitionStatus: 'confirmed',
     );
 
@@ -117,6 +118,7 @@ void main() {
     expect(restoredReport.hospitalName, '市第一医院');
     expect(restoredReport.sourceImagePath, isNotNull);
     expect(restoredReport.sourceImagePath, isNot(savedImagePath));
+    expect(restoredReport.rawText, '血常规各项均在参考范围内');
     final restoredImageFile = File(restoredReport.sourceImagePath!);
     expect(restoredImageFile.existsSync(), isTrue);
     expect(await restoredImageFile.readAsBytes(), imageBytes);
@@ -139,6 +141,77 @@ void main() {
     final medications = await repo.getAllMedications();
     expect(medications.length, 1);
     expect(medications.single.name, '二甲双胍');
+  });
+
+  test('多人家庭档案：本人 + 家庭成员及各自数据完整往返', () async {
+    await repo.ensureDefaultPersonProfile();
+    await repo.upsertProfile(nickname: '徐先生', gender: '男', heightCm: 172);
+    await repo.insertMetric(
+      metricId: 'SELF_UA',
+      metricName: '尿酸',
+      value: 480,
+      unit: 'μmol/L',
+      referenceMin: 210,
+      referenceMax: 420,
+      status: '偏高',
+      bodySystem: '肾脏',
+      measuredAt: DateTime(2026, 7, 1),
+    );
+
+    final momId = await repo.insertPersonProfile(
+        displayName: '妈妈', relationship: '母亲', sex: '女');
+    await repo.setActiveProfileId(momId);
+    await repo.insertMetric(
+      metricId: 'MOM_GLU',
+      metricName: '空腹血糖',
+      value: 7.2,
+      unit: 'mmol/L',
+      referenceMin: 3.9,
+      referenceMax: 6.1,
+      status: '偏高',
+      bodySystem: '血糖代谢',
+      measuredAt: DateTime(2026, 7, 2),
+    );
+    await repo.insertMedication(name: '格列美脲');
+
+    final zipPath = await backup.exportBundle();
+    // 恢复前切回本人，验证恢复能重建「当前档案之外」的成员数据
+    await repo.setActiveProfileId(HealthRepository.defaultProfileId);
+    final msg = await backup.restoreFromFile(zipPath);
+    expect(msg, '恢复成功');
+
+    final people = await repo.getAllPersonProfiles();
+    expect(people.map((p) => p.displayName), containsAll(['徐先生', '妈妈']));
+    final mom = people.firstWhere((p) => p.displayName == '妈妈');
+    expect(mom.relationship, '母亲');
+
+    // 本人只看到本人的指标
+    expect((await repo.getAllMetrics()).map((m) => m.metricId), ['SELF_UA']);
+    // 切到妈妈能看到她的指标和用药
+    await repo.setActiveProfileId(mom.id);
+    expect((await repo.getAllMetrics()).map((m) => m.metricId), ['MOM_GLU']);
+    expect((await repo.getAllMedications()).single.name, '格列美脲');
+  });
+
+  test('影像/病理报告（无指标、无原图，仅结论文字）也能完整往返', () async {
+    await repo.insertReport(
+      hospitalName: '市中心医院',
+      reportDate: DateTime(2026, 8, 5),
+      reportType: 'CT',
+      rawText: '双肺纹理清晰，未见明显异常密度影；纵隔居中。',
+      recognitionStatus: 'confirmed',
+    );
+
+    final zipPath = await backup.exportBundle();
+    final msg = await backup.restoreFromFile(zipPath);
+    expect(msg, '恢复成功');
+
+    final reports = await repo.getAllReports();
+    expect(reports, hasLength(1));
+    expect(reports.single.reportType, 'CT');
+    expect(reports.single.rawText, '双肺纹理清晰，未见明显异常密度影；纵隔居中。');
+    expect(reports.single.sourceImagePath, isNull);
+    expect(await repo.getMetricsByReport(reports.single.id), isEmpty);
   });
 
   test('加密备份：正确密码能恢复，缺少或错误密码会失败', () async {

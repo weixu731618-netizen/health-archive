@@ -33,9 +33,11 @@ from services.deepseek_report_parser import DeepSeekParseError, parse_ocr_result
 # 只做 import，不代表一定会挂载路由/建表/查库。
 from app.api_auth import router as auth_router
 from app.api_backup import router as backup_router
+from app.api_push import router as push_router
 from app.auth import optional_user
 from app.db import init_db
 from app.models import User
+from app.push_db import init_push_db
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -61,6 +63,9 @@ _ocr_user_dependency = optional_user if _ENABLE_CLOUD_BACKUP else _no_auth
 async def lifespan(_app: FastAPI):
     if _ENABLE_CLOUD_BACKUP:
         init_db()
+    # B2：推送用独立的小库（只有 device_tokens 一张表），与云备份开关无关，
+    # 即使 PUSH_ENABLED=false 也建表——只是不真正发 APNs（走 mock）。
+    init_push_db()
     yield
 
 
@@ -69,6 +74,9 @@ app = FastAPI(title="HealthArchive Report Backend", version="0.5", lifespan=life
 if _ENABLE_CLOUD_BACKUP:
     app.include_router(auth_router)
     app.include_router(backup_router)
+
+# B2：推送 token 管理 + 测试接口——始终挂载（未配置 APNs 时测试发送走 mock）。
+app.include_router(push_router)
 
 # 单张图片上限：约 8 MB
 MAX_IMAGE_BYTES = 8 * 1024 * 1024

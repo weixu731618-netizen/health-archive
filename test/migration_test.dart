@@ -75,6 +75,16 @@ void main() {
       // 迁移后默认档案应存在且能通过普通读接口查到刚才这些数据。
       final metricsByRepo = await repo.getMetricsByReport(reports.single.id);
       expect(metricsByRepo, isEmpty); // 该指标未关联报告，这里只验证查询本身不报错
+
+      // B1（6→7 / 5→7）：user_profile 里的本人资料应并入 person_profiles 档案 1。
+      final self = await repo.getPersonProfile(HealthRepository.defaultProfileId);
+      expect(self, isNotNull);
+      expect(self!.displayName, '徐先生');
+      expect(self.sex, '男');
+      expect(self.heightCm, 172);
+      final view = await repo.getActiveProfileView();
+      expect(view!.nickname, '徐先生');
+      expect(view.heightCm, 172);
     } finally {
       try {
         dir.deleteSync(recursive: true);
@@ -186,6 +196,9 @@ void _createVersion5Database(File file, {bool withSampleData = false}) {
 
         INSERT INTO medications (name, status, created_at)
         VALUES ('氨氯地平', '当前使用', $now);
+
+        INSERT INTO user_profile (id, nickname, gender, height_cm, updated_at)
+        VALUES (1, '徐先生', '男', 172, $now);
       ''');
     }
   } finally {

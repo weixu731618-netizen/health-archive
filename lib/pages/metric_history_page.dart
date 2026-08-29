@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../models/body_area_health.dart';
+import '../services/notification_service.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
 import 'manual_metric_entry_page.dart';
@@ -27,6 +29,7 @@ class MetricHistoryPage extends StatefulWidget {
 
 class _MetricHistoryPageState extends State<MetricHistoryPage> {
   List<HealthMetric> _records = [];
+  Reminder? _recheck;
   bool _loading = true;
   String? _error;
 
@@ -45,6 +48,7 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
         if (mounted) {
           setState(() {
             _records = const [];
+            _recheck = null;
             _loading = false;
             _error = null;
           });
@@ -52,9 +56,11 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
         return;
       }
       final list = await repo.getMetricHistory(widget.metricId);
+      final recheck = await repo.getRecheckReminderForMetric(widget.metricId);
       if (mounted) {
         setState(() {
           _records = list;
+          _recheck = recheck;
           _loading = false;
           _error = null;
         });
@@ -70,6 +76,106 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
   }
 
   HealthMetric? get _latest => _records.isEmpty ? null : _records.first;
+
+  bool get _latestAbnormal {
+    final m = _latest;
+    if (m == null) return false;
+    return isMetricAbnormalStatus(m.status) ||
+        isMetricAttentionStatus(m.status);
+  }
+
+  Future<void> _setRecheck(int days) async {
+    final repo = appRepository;
+    if (repo == null) return;
+    await NotificationService.instance.requestPermission();
+    final m = _latest;
+    await repo.insertReminder(
+      kind: 'recheck',
+      title: '复查 ${widget.metricName}',
+      detail: m == null
+          ? null
+          : '上次 ${fmtLocal(m.value)} ${m.unit}（${m.status}）',
+      relatedMetricId: widget.metricId,
+      dueDate: DateTime.now().add(Duration(days: days)),
+    );
+    await syncReminders();
+    await _load();
+  }
+
+  Future<void> _cancelRecheck() async {
+    final repo = appRepository;
+    final r = _recheck;
+    if (repo == null || r == null) return;
+    await repo.deleteReminder(r.id);
+    await syncReminders();
+    await _load();
+  }
+
+  Widget _buildRecheckCard() {
+    final r = _recheck;
+    if (r != null) {
+      return Card(
+        child: ListTile(
+          leading: const Icon(Icons.alarm_on_outlined, color: AppColors.primary),
+          title: Text(
+            r.dueDate == null
+                ? '已设复查提醒'
+                : '复查提醒：${formatDate(r.dueDate!)}',
+            style: const TextStyle(fontSize: 15),
+          ),
+          subtitle: const Text('到期会发系统通知',
+              style:
+                  TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          trailing: TextButton(
+            onPressed: _cancelRecheck,
+            child: const Text('取消'),
+          ),
+        ),
+      );
+    }
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.add_alarm_outlined,
+            color: AppColors.textSecondary),
+        title: const Text('设置复查提醒', style: TextStyle(fontSize: 15)),
+        subtitle: Text(
+          _latestAbnormal ? '该指标偏离参考范围，建议按时复查' : '到期会提醒你复查这项',
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+        onTap: () async {
+          final days = await showModalBottomSheet<int>(
+            context: context,
+            showDragHandle: true,
+            builder: (_) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text('多久之后复查？',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                  ),
+                  for (final e in const {
+                    '1 个月后': 30,
+                    '2 个月后': 60,
+                    '3 个月后': 90,
+                    '半年后': 180,
+                  }.entries)
+                    ListTile(
+                      title: Text(e.key),
+                      onTap: () => Navigator.of(context).pop(e.value),
+                    ),
+                ],
+              ),
+            ),
+          );
+          if (days != null) await _setRecheck(days);
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,7 +224,9 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            _buildRecheckCard(),
+            const SizedBox(height: 12),
             if (!_loading && _error == null) _buildChart(),
             if (_loading)
               const Center(child: CircularProgressIndicator())

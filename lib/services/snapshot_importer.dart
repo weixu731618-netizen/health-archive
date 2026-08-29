@@ -27,12 +27,14 @@ class SnapshotImporter {
       // 不会出现「已清空但没写完新数据」导致数据永久丢失的中间态。
       await repo.transaction(() async {
         await repo.clearAllHealthData();
+        await _importPersonProfiles(repo, snapshot['personProfiles']);
         await _importProfile(repo, snapshot['profile']);
         final reportIdMap = await _importReports(repo, snapshot['reports'], reportImagePaths);
         await _importMetrics(repo, snapshot['metrics'], reportIdMap);
         await _importDaily(repo, snapshot['dailyRecords']);
         await _importDiseases(repo, snapshot['diseases']);
         await _importMedications(repo, snapshot['medications']);
+        await _importReminders(repo, snapshot['reminders']);
       });
     } catch (e) {
       return '恢复过程中出现错误，部分数据可能未恢复：$e';
@@ -40,6 +42,31 @@ class SnapshotImporter {
     return '恢复成功';
   }
 
+  /// B1：先按原始 id 重建全部人员档案（本人 + 家庭成员），
+  /// 各条健康记录的 profileId 才能正确对上。
+  static Future<void> _importPersonProfiles(
+      HealthRepository repo, dynamic list) async {
+    if (list is! List) return;
+    for (final item in list) {
+      if (item is! Map) continue;
+      final id = _toInt(item['id']);
+      if (id == null) continue;
+      try {
+        await repo.restorePersonProfile(
+          id: id,
+          displayName: (item['displayName'] ?? '本人').toString(),
+          relationship: (item['relationship'] ?? 'other').toString(),
+          sex: item['sex']?.toString(),
+          dateOfBirth: DateTime.tryParse('${item['dateOfBirth']}'),
+          heightCm: _toDouble(item['heightCm']),
+        );
+      } catch (_) {
+        // 单条失败跳过
+      }
+    }
+  }
+
+  /// 兼容旧备份（没有 personProfiles 列表、只有单个 profile）：写回「本人」资料。
   static Future<void> _importProfile(HealthRepository repo, dynamic profile) async {
     if (profile is! Map) return;
     try {
@@ -74,6 +101,8 @@ class SnapshotImporter {
           reportDate: DateTime.tryParse('${item['reportDate']}') ?? DateTime.now(),
           reportType: (item['reportType'] ?? '').toString(),
           sourceImagePath: imagePath,
+          rawText: item['rawText']?.toString(),
+          tags: HealthRepository.parseTags(item['tags']?.toString()),
           recognitionStatus: (item['recognitionStatus'] ?? 'confirmed').toString(),
         );
         idMap[oldId.toInt()] = newId;
@@ -182,6 +211,31 @@ class SnapshotImporter {
           notes: item['notes']?.toString(),
         );
       } catch (_) {}
+    }
+  }
+
+  static Future<void> _importReminders(
+      HealthRepository repo, dynamic list) async {
+    if (list is! List) return;
+    for (final item in list) {
+      if (item is! Map) continue;
+      try {
+        await repo.restoreReminder(
+          profileId:
+              _toInt(item['profileId']) ?? HealthRepository.defaultProfileId,
+          kind: (item['kind'] ?? 'recheck').toString(),
+          title: (item['title'] ?? '').toString(),
+          detail: item['detail']?.toString(),
+          relatedMetricId: item['relatedMetricId']?.toString(),
+          relatedMedicationId: _toInt(item['relatedMedicationId']),
+          dueDate: DateTime.tryParse('${item['dueDate']}'),
+          dailyTimes: item['dailyTimes']?.toString(),
+          enabled: item['enabled'] == null ? true : item['enabled'] == true,
+          completedAt: DateTime.tryParse('${item['completedAt']}'),
+        );
+      } catch (_) {
+        // 单条失败跳过
+      }
     }
   }
 

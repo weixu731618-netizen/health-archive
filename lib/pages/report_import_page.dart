@@ -5,7 +5,7 @@ import '../utils/image_storage.dart';
 import 'manual_metric_entry_page.dart';
 import 'report_recognition_flow.dart';
 
-/// 报告导入页（上传）：选择化验单图片 -> 识别（走共享 [startReportRecognitionFlow]）。
+/// 报告导入页（上传）：选择化验单图片或 PDF -> 识别（走共享 [startReportRecognitionFlow]）。
 class ReportImportPage extends StatefulWidget {
   const ReportImportPage({super.key});
 
@@ -24,7 +24,10 @@ class _ReportImportPageState extends State<ReportImportPage> {
       if (mounted) setState(() => _image = picked);
     } catch (e) {
       if (mounted) {
-        setState(() => _error = '无法读取该图片，请重新选择');
+        final msg = e is StateError && e.message.isNotEmpty
+            ? e.message
+            : '无法读取该文件，请重新选择';
+        setState(() => _error = msg);
       }
     }
   }
@@ -53,7 +56,7 @@ class _ReportImportPageState extends State<ReportImportPage> {
           const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: Text(
-              '选择一张化验单图片，系统将自动识别其中的检查指标',
+              '选择一张化验单图片或 PDF，系统将自动识别其中的检查指标（PDF 按首页识别）',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
           ),
@@ -67,14 +70,14 @@ class _ReportImportPageState extends State<ReportImportPage> {
                         const Icon(Icons.image_outlined,
                             size: 56, color: AppColors.textSecondary),
                         const SizedBox(height: 8),
-                        const Text('尚未选择图片',
+                        const Text('尚未选择文件',
                             style: TextStyle(
                                 fontSize: 14, color: AppColors.textSecondary)),
                         const SizedBox(height: 12),
                         FilledButton.tonalIcon(
                           onPressed: _pickImage,
                           icon: const Icon(Icons.add_photo_alternate_outlined),
-                          label: const Text('选择化验单图片'),
+                          label: const Text('选择化验单图片 / PDF'),
                         ),
                       ],
                     )

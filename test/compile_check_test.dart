@@ -36,6 +36,34 @@ import 'package:health_archive/models/report_models.dart';
 import 'package:health_archive/services/report_ocr_service.dart';
 import 'package:health_archive/pages/ocr_debug_page.dart';
 
+// 影像/病理报告存档（图文，无数字指标）
+import 'package:health_archive/pages/imaging_report_page.dart';
+
+// A2：单份报告分享 / 导出原件
+import 'package:health_archive/utils/report_export.dart';
+
+// A3：PDF 报告导入
+import 'package:health_archive/utils/pdf_support.dart';
+
+// B1：多人家庭档案
+import 'package:health_archive/pages/family_members_page.dart';
+import 'package:health_archive/widgets/profile_switcher.dart';
+
+// B2：备忘 / 提醒 + 本地通知 + 远程推送骨架
+import 'package:health_archive/pages/reminders_page.dart';
+import 'package:health_archive/widgets/health_tip_card.dart';
+import 'package:health_archive/data/health_tips.dart';
+import 'package:health_archive/services/notification_service.dart';
+import 'package:health_archive/services/push_service.dart';
+import 'package:health_archive/utils/reminder_schedule.dart';
+
+// B3：记录页搜索 / 筛选 / 标签
+import 'package:health_archive/utils/records_filter.dart';
+
+// B4：首页/我的重构 + 给医生看的一页纸
+import 'package:health_archive/pages/medical_summary_page.dart';
+import 'package:health_archive/utils/medical_summary.dart';
+
 // MVP 收尾：疾病史/用药/个人资料/数据隐私
 import 'package:health_archive/pages/condition_page.dart';
 import 'package:health_archive/pages/medication_page.dart';
@@ -82,6 +110,32 @@ void main() {
     expect(RemoteOcrService, isA<Type>());
     expect(OcrLine, isA<Type>());
     expect(OcrDebugPage, isA<Type>());
+    // 影像/病理报告存档
+    expect(ImagingReportPage, isA<Type>());
+    expect(imagingReportTypes.contains('CT'), isTrue);
+    // A2：报告分享 / 导出原件的内容组装
+    expect(buildReportSharePayload, isA<Function>());
+    expect(reportShareCaption, isA<Function>());
+    // A3：PDF 报告导入
+    expect(isPdfFileName('a.pdf'), isTrue);
+    expect(renderPdfFirstPageToPng, isA<Function>());
+    // B1：多人家庭档案
+    expect(FamilyMembersPage, isA<Type>());
+    expect(ProfileSwitcher, isA<Type>());
+    expect(kMemberRelationships.contains('配偶'), isTrue);
+    // B2：备忘 / 提醒
+    expect(RemindersPage, isA<Type>());
+    expect(HealthTipCard, isA<Type>());
+    expect(kHealthTips, isNotEmpty);
+    expect(NotificationService.instance, isNotNull);
+    expect(PushService.pushEnabled, isFalse); // 默认不启用远程推送
+    expect(defaultMedicationTimes(2), ['09:00', '21:00']);
+    // B3：记录页搜索 / 筛选 / 标签
+    expect(const RecordFilter().activeCount, 0);
+    expect(const RecordFilter(tags: {'体检'}).isReportOnly, isTrue);
+    // B4：给医生看的一页纸
+    expect(MedicalSummaryPage, isA<Type>());
+    expect(buildMedicalSummary, isA<Function>());
     // MVP 收尾：疾病史/用药/资料/隐私
     expect(ConditionPage, isA<Type>());
     expect(MedicationPage, isA<Type>());

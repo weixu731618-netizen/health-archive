@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../services/notification_service.dart';
 import '../utils/format.dart';
+import '../utils/reminder_schedule.dart';
 
 /// 用药记录页（MVP）：真实可增删改存。
 class MedicationPage extends StatefulWidget {
@@ -66,6 +68,8 @@ class _MedicationPageState extends State<MedicationPage> {
     final repo = appRepository;
     if (repo != null) {
       await repo.deleteMedication(m.id);
+      await repo.deleteMedicationReminder(m.id);
+      await syncReminders();
       _load();
     }
   }
@@ -144,6 +148,10 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
   DateTime? _start;
   DateTime? _end;
 
+  // B2：服药提醒
+  bool _remindEnabled = false;
+  List<String> _remindTimes = const [];
+
   bool get _isEdit => widget.medication != null;
 
   static const List<String> _options = ['当前使用', '已停用'];
@@ -160,6 +168,47 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
     _status = m?.status ?? '当前使用';
     _start = m?.startDate;
     _end = m?.endDate;
+    _loadReminder();
+  }
+
+  Future<void> _loadReminder() async {
+    final m = widget.medication;
+    final repo = appRepository;
+    if (m == null || repo == null) return;
+    final existing = await repo.getMedicationReminder(m.id);
+    if (existing != null && mounted) {
+      setState(() {
+        _remindEnabled = existing.enabled;
+        _remindTimes = parseDailyTimes(existing.dailyTimes)
+            .map((t) => t.text)
+            .toList();
+      });
+    }
+  }
+
+  void _ensureTimes() {
+    if (_remindTimes.isEmpty) {
+      _remindTimes =
+          defaultMedicationTimes(timesPerDayCount(_timesCtrl.text.trim()));
+    }
+  }
+
+  Future<void> _editTime(int index) async {
+    final parts = _remindTimes[index].split(':');
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+          hour: int.tryParse(parts[0]) ?? 9,
+          minute: int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0),
+    );
+    if (picked == null) return;
+    setState(() {
+      _remindTimes[index] =
+          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      _remindTimes = parseDailyTimes(_remindTimes.join(','))
+          .map((t) => t.text)
+          .toList();
+    });
   }
 
   @override
@@ -200,7 +249,7 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
       );
       await repo.updateMedication(updated);
     } else {
-      await repo.insertMedication(
+      final newId = await repo.insertMedication(
         name: name,
         dosage:
             _dosageCtrl.text.trim().isEmpty ? null : _dosageCtrl.text.trim(),
@@ -213,9 +262,35 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
         status: _status,
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       );
+      _savedMedicationId = newId;
     }
+
+    // B2：同步服药提醒
+    final medId = _isEdit ? widget.medication!.id : _savedMedicationId;
+    if (medId != null) {
+      if (_remindEnabled) {
+        _ensureTimes();
+        await NotificationService.instance.requestPermission();
+      }
+      final dose = [
+        if (_dosageCtrl.text.trim().isNotEmpty)
+          '${_dosageCtrl.text.trim()}${_unitCtrl.text.trim()}',
+      ].join();
+      await repo.setMedicationReminder(
+        medicationId: medId,
+        profileId: repo.activeProfileId,
+        medName: name,
+        times: _remindEnabled ? _remindTimes : const [],
+        enabled: _remindEnabled,
+        detail: dose.isEmpty ? null : '每次 $dose',
+      );
+      await syncReminders();
+    }
+
     if (mounted) Navigator.of(context).pop(true);
   }
+
+  int? _savedMedicationId;
 
   @override
   Widget build(BuildContext context) {
@@ -303,6 +378,58 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
                     onSelected: (_) => setState(() => _status = o),
                   ),
               ],
+            ),
+            const SizedBox(height: 12),
+            Card(
+              margin: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('服药提醒'),
+                    subtitle: const Text('到点发系统通知提醒吃这个药',
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary)),
+                    value: _remindEnabled,
+                    onChanged: (v) => setState(() {
+                      _remindEnabled = v;
+                      if (v) _ensureTimes();
+                    }),
+                  ),
+                  if (_remindEnabled)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            for (var i = 0; i < _remindTimes.length; i++)
+                              InputChip(
+                                label: Text(_remindTimes[i]),
+                                onPressed: () => _editTime(i),
+                                onDeleted: _remindTimes.length <= 1
+                                    ? null
+                                    : () => setState(
+                                        () => _remindTimes.removeAt(i)),
+                              ),
+                            ActionChip(
+                              avatar: const Icon(Icons.add, size: 16),
+                              label: const Text('加时间'),
+                              onPressed: () => setState(() {
+                                _remindTimes = [..._remindTimes, '12:00'];
+                                _remindTimes =
+                                    parseDailyTimes(_remindTimes.join(','))
+                                        .map((t) => t.text)
+                                        .toList();
+                              }),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             FilledButton(

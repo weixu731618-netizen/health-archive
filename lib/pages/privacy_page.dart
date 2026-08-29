@@ -1,13 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../dev/sample_data_seeder.dart';
 import '../main.dart';
 import '../utils/report_image_save.dart';
+
+/// 编译期开关：`--dart-define=SEED_ENABLED=true` 时，即使是 release 包也显示
+/// 「填充示例数据」调试入口（默认 false，正式包里没有）。
+const bool _kSeedEnabled = bool.fromEnvironment('SEED_ENABLED');
 
 /// 数据与隐私页（MVP）：导出健康数据（JSON） + 删除全部健康数据（二次确认）。
 class PrivacyPage extends StatefulWidget {
@@ -130,6 +136,42 @@ class _PrivacyPageState extends State<PrivacyPage> {
     return s.contains('password') || s.contains('null check');
   }
 
+  Future<void> _seedSampleData() async {
+    if (_busy) return;
+    final repo = appRepository;
+    if (repo == null) {
+      _toast('数据库未就绪');
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('填充示例数据'),
+        content: const Text(
+            '这会先清空当前本机全部健康数据，再写入一套演示用的报告 / 指标 / 日常记录 / 疾病史 / 用药。仅用于开发自查，确定继续？'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('继续')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _busy = true);
+    try {
+      await deleteReportImagesLocally();
+      await SampleDataSeeder.run(repo);
+      if (mounted) _toast('已写入示例数据，返回各页面查看');
+    } catch (e) {
+      if (mounted) _toast('写入失败：$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _deleteAll() async {
     if (_busy) return;
     final confirmed = await showDialog<bool>(
@@ -219,6 +261,24 @@ class _PrivacyPageState extends State<PrivacyPage> {
             danger: true,
             onTap: _busy ? null : _deleteAll,
           ),
+          if (kDebugMode || _kSeedEnabled) ...[
+            const Padding(
+              padding: EdgeInsets.only(top: 8, bottom: 8),
+              child: Text(
+                '调试（仅开发版可见）',
+                style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+            _Tile(
+              icon: Icons.science_outlined,
+              title: '填充示例数据',
+              subtitle: '清空当前数据并写入一套演示用的报告 / 指标 / 日常记录 / 疾病史 / 用药，方便逐页自查',
+              onTap: _busy ? null : _seedSampleData,
+            ),
+          ],
         ],
       ),
     );

@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
 import '../models/body_area_health.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
-import '../widgets/section_title.dart';
+import '../widgets/health_tip_card.dart';
+import '../widgets/profile_switcher.dart';
 import 'body_page.dart';
+import 'records_page.dart';
+import 'reminders_page.dart';
 
-/// 内容区域的最大宽度：Chrome / 平板等宽屏下避免卡片无限拉宽。
+/// 内容区域的最大宽度：宽屏下避免卡片无限拉宽。
 const double _kContentMaxWidth = 720;
-const int _kHomeBodyAreaPreviewCount = 6;
-const String _kPriorityAreaPrefKey = 'home_priority_body_areas';
+const int _kHomeAttentionPreview = 3;
 
-/// 首页：以单个个体为中心的身体关注概览。
+/// 首页：精简的健康关注概览 + 待办提醒 + 健康冷知识。
+/// 不展示姓名 / 年龄 / 身高等个人信息（身份由 AppBar 的档案切换器体现）。
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -23,9 +25,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  UserProfileData? _profile;
   List<HealthMetric> _metrics = [];
-  Set<String> _selectedPriorityAreaNames = {};
+  List<Reminder> _reminders = [];
+  int _unread = 0;
   bool _loading = true;
 
   @override
@@ -36,26 +38,20 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _load() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final selected =
-          prefs.getStringList(_kPriorityAreaPrefKey)?.toSet() ?? {};
       final repo = appRepository;
       if (repo == null) {
-        if (mounted) {
-          setState(() {
-            _selectedPriorityAreaNames = selected;
-            _loading = false;
-          });
-        }
+        if (mounted) setState(() => _loading = false);
         return;
       }
-      final profile = await repo.getProfile();
+      await repo.syncNotificationsFromReminders();
       final metrics = await repo.getAllMetrics();
+      final reminders = await repo.getActiveReminders();
+      final unread = await repo.unreadNotificationCount();
       if (mounted) {
         setState(() {
-          _profile = profile;
           _metrics = metrics;
-          _selectedPriorityAreaNames = selected;
+          _reminders = reminders;
+          _unread = unread;
           _loading = false;
         });
       }
@@ -67,78 +63,107 @@ class _HomePageState extends State<HomePage> {
   List<BodyAreaHealthSummary> get _bodyAreas =>
       buildBodyAreaHealthFromMetrics(_metrics);
 
-  List<HealthTopicSummary> get _healthTopics =>
-      buildHealthTopicSummaries(_metrics);
+  int get _medReminderCount =>
+      _reminders.where((r) => r.kind == 'medication' && r.enabled).length;
+
+  int get _recheckDueCount {
+    final today = DateTime.now();
+    final d0 = DateTime(today.year, today.month, today.day);
+    return _reminders
+        .where((r) =>
+            r.kind == 'recheck' &&
+            r.enabled &&
+            r.completedAt == null &&
+            r.dueDate != null &&
+            !r.dueDate!.isAfter(d0.add(const Duration(days: 1))))
+        .length;
+  }
+
+  Future<void> _openBody() => Navigator.of(context)
+      .push(MaterialPageRoute(builder: (_) => const BodyPage()))
+      .then((_) => _load());
+
+  Future<void> _openReminders() => Navigator.of(context)
+      .push(MaterialPageRoute(builder: (_) => const RemindersPage()))
+      .then((_) => _load());
 
   @override
   Widget build(BuildContext context) {
     final bodyAreas = _bodyAreas;
-    final selectedNames = _selectedPriorityAreaNames
-        .where((name) => bodyAreas.any((area) => area.name == name))
-        .toSet();
-    final selectedAreas =
-        bodyAreas.where((area) => selectedNames.contains(area.name)).toList();
-    final attentionAreas =
-        bodyAreas.where((o) => o.status == '异常' || o.status == '需关注').toList();
-    final prioritySource = selectedAreas.isNotEmpty
-        ? selectedAreas
-        : attentionAreas.isEmpty
-            ? bodyAreas
-            : attentionAreas;
-    final primaryAreas =
-        prioritySource.take(_kHomeBodyAreaPreviewCount).toList();
-    final topicPreview = _healthTopics.take(_kHomeBodyAreaPreviewCount).toList();
+    final attentionAreas = bodyAreas
+        .where((o) => o.status == '异常' || o.status == '需关注')
+        .toList();
+    final attentionCount = attentionAreas.length;
+    final latest = _latestMeasuredAt(bodyAreas);
+    final medCount = _medReminderCount;
+    final recheckDue = _recheckDueCount;
+    final hasTodo = medCount > 0 || recheckDue > 0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('身体关注概览')),
+      appBar: AppBar(
+        title: const Text('首页'),
+        actions: [
+          IconButton(
+            tooltip: '搜索记录',
+            icon: const Icon(Icons.search),
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const RecordsPage()))
+                .then((_) => _load()),
+          ),
+          _BellAction(unread: _unread, onTap: _openReminders),
+          const ProfileSwitcher(),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _kContentMaxWidth),
           child: RefreshIndicator(
             onRefresh: _load,
             child: ListView(
-              // 底部多留一点空间，避免最后一项被悬浮的"添加"按钮挡住。
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
               children: [
-                _OverviewCard(
-                  profile: _profile,
-                  bodyAreas: bodyAreas,
-                  isLoading: _loading,
-                  isExample: false,
+                // 状态条：只说「几项需关注 + 更新日期」，不带姓名
+                _StatusBar(
+                  loading: _loading,
+                  attentionCount: attentionCount,
+                  latestText: latest == null ? '暂无检查数据' : formatDate(latest),
+                  onTap: _openBody,
                 ),
-                const SectionTitle(title: '健康资料主题'),
+                if (hasTodo) ...[
+                  const SizedBox(height: 10),
+                  _TodoLine(
+                    text: _todoText(medCount, recheckDue),
+                    onTap: _openReminders,
+                  ),
+                ],
+                const SizedBox(height: 12),
+                const HealthTipCard(),
+                const SizedBox(height: 20),
+                const Text(
+                  '需关注',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 10),
                 if (_loading)
                   const Padding(
                     padding: EdgeInsets.all(24),
                     child: Center(child: CircularProgressIndicator()),
                   )
-                else
-                  for (final topic in topicPreview) ...[
-                    _HealthTopicCard(
-                      topic: topic,
-                      onTap: () => _openBodyAreaByName(
-                          context, topic.name, bodyAreas),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                _SectionHeader(
-                  title: '优先关注部位',
-                  actionLabel: '选择',
-                  icon: Icons.tune,
-                  onPressed: _loading
-                      ? null
-                      : () => _openPriorityPicker(bodyAreas, selectedNames),
-                ),
-                if (_loading)
+                else if (attentionAreas.isEmpty)
                   const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator()),
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('目前没有需要关注的指标',
+                        style: TextStyle(
+                            fontSize: 14, color: AppColors.textSecondary)),
                   )
                 else
-                  for (final area in primaryAreas) ...[
+                  for (final area
+                      in attentionAreas.take(_kHomeAttentionPreview)) ...[
                     _HomeBodyAreaCard(
                       area: area,
-                      isExample: false,
                       onTap: () => _openBodyArea(context, area),
                     ),
                     const SizedBox(height: 12),
@@ -147,9 +172,7 @@ class _HomePageState extends State<HomePage> {
                 SizedBox(
                   width: double.infinity,
                   child: TextButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const BodyPage()),
-                    ),
+                    onPressed: _openBody,
                     icon: const Icon(Icons.list_alt_outlined),
                     label: const Text('查看全部身体部位'),
                   ),
@@ -162,202 +185,140 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  String _todoText(int med, int recheck) {
+    final parts = <String>[
+      if (med > 0) '$med 项服药',
+      if (recheck > 0) '$recheck 项复查到期',
+    ];
+    return '今天：${parts.join(' · ')}';
+  }
+
   void _openBodyArea(BuildContext context, BodyAreaHealthSummary area) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => BodySystemDetailPage(
-          area: area,
-          allMetrics: _metrics,
-          isExample: false,
+    Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (_) => BodySystemDetailPage(
+            area: area,
+            allMetrics: _metrics,
+            isExample: false,
+          ),
+        ))
+        .then((_) => _load());
+  }
+}
+
+class _BellAction extends StatelessWidget {
+  final int unread;
+  final VoidCallback onTap;
+  const _BellAction({required this.unread, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          tooltip: '提醒',
+          icon: const Icon(Icons.notifications_none),
+          onPressed: onTap,
+        ),
+        if (unread > 0)
+          Positioned(
+            right: 6,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              constraints: const BoxConstraints(minWidth: 16),
+              decoration: BoxDecoration(
+                color: AppColors.abnormal,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                unread > 99 ? '99+' : '$unread',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 10, color: Colors.white),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _StatusBar extends StatelessWidget {
+  final bool loading;
+  final int attentionCount;
+  final String latestText;
+  final VoidCallback onTap;
+
+  const _StatusBar({
+    required this.loading,
+    required this.attentionCount,
+    required this.latestText,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = attentionCount > 0 ? AppColors.warning : AppColors.normal;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                loading
+                    ? '正在整理数据'
+                    : '$attentionCount 项需关注 · 上次更新 $latestText',
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          ],
         ),
       ),
     );
   }
-
-  void _openBodyAreaByName(
-    BuildContext context,
-    String areaName,
-    List<BodyAreaHealthSummary> bodyAreas,
-  ) {
-    final area = bodyAreas.firstWhere(
-      (a) => a.name == areaName,
-      orElse: () => BodyAreaHealthSummary(
-        name: areaName,
-        status: '数据不足',
-        metrics: const [],
-      ),
-    );
-    _openBodyArea(context, area);
-  }
-
-  Future<void> _openPriorityPicker(
-    List<BodyAreaHealthSummary> areas,
-    Set<String> selectedNames,
-  ) async {
-    final result = await showModalBottomSheet<Set<String>>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        final draft = selectedNames.toSet();
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return SafeArea(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                shrinkWrap: true,
-                children: [
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          '选择优先关注部位',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => setSheetState(draft.clear),
-                        child: const Text('重置'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  for (final area in areas)
-                    CheckboxListTile(
-                      value: draft.contains(area.name),
-                      title: Text(area.name),
-                      subtitle: Text(_metricSummary(area.keyMetric)),
-                      controlAffinity: ListTileControlAffinity.leading,
-                      contentPadding: EdgeInsets.zero,
-                      onChanged: (checked) {
-                        setSheetState(() {
-                          if (checked == true) {
-                            draft.add(area.name);
-                          } else {
-                            draft.remove(area.name);
-                          }
-                        });
-                      },
-                    ),
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    onPressed: () => Navigator.of(context).pop(draft),
-                    child: const Text('完成'),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-    if (result == null) return;
-    setState(() => _selectedPriorityAreaNames = result);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_kPriorityAreaPrefKey, result.toList());
-  }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final String actionLabel;
-  final IconData icon;
-  final VoidCallback? onPressed;
-
-  const _SectionHeader({
-    required this.title,
-    required this.actionLabel,
-    required this.icon,
-    this.onPressed,
-  });
+class _TodoLine extends StatelessWidget {
+  final String text;
+  final VoidCallback onTap;
+  const _TodoLine({required this.text, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-          TextButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon, size: 18),
-            label: Text(actionLabel),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _OverviewCard extends StatelessWidget {
-  final UserProfileData? profile;
-  final List<BodyAreaHealthSummary> bodyAreas;
-  final bool isLoading;
-  final bool isExample;
-
-  const _OverviewCard({
-    required this.profile,
-    required this.bodyAreas,
-    required this.isLoading,
-    required this.isExample,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final name = (profile?.nickname ?? '').trim().isEmpty
-        ? '当前个体'
-        : profile!.nickname.trim();
-    final attentionCount =
-        bodyAreas.where((o) => o.status == '异常' || o.status == '需关注').length;
-    final latest = _latestMeasuredAt(bodyAreas);
-    final latestText =
-        latest == null ? (isExample ? '示例数据' : '暂无检查数据') : formatDate(latest);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
           children: [
-            Text(
-              name,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+            const Icon(Icons.notifications_active_outlined,
+                size: 18, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(text,
+                  style: const TextStyle(
+                      fontSize: 14, color: AppColors.textPrimary)),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.health_and_safety,
-                    size: 20, color: AppColors.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    isLoading
-                        ? '正在整理身体关注数据'
-                        : '$attentionCount 个身体部位需关注 · 最近更新 $latestText',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
           ],
         ),
       ),
@@ -367,54 +328,25 @@ class _OverviewCard extends StatelessWidget {
 
 class _HomeBodyAreaCard extends StatelessWidget {
   final BodyAreaHealthSummary area;
-  final bool isExample;
   final VoidCallback onTap;
 
-  const _HomeBodyAreaCard({
-    required this.area,
-    required this.isExample,
-    required this.onTap,
-  });
+  const _HomeBodyAreaCard({required this.area, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final key = area.keyMetric;
     final latest = area.latestMeasuredAt == null
-        ? (isExample ? '示例数据' : '暂无来源')
+        ? '暂无来源'
         : formatDate(area.latestMeasuredAt!);
     final subtitle = key == null
         ? '暂无可用于判断的检查指标'
         : area.abnormalCount > 1
-            ? '${area.abnormalCount} 项异常指标 · 关键异常：${key.name} ${key.valueText} · $latest'
+            ? '${area.abnormalCount} 项异常 · 关键：${key.name} ${key.valueText} · $latest'
             : '${key.name} ${key.valueText} · $latest';
 
     return HealthStatusCard(
       title: area.name,
       status: area.status,
-      subtitle: subtitle,
-      onTap: onTap,
-    );
-  }
-}
-
-class _HealthTopicCard extends StatelessWidget {
-  final HealthTopicSummary topic;
-  final VoidCallback onTap;
-
-  const _HealthTopicCard({required this.topic, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final latest = topic.latestMeasuredAt == null
-        ? '暂无记录日期'
-        : '最近记录 ${formatDate(topic.latestMeasuredAt!)}';
-    final subtitle = topic.recordCount == 0
-        ? '暂无相关检查资料'
-        : '${topic.summaryText} · $latest';
-
-    return HealthStatusCard(
-      title: topic.name,
-      status: topic.statusLabel,
       subtitle: subtitle,
       onTap: onTap,
     );
@@ -428,9 +360,4 @@ DateTime? _latestMeasuredAt(List<BodyAreaHealthSummary> areas) {
     if (d != null && (latest == null || d.isAfter(latest))) latest = d;
   }
   return latest;
-}
-
-String _metricSummary(BodyAreaMetricEvidence? metric) {
-  if (metric == null) return '暂无指标';
-  return '${metric.name} ${metric.valueText}';
 }

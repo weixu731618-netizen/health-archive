@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/app_database.dart';
 import 'data/health_repository.dart';
@@ -11,6 +14,8 @@ import 'pages/records_page.dart';
 import 'services/cloud_backup_service.dart';
 import 'services/identity_service.dart';
 import 'services/local_backup_service.dart';
+import 'services/notification_service.dart';
+import 'services/push_service.dart';
 import 'services/report_ocr_service.dart';
 
 /// 全局仓库实例：页面通过它读写本地数据库。
@@ -34,6 +39,41 @@ final LocalBackupService localBackupService = LocalBackupService();
 
 /// 全局数据库实例（可复用同一连接）
 AppDatabase? appDatabase;
+
+/// B1：当前档案 id 的全局通知器。切换家庭成员时更新，`MainShell` 监听它整棵重建，
+/// 各页面 initState 重新按新档案加载数据。
+final ValueNotifier<int> activeProfileNotifier =
+    ValueNotifier<int>(HealthRepository.defaultProfileId);
+
+const String _kActiveProfilePrefKey = 'active_profile_id';
+
+/// B2：提醒有变动后调用——把 notifications 表补齐，并用全部可排程提醒重排系统本地通知。
+/// 任何失败都不抛出（[NotificationService] 内部已 try/catch）。
+Future<void> syncReminders() async {
+  final repo = appRepository;
+  if (repo == null) return;
+  try {
+    await repo.syncNotificationsFromReminders();
+  } catch (_) {}
+  try {
+    await NotificationService.instance
+        .syncAll(await repo.getAllSchedulableReminders());
+  } catch (_) {}
+}
+
+/// 切换当前档案：写仓库 + 持久化 + 通知 UI 重建。
+Future<void> switchActiveProfile(int id) async {
+  final repo = appRepository;
+  if (repo == null) return;
+  final applied = await repo.setActiveProfileId(id);
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kActiveProfilePrefKey, applied);
+  } catch (_) {
+    // 持久化失败不影响本次会话切换
+  }
+  activeProfileNotifier.value = applied;
+}
 
 /// 全局颜色定义（整个 App 统一使用）
 abstract final class AppColors {
@@ -67,11 +107,26 @@ Future<void> main() async {
     // 使 appRepository 保持为 null，页面显示「数据库未就绪」而不是崩溃。
     await db.customSelect('SELECT 1').get();
     await appRepository!.ensureDefaultPersonProfile();
+    // B1：恢复上次选中的档案（校验仍存在，否则回落到「本人」）。
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getInt(_kActiveProfilePrefKey);
+      if (saved != null) {
+        final applied = await appRepository!.setActiveProfileId(saved);
+        activeProfileNotifier.value = applied;
+      }
+    } catch (_) {
+      // 读取失败就用默认「本人」
+    }
   } catch (e, st) {
     debugPrint('AppDatabase init failed: $e\n$st');
     appDatabase = null;
     appRepository = null;
   }
+  // B2：本地系统通知 + 远程推送骨架。都不阻塞启动（内部 try/catch）。
+  unawaited(NotificationService.instance.init());
+  unawaited(PushService.instance.init());
+  unawaited(syncReminders());
   // V0.5 云端备份/匿名账号在 v1 精简版暂不启用（UI 入口已隐藏，见 profile_page.dart），
   // 故这里不再启动时自动调用 /api/anonymous/register：
   // 1) 避免每次启动都打一个后端根本没挂载对应路由（v1 后端只保留 OCR 接口）的请求；
@@ -234,7 +289,14 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _buildPage(_index),
+      // B1：切换家庭成员时，用新的 key 重建当前 Tab 页，触发其 initState 按新档案重新加载。
+      body: ValueListenableBuilder<int>(
+        valueListenable: activeProfileNotifier,
+        builder: (context, profileId, _) => KeyedSubtree(
+          key: ValueKey('tab-$_index-profile-$profileId'),
+          child: _buildPage(_index),
+        ),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton(
         tooltip: '添加健康数据',

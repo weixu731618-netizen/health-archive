@@ -5,6 +5,7 @@ import '../main.dart';
 import '../models/body_area_health.dart';
 import '../utils/file_image.dart';
 import '../utils/format.dart';
+import '../utils/report_export.dart';
 import '../utils/report_image_save.dart';
 import '../widgets/health_status_card.dart';
 import '../widgets/normal_items_toggle.dart';
@@ -65,6 +66,26 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     }
   }
 
+  Future<void> _shareReport() async {
+    final report = _report;
+    if (report == null) return;
+    try {
+      final shared = await shareReport(report);
+      if (!shared && mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+              const SnackBar(content: Text('该报告没有可导出的原图或文字')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('分享失败，请重试')));
+      }
+    }
+  }
+
   Future<void> _deleteReport() async {
     final repo = appRepository;
     final rid = widget.reportId;
@@ -107,7 +128,17 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('报告详情')),
+      appBar: AppBar(
+        title: const Text('报告详情'),
+        actions: [
+          if (_isImported && _report != null)
+            IconButton(
+              tooltip: '分享 / 导出原件',
+              icon: const Icon(Icons.ios_share),
+              onPressed: _shareReport,
+            ),
+        ],
+      ),
       body: _isImported ? _buildImported() : _buildPlaceholder(),
     );
   }
@@ -159,17 +190,25 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               ),
             ),
           ),
-          const SectionTitle(title: '影响部位'),
-          _AffectedBodyAreasCard(areas: affectedBodyAreasForMetrics(_metrics)),
-          const SectionTitle(title: '检查指标'),
-          if (_metrics.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('该报告未关联任何指标',
-                  style:
-                      TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-            )
-          else ...[
+          if ((_report?.rawText ?? '').trim().isNotEmpty) ...[
+            const SectionTitle(title: '报告结论'),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  _report!.rawText!.trim(),
+                  style: const TextStyle(
+                      fontSize: 14, color: AppColors.textPrimary, height: 1.5),
+                ),
+              ),
+            ),
+          ],
+          // 影像/病理等图文报告没有结构化指标，收起「影响部位」「检查指标」两个空区块；
+          // 若连结论文字也没有，给一句说明避免页面过空。
+          if (_metrics.isNotEmpty) ...[
+            const SectionTitle(title: '影响部位'),
+            _AffectedBodyAreasCard(areas: affectedBodyAreasForMetrics(_metrics)),
+            const SectionTitle(title: '检查指标'),
             for (final m in _attentionMetrics) ...[
               _ImportedMetricCard(metric: m),
               const SizedBox(height: 12),
@@ -194,10 +233,25 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                 ],
               ],
             ],
-          ],
+          ] else if ((_report?.rawText ?? '').trim().isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('本报告为图文报告，未录入文字内容',
+                  style:
+                      TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+            ),
           const SectionTitle(title: '原始报告'),
           _buildOriginalImage(),
           const SizedBox(height: 24),
+          OutlinedButton.icon(
+            onPressed: _shareReport,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            icon: const Icon(Icons.ios_share, size: 20),
+            label: const Text('分享 / 导出原件', style: TextStyle(fontSize: 16)),
+          ),
+          const SizedBox(height: 12),
           OutlinedButton(
             onPressed: _deleteReport,
             style: OutlinedButton.styleFrom(
@@ -229,13 +283,28 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
   Widget _buildOriginalImage() {
     final path = _report?.sourceImagePath;
-    if (path != null && path.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: buildLocalFileImage(path, height: 220),
-      );
-    }
-    return _imagePlaceholder();
+    if (path == null || path.isEmpty) return _imagePlaceholder();
+    if (path.toLowerCase().endsWith('.pdf')) return _pdfOriginalCard();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: buildLocalFileImage(path, height: 220),
+    );
+  }
+
+  Widget _pdfOriginalCard() {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.picture_as_pdf_outlined,
+            color: AppColors.primary),
+        title: const Text('PDF 原件', style: TextStyle(fontSize: 15)),
+        subtitle: const Text('用「分享 / 导出原件」发送或保存这份 PDF',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        trailing: IconButton(
+          icon: const Icon(Icons.ios_share),
+          onPressed: _shareReport,
+        ),
+      ),
+    );
   }
 
   Widget _imagePlaceholder() {

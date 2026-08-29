@@ -66,6 +66,8 @@ class MedicalReports extends Table {
   // V0.4B：识别流程状态（pending / processing / review / confirmed / failed）
   TextColumn get recognitionStatus =>
       text().withDefault(const Constant('pending'))();
+  // B3：用户给报告贴的标签，逗号分隔（如「体检,术前」）。空串表示无标签。
+  TextColumn get tags => text().withDefault(const Constant(''))();
   DateTimeColumn get createdAt => dateTime()();
 }
 
@@ -107,15 +109,64 @@ class UserProfile extends Table {
   DateTimeColumn get updatedAt => dateTime().nullable()();
 }
 
-/// T1：人员档案。当前只自动维护默认“本人”，为后续家庭成员隔离预留。
+/// T1 / B1：人员档案。id=1 恒为“本人”；家庭成员为 id>1。
+/// 每个人的健康数据通过各表的 profileId 关联到这里。
 class PersonProfiles extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get displayName => text().withDefault(const Constant('本人'))();
+  // self / spouse / parent / child / other
   TextColumn get relationship => text().withDefault(const Constant('self'))();
   TextColumn get sex => text().nullable()();
   DateTimeColumn get dateOfBirth => dateTime().nullable()();
+  // B1：身高并入人员档案（此前只存在单行的 user_profile 表里）
+  RealColumn get heightCm => real().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+}
+
+/// B2：备忘 / 提醒。两类——复查提醒（一次性，到期日）与服药提醒（每日固定时间点）。
+/// 只做应用内展示与到期计算；系统推送通知后续再接。
+class Reminders extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get profileId => integer().withDefault(const Constant(1))();
+  TextColumn get kind => text()(); // 'recheck' | 'medication'
+  TextColumn get title => text()();
+  TextColumn get detail => text().nullable()();
+  // 复查提醒关联的指标 id（可空，手动新建的复查提醒没有）
+  TextColumn get relatedMetricId => text().nullable()();
+  // 服药提醒关联的用药记录 id
+  IntColumn get relatedMedicationId => integer().nullable()();
+  // 复查：到期日
+  DateTimeColumn get dueDate => dateTime().nullable()();
+  // 服药：每日时间点，存 JSON 数组字符串，如 ["08:00","20:00"]
+  TextColumn get dailyTimes => text().nullable()();
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+  // 复查提醒被「标记已复查」后写入，之后从待办里消失
+  DateTimeColumn get completedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+}
+
+/// B2：通知记录。应用内通知中心与 iOS 系统推送共用这一份数据——
+/// 通知先写入这张表，本地定时通知 / 远程 APNs 推送都只是额外的送达渠道。
+/// 行类型命名为 NotificationRecord，避开 Flutter 的 Notification widget。
+@DataClassName('NotificationRecord')
+class Notifications extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get profileId => integer().withDefault(const Constant(1))();
+  // 关联的提醒 id（可空：也可能是系统/后端下发的非提醒类通知）
+  IntColumn get reminderId => integer().nullable()();
+  TextColumn get category => text()(); // 'recheck' | 'medication' | 'system'
+  TextColumn get title => text()();
+  TextColumn get body => text().nullable()();
+  // 计划送达时间（本地定时通知按此排程；补录的历史通知与之相同）
+  DateTimeColumn get scheduledFor => dateTime()();
+  // 实际送达 / 已读时间
+  DateTimeColumn get deliveredAt => dateTime().nullable()();
+  DateTimeColumn get readAt => dateTime().nullable()();
+  // 送达渠道：local（本地定时）/ push（远程 APNs）/ in_app（仅应用内）
+  TextColumn get channel => text().withDefault(const Constant('local'))();
+  DateTimeColumn get createdAt => dateTime()();
 }
 
 /// App 本地数据库主入口（跨端：Android / iOS / Web）
@@ -127,6 +178,8 @@ class PersonProfiles extends Table {
   Medications,
   UserProfile,
   PersonProfiles,
+  Reminders,
+  Notifications,
 ])
 class AppDatabase extends _$AppDatabase {
   /// 生产环境下使用 drift_flutter 提供的跨端数据库：
@@ -150,8 +203,11 @@ class AppDatabase extends _$AppDatabase {
   /// V0.4D：3→4（health_metrics 增加 rawName/matchType/recognitionConfidence）；
   /// MVP：4→5（新增 diseases/medications/user_profile）。
   /// T1：5→6（person_profiles、profileId 与可信观测字段）。
+  /// B1：6→7（person_profiles.height_cm，把单行 user_profile 的本人资料并入档案 1）。
+  /// B2：7→8（reminders 备忘 / 提醒表 + notifications 通知记录表）。
+  /// B3：8→9（medical_reports.tags 报告标签）。
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -204,6 +260,38 @@ class AppDatabase extends _$AppDatabase {
               "CAST(strftime('%s', 'now') AS INTEGER) * 1000, "
               "CAST(strftime('%s', 'now') AS INTEGER) * 1000)",
             );
+          }
+          // B1：身高并入 person_profiles；把此前单行 user_profile 的本人资料
+          // （昵称 / 性别 / 生日 / 身高）合并到档案 1，之后 user_profile 不再使用。
+          if (from == 6) {
+            // from<6 时上面的 createTable(personProfiles) 已按当前定义带上了 height_cm，
+            // 只有「已存在旧 person_profiles 表」的 6→7 才需要补列。
+            await m.addColumn(personProfiles, personProfiles.heightCm);
+          }
+          if (from < 7) {
+            await customStatement(
+              "INSERT OR IGNORE INTO person_profiles "
+              "(id, display_name, relationship, created_at, updated_at) "
+              "VALUES (1, '本人', 'self', "
+              "CAST(strftime('%s', 'now') AS INTEGER) * 1000, "
+              "CAST(strftime('%s', 'now') AS INTEGER) * 1000)",
+            );
+            await customStatement(
+              "UPDATE person_profiles SET "
+              "display_name = COALESCE(NULLIF((SELECT nickname FROM user_profile WHERE id = 1), ''), display_name), "
+              "sex = COALESCE(NULLIF((SELECT gender FROM user_profile WHERE id = 1), ''), sex), "
+              "date_of_birth = COALESCE((SELECT birth_date FROM user_profile WHERE id = 1), date_of_birth), "
+              "height_cm = COALESCE((SELECT height_cm FROM user_profile WHERE id = 1), height_cm), "
+              "updated_at = CAST(strftime('%s', 'now') AS INTEGER) * 1000 "
+              "WHERE id = 1",
+            );
+          }
+          if (from < 8) {
+            await m.createTable(reminders);
+            await m.createTable(notifications);
+          }
+          if (from < 9) {
+            await m.addColumn(medicalReports, medicalReports.tags);
           }
         },
       );

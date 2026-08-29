@@ -36,6 +36,12 @@ dependencies:
   # V0.5.1：把导出的备份文件通过系统分享面板发到微信/网盘等 App
   share_plus: ^13.3.0
   fl_chart: ^1.2.0
+  # A3：导入 PDF 报告时把首页渲染成图片，交给现有 OCR / 识别流程（移动端用 pdfium）
+  pdfx: ^2.9.1
+  # B2：本地系统通知（复查提醒 / 服药提醒），按设备时区定时
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+  flutter_timezone: ^3.0.1
 
 dev_dependencies:
   flutter_test:

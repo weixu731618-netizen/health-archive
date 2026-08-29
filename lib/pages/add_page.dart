@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import 'daily_health_entry_page.dart';
+import 'imaging_report_page.dart';
 import 'manual_metric_entry_page.dart';
 import 'report_capture_page.dart';
 import 'report_import_page.dart';
@@ -26,8 +27,8 @@ class AddPage extends StatelessWidget {
           ),
           _ActionCard(
             icon: Icons.camera_alt,
-            title: '拍摄检查报告',
-            subtitle: '拍摄医院或体检报告',
+            title: '拍摄化验单',
+            subtitle: '拍血常规/生化/肝肾功能等化验单，自动识别检查指标',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ReportCapturePage()),
             ),
@@ -35,10 +36,19 @@ class AddPage extends StatelessWidget {
           const SizedBox(height: 12),
           _ActionCard(
             icon: Icons.upload_file,
-            title: '上传报告',
-            subtitle: '上传图片，自动识别检查指标',
+            title: '上传化验单',
+            subtitle: '选化验单图片或 PDF，自动识别检查指标',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ReportImportPage()),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _ActionCard(
+            icon: Icons.medical_information_outlined,
+            title: '添加影像/病理报告',
+            subtitle: 'X光/CT/MRI/B超/心电图/病理等图文报告（图片或 PDF），自动识别文字后存档',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ImagingReportPage()),
             ),
           ),
           const SizedBox(height: 12),

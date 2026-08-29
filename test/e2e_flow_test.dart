@@ -12,6 +12,8 @@ import 'package:health_archive/data/health_repository.dart';
 import 'package:health_archive/main.dart';
 import 'package:health_archive/pages/manual_metric_entry_page.dart';
 import 'package:health_archive/pages/metric_history_page.dart';
+import 'package:health_archive/pages/records_page.dart';
+import 'package:health_archive/pages/report_detail_page.dart';
 import 'package:health_archive/pages/report_recognition_flow.dart';
 import 'package:health_archive/utils/image_storage.dart';
 
@@ -167,5 +169,76 @@ void main() {
 
     expect(find.textContaining('真实识别后端未配置'), findsOneWidget);
     expect(find.text('报告核对'), findsNothing);
+  });
+
+  testWidgets('影像/病理报告：无关联指标时展示识别出的报告结论文字', (tester) async {
+    final reportId = await repo.insertReport(
+      hospitalName: '市中心医院',
+      reportDate: DateTime(2026, 8, 20),
+      reportType: 'CT',
+      rawText: '双肺纹理清晰，未见明显异常密度影。',
+      recognitionStatus: 'confirmed',
+    );
+
+    await tester.pumpWidget(MaterialApp(home: ReportDetailPage(reportId: reportId)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('报告结论'), findsOneWidget);
+    expect(find.text('双肺纹理清晰，未见明显异常密度影。'), findsOneWidget);
+    // 图文报告无结构化指标：不再渲染「影响部位」「检查指标」两个空区块。
+    expect(find.text('影响部位'), findsNothing);
+    expect(find.text('检查指标'), findsNothing);
+    // A2：详情页提供「分享 / 导出原件」入口（正文按钮 + AppBar 图标）。
+    expect(find.text('分享 / 导出原件'), findsOneWidget);
+    expect(find.byIcon(Icons.ios_share), findsWidgets);
+  });
+
+  testWidgets('影像/病理报告：在记录页显示为图文报告并带结论摘要', (tester) async {
+    await repo.insertReport(
+      hospitalName: '市中心医院',
+      reportDate: DateTime(2026, 8, 20),
+      reportType: 'CT',
+      rawText: '双肺纹理清晰\n未见明显异常密度影',
+      recognitionStatus: 'confirmed',
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: RecordsPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CT · 图文报告'), findsOneWidget);
+    expect(find.textContaining('未见明显异常密度影'), findsOneWidget);
+    expect(find.textContaining('0 项指标'), findsNothing);
+    // A2：记录页每张报告卡片带一个「分享 / 导出」快捷入口。
+    expect(find.byIcon(Icons.ios_share), findsOneWidget);
+  });
+
+  testWidgets('影像/病理报告：既无指标也无识别文字时给出图文报告说明', (tester) async {
+    final reportId = await repo.insertReport(
+      hospitalName: '市中心医院',
+      reportDate: DateTime(2026, 8, 20),
+      reportType: 'B超',
+      recognitionStatus: 'confirmed',
+    );
+
+    await tester.pumpWidget(MaterialApp(home: ReportDetailPage(reportId: reportId)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('报告结论'), findsNothing);
+    expect(find.text('本报告为图文报告，未录入文字内容'), findsOneWidget);
+    expect(find.text('检查指标'), findsNothing);
+  });
+
+  testWidgets('普通化验单报告：没有 rawText 时不展示报告结论区块', (tester) async {
+    final reportId = await repo.insertReport(
+      hospitalName: '市中心医院',
+      reportDate: DateTime(2026, 8, 20),
+      reportType: '生化检查',
+      recognitionStatus: 'confirmed',
+    );
+
+    await tester.pumpWidget(MaterialApp(home: ReportDetailPage(reportId: reportId)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('报告结论'), findsNothing);
   });
 }

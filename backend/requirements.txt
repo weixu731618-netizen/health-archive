@@ -7,6 +7,9 @@ SQLAlchemy==2.0.*
 psycopg[binary]==3.2.*
 PyJWT==2.9.*
 python-dotenv==1.0.*
+# B2：APNs 推送（token-based JWT 用 ES256，需要 cryptography；APNs 走 HTTP/2 需要 h2）
+cryptography>=42
+h2>=4
 # 测试
 pytest==8.*
-httpx==0.27.*
+httpx[http2]==0.27.*

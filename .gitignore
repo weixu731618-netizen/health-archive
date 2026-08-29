@@ -57,3 +57,7 @@ backend/backend_dev.db
 
 # 打包产物（体积大，不适合进版本库）
 /release/
+
+# B2：推送模块本地 SQLite
+backend/push_dev.db
+backend/push.db

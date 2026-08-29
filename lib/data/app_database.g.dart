@@ -1810,6 +1810,13 @@ class $MedicalReportsTable extends MedicalReports
           type: DriftSqlType.string,
           requiredDuringInsert: false,
           defaultValue: const Constant('pending'));
+  static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
+  @override
+  late final GeneratedColumn<String> tags = GeneratedColumn<String>(
+      'tags', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -1826,6 +1833,7 @@ class $MedicalReportsTable extends MedicalReports
         sourceImagePath,
         rawText,
         recognitionStatus,
+        tags,
         createdAt
       ];
   @override
@@ -1885,6 +1893,10 @@ class $MedicalReportsTable extends MedicalReports
           recognitionStatus.isAcceptableOrUnknown(
               data['recognition_status']!, _recognitionStatusMeta));
     }
+    if (data.containsKey('tags')) {
+      context.handle(
+          _tagsMeta, tags.isAcceptableOrUnknown(data['tags']!, _tagsMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -1916,6 +1928,8 @@ class $MedicalReportsTable extends MedicalReports
           .read(DriftSqlType.string, data['${effectivePrefix}raw_text']),
       recognitionStatus: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}recognition_status'])!,
+      tags: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tags'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
     );
@@ -1936,6 +1950,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
   final String? sourceImagePath;
   final String? rawText;
   final String recognitionStatus;
+  final String tags;
   final DateTime createdAt;
   const MedicalReport(
       {required this.id,
@@ -1946,6 +1961,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
       this.sourceImagePath,
       this.rawText,
       required this.recognitionStatus,
+      required this.tags,
       required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1962,6 +1978,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
       map['raw_text'] = Variable<String>(rawText);
     }
     map['recognition_status'] = Variable<String>(recognitionStatus);
+    map['tags'] = Variable<String>(tags);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -1980,6 +1997,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
           ? const Value.absent()
           : Value(rawText),
       recognitionStatus: Value(recognitionStatus),
+      tags: Value(tags),
       createdAt: Value(createdAt),
     );
   }
@@ -1996,6 +2014,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
       sourceImagePath: serializer.fromJson<String?>(json['sourceImagePath']),
       rawText: serializer.fromJson<String?>(json['rawText']),
       recognitionStatus: serializer.fromJson<String>(json['recognitionStatus']),
+      tags: serializer.fromJson<String>(json['tags']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -2011,6 +2030,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
       'sourceImagePath': serializer.toJson<String?>(sourceImagePath),
       'rawText': serializer.toJson<String?>(rawText),
       'recognitionStatus': serializer.toJson<String>(recognitionStatus),
+      'tags': serializer.toJson<String>(tags),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -2024,6 +2044,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
           Value<String?> sourceImagePath = const Value.absent(),
           Value<String?> rawText = const Value.absent(),
           String? recognitionStatus,
+          String? tags,
           DateTime? createdAt}) =>
       MedicalReport(
         id: id ?? this.id,
@@ -2036,6 +2057,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
             : this.sourceImagePath,
         rawText: rawText.present ? rawText.value : this.rawText,
         recognitionStatus: recognitionStatus ?? this.recognitionStatus,
+        tags: tags ?? this.tags,
         createdAt: createdAt ?? this.createdAt,
       );
   MedicalReport copyWithCompanion(MedicalReportsCompanion data) {
@@ -2056,6 +2078,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
       recognitionStatus: data.recognitionStatus.present
           ? data.recognitionStatus.value
           : this.recognitionStatus,
+      tags: data.tags.present ? data.tags.value : this.tags,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -2071,6 +2094,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
           ..write('sourceImagePath: $sourceImagePath, ')
           ..write('rawText: $rawText, ')
           ..write('recognitionStatus: $recognitionStatus, ')
+          ..write('tags: $tags, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -2078,7 +2102,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
 
   @override
   int get hashCode => Object.hash(id, profileId, hospitalName, reportDate,
-      reportType, sourceImagePath, rawText, recognitionStatus, createdAt);
+      reportType, sourceImagePath, rawText, recognitionStatus, tags, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2091,6 +2115,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
           other.sourceImagePath == this.sourceImagePath &&
           other.rawText == this.rawText &&
           other.recognitionStatus == this.recognitionStatus &&
+          other.tags == this.tags &&
           other.createdAt == this.createdAt);
 }
 
@@ -2103,6 +2128,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
   final Value<String?> sourceImagePath;
   final Value<String?> rawText;
   final Value<String> recognitionStatus;
+  final Value<String> tags;
   final Value<DateTime> createdAt;
   const MedicalReportsCompanion({
     this.id = const Value.absent(),
@@ -2113,6 +2139,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
     this.sourceImagePath = const Value.absent(),
     this.rawText = const Value.absent(),
     this.recognitionStatus = const Value.absent(),
+    this.tags = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   MedicalReportsCompanion.insert({
@@ -2124,6 +2151,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
     this.sourceImagePath = const Value.absent(),
     this.rawText = const Value.absent(),
     this.recognitionStatus = const Value.absent(),
+    this.tags = const Value.absent(),
     required DateTime createdAt,
   })  : hospitalName = Value(hospitalName),
         reportDate = Value(reportDate),
@@ -2138,6 +2166,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
     Expression<String>? sourceImagePath,
     Expression<String>? rawText,
     Expression<String>? recognitionStatus,
+    Expression<String>? tags,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -2149,6 +2178,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
       if (sourceImagePath != null) 'source_image_path': sourceImagePath,
       if (rawText != null) 'raw_text': rawText,
       if (recognitionStatus != null) 'recognition_status': recognitionStatus,
+      if (tags != null) 'tags': tags,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -2162,6 +2192,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
       Value<String?>? sourceImagePath,
       Value<String?>? rawText,
       Value<String>? recognitionStatus,
+      Value<String>? tags,
       Value<DateTime>? createdAt}) {
     return MedicalReportsCompanion(
       id: id ?? this.id,
@@ -2172,6 +2203,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
       sourceImagePath: sourceImagePath ?? this.sourceImagePath,
       rawText: rawText ?? this.rawText,
       recognitionStatus: recognitionStatus ?? this.recognitionStatus,
+      tags: tags ?? this.tags,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -2203,6 +2235,9 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
     if (recognitionStatus.present) {
       map['recognition_status'] = Variable<String>(recognitionStatus.value);
     }
+    if (tags.present) {
+      map['tags'] = Variable<String>(tags.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -2220,6 +2255,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
           ..write('sourceImagePath: $sourceImagePath, ')
           ..write('rawText: $rawText, ')
           ..write('recognitionStatus: $recognitionStatus, ')
+          ..write('tags: $tags, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -3521,6 +3557,12 @@ class $PersonProfilesTable extends PersonProfiles
   late final GeneratedColumn<DateTime> dateOfBirth = GeneratedColumn<DateTime>(
       'date_of_birth', aliasedName, true,
       type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _heightCmMeta =
+      const VerificationMeta('heightCm');
+  @override
+  late final GeneratedColumn<double> heightCm = GeneratedColumn<double>(
+      'height_cm', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -3534,8 +3576,16 @@ class $PersonProfilesTable extends PersonProfiles
       'updated_at', aliasedName, false,
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, displayName, relationship, sex, dateOfBirth, createdAt, updatedAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        displayName,
+        relationship,
+        sex,
+        dateOfBirth,
+        heightCm,
+        createdAt,
+        updatedAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3571,6 +3621,10 @@ class $PersonProfilesTable extends PersonProfiles
           dateOfBirth.isAcceptableOrUnknown(
               data['date_of_birth']!, _dateOfBirthMeta));
     }
+    if (data.containsKey('height_cm')) {
+      context.handle(_heightCmMeta,
+          heightCm.isAcceptableOrUnknown(data['height_cm']!, _heightCmMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -3602,6 +3656,8 @@ class $PersonProfilesTable extends PersonProfiles
           .read(DriftSqlType.string, data['${effectivePrefix}sex']),
       dateOfBirth: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}date_of_birth']),
+      heightCm: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}height_cm']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -3621,6 +3677,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
   final String relationship;
   final String? sex;
   final DateTime? dateOfBirth;
+  final double? heightCm;
   final DateTime createdAt;
   final DateTime updatedAt;
   const PersonProfile(
@@ -3629,6 +3686,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
       required this.relationship,
       this.sex,
       this.dateOfBirth,
+      this.heightCm,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -3642,6 +3700,9 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
     }
     if (!nullToAbsent || dateOfBirth != null) {
       map['date_of_birth'] = Variable<DateTime>(dateOfBirth);
+    }
+    if (!nullToAbsent || heightCm != null) {
+      map['height_cm'] = Variable<double>(heightCm);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -3657,6 +3718,9 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
       dateOfBirth: dateOfBirth == null && nullToAbsent
           ? const Value.absent()
           : Value(dateOfBirth),
+      heightCm: heightCm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(heightCm),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -3671,6 +3735,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
       relationship: serializer.fromJson<String>(json['relationship']),
       sex: serializer.fromJson<String?>(json['sex']),
       dateOfBirth: serializer.fromJson<DateTime?>(json['dateOfBirth']),
+      heightCm: serializer.fromJson<double?>(json['heightCm']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -3684,6 +3749,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
       'relationship': serializer.toJson<String>(relationship),
       'sex': serializer.toJson<String?>(sex),
       'dateOfBirth': serializer.toJson<DateTime?>(dateOfBirth),
+      'heightCm': serializer.toJson<double?>(heightCm),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -3695,6 +3761,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
           String? relationship,
           Value<String?> sex = const Value.absent(),
           Value<DateTime?> dateOfBirth = const Value.absent(),
+          Value<double?> heightCm = const Value.absent(),
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       PersonProfile(
@@ -3703,6 +3770,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
         relationship: relationship ?? this.relationship,
         sex: sex.present ? sex.value : this.sex,
         dateOfBirth: dateOfBirth.present ? dateOfBirth.value : this.dateOfBirth,
+        heightCm: heightCm.present ? heightCm.value : this.heightCm,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -3717,6 +3785,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
       sex: data.sex.present ? data.sex.value : this.sex,
       dateOfBirth:
           data.dateOfBirth.present ? data.dateOfBirth.value : this.dateOfBirth,
+      heightCm: data.heightCm.present ? data.heightCm.value : this.heightCm,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -3730,6 +3799,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
           ..write('relationship: $relationship, ')
           ..write('sex: $sex, ')
           ..write('dateOfBirth: $dateOfBirth, ')
+          ..write('heightCm: $heightCm, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -3737,8 +3807,8 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, displayName, relationship, sex, dateOfBirth, createdAt, updatedAt);
+  int get hashCode => Object.hash(id, displayName, relationship, sex,
+      dateOfBirth, heightCm, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3748,6 +3818,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
           other.relationship == this.relationship &&
           other.sex == this.sex &&
           other.dateOfBirth == this.dateOfBirth &&
+          other.heightCm == this.heightCm &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -3758,6 +3829,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
   final Value<String> relationship;
   final Value<String?> sex;
   final Value<DateTime?> dateOfBirth;
+  final Value<double?> heightCm;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const PersonProfilesCompanion({
@@ -3766,6 +3838,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
     this.relationship = const Value.absent(),
     this.sex = const Value.absent(),
     this.dateOfBirth = const Value.absent(),
+    this.heightCm = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -3775,6 +3848,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
     this.relationship = const Value.absent(),
     this.sex = const Value.absent(),
     this.dateOfBirth = const Value.absent(),
+    this.heightCm = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
   })  : createdAt = Value(createdAt),
@@ -3785,6 +3859,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
     Expression<String>? relationship,
     Expression<String>? sex,
     Expression<DateTime>? dateOfBirth,
+    Expression<double>? heightCm,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -3794,6 +3869,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
       if (relationship != null) 'relationship': relationship,
       if (sex != null) 'sex': sex,
       if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
+      if (heightCm != null) 'height_cm': heightCm,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -3805,6 +3881,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
       Value<String>? relationship,
       Value<String?>? sex,
       Value<DateTime?>? dateOfBirth,
+      Value<double?>? heightCm,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt}) {
     return PersonProfilesCompanion(
@@ -3813,6 +3890,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
       relationship: relationship ?? this.relationship,
       sex: sex ?? this.sex,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      heightCm: heightCm ?? this.heightCm,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -3836,6 +3914,9 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
     if (dateOfBirth.present) {
       map['date_of_birth'] = Variable<DateTime>(dateOfBirth.value);
     }
+    if (heightCm.present) {
+      map['height_cm'] = Variable<double>(heightCm.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3853,8 +3934,1192 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
           ..write('relationship: $relationship, ')
           ..write('sex: $sex, ')
           ..write('dateOfBirth: $dateOfBirth, ')
+          ..write('heightCm: $heightCm, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RemindersTable extends Reminders
+    with TableInfo<$RemindersTable, Reminder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RemindersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _profileIdMeta =
+      const VerificationMeta('profileId');
+  @override
+  late final GeneratedColumn<int> profileId = GeneratedColumn<int>(
+      'profile_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _detailMeta = const VerificationMeta('detail');
+  @override
+  late final GeneratedColumn<String> detail = GeneratedColumn<String>(
+      'detail', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _relatedMetricIdMeta =
+      const VerificationMeta('relatedMetricId');
+  @override
+  late final GeneratedColumn<String> relatedMetricId = GeneratedColumn<String>(
+      'related_metric_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _relatedMedicationIdMeta =
+      const VerificationMeta('relatedMedicationId');
+  @override
+  late final GeneratedColumn<int> relatedMedicationId = GeneratedColumn<int>(
+      'related_medication_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _dueDateMeta =
+      const VerificationMeta('dueDate');
+  @override
+  late final GeneratedColumn<DateTime> dueDate = GeneratedColumn<DateTime>(
+      'due_date', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _dailyTimesMeta =
+      const VerificationMeta('dailyTimes');
+  @override
+  late final GeneratedColumn<String> dailyTimes = GeneratedColumn<String>(
+      'daily_times', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _enabledMeta =
+      const VerificationMeta('enabled');
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+      'enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("enabled" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _completedAtMeta =
+      const VerificationMeta('completedAt');
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+      'completed_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        profileId,
+        kind,
+        title,
+        detail,
+        relatedMetricId,
+        relatedMedicationId,
+        dueDate,
+        dailyTimes,
+        enabled,
+        completedAt,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reminders';
+  @override
+  VerificationContext validateIntegrity(Insertable<Reminder> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(_profileIdMeta,
+          profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta));
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('detail')) {
+      context.handle(_detailMeta,
+          detail.isAcceptableOrUnknown(data['detail']!, _detailMeta));
+    }
+    if (data.containsKey('related_metric_id')) {
+      context.handle(
+          _relatedMetricIdMeta,
+          relatedMetricId.isAcceptableOrUnknown(
+              data['related_metric_id']!, _relatedMetricIdMeta));
+    }
+    if (data.containsKey('related_medication_id')) {
+      context.handle(
+          _relatedMedicationIdMeta,
+          relatedMedicationId.isAcceptableOrUnknown(
+              data['related_medication_id']!, _relatedMedicationIdMeta));
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(_dueDateMeta,
+          dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta));
+    }
+    if (data.containsKey('daily_times')) {
+      context.handle(
+          _dailyTimesMeta,
+          dailyTimes.isAcceptableOrUnknown(
+              data['daily_times']!, _dailyTimesMeta));
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(_enabledMeta,
+          enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta));
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+          _completedAtMeta,
+          completedAt.isAcceptableOrUnknown(
+              data['completed_at']!, _completedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Reminder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Reminder(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      profileId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}profile_id'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      detail: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}detail']),
+      relatedMetricId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}related_metric_id']),
+      relatedMedicationId: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}related_medication_id']),
+      dueDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}due_date']),
+      dailyTimes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}daily_times']),
+      enabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}enabled'])!,
+      completedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}completed_at']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $RemindersTable createAlias(String alias) {
+    return $RemindersTable(attachedDatabase, alias);
+  }
+}
+
+class Reminder extends DataClass implements Insertable<Reminder> {
+  final int id;
+  final int profileId;
+  final String kind;
+  final String title;
+  final String? detail;
+  final String? relatedMetricId;
+  final int? relatedMedicationId;
+  final DateTime? dueDate;
+  final String? dailyTimes;
+  final bool enabled;
+  final DateTime? completedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Reminder(
+      {required this.id,
+      required this.profileId,
+      required this.kind,
+      required this.title,
+      this.detail,
+      this.relatedMetricId,
+      this.relatedMedicationId,
+      this.dueDate,
+      this.dailyTimes,
+      required this.enabled,
+      this.completedAt,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['profile_id'] = Variable<int>(profileId);
+    map['kind'] = Variable<String>(kind);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || detail != null) {
+      map['detail'] = Variable<String>(detail);
+    }
+    if (!nullToAbsent || relatedMetricId != null) {
+      map['related_metric_id'] = Variable<String>(relatedMetricId);
+    }
+    if (!nullToAbsent || relatedMedicationId != null) {
+      map['related_medication_id'] = Variable<int>(relatedMedicationId);
+    }
+    if (!nullToAbsent || dueDate != null) {
+      map['due_date'] = Variable<DateTime>(dueDate);
+    }
+    if (!nullToAbsent || dailyTimes != null) {
+      map['daily_times'] = Variable<String>(dailyTimes);
+    }
+    map['enabled'] = Variable<bool>(enabled);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  RemindersCompanion toCompanion(bool nullToAbsent) {
+    return RemindersCompanion(
+      id: Value(id),
+      profileId: Value(profileId),
+      kind: Value(kind),
+      title: Value(title),
+      detail:
+          detail == null && nullToAbsent ? const Value.absent() : Value(detail),
+      relatedMetricId: relatedMetricId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(relatedMetricId),
+      relatedMedicationId: relatedMedicationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(relatedMedicationId),
+      dueDate: dueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueDate),
+      dailyTimes: dailyTimes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dailyTimes),
+      enabled: Value(enabled),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Reminder.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Reminder(
+      id: serializer.fromJson<int>(json['id']),
+      profileId: serializer.fromJson<int>(json['profileId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      title: serializer.fromJson<String>(json['title']),
+      detail: serializer.fromJson<String?>(json['detail']),
+      relatedMetricId: serializer.fromJson<String?>(json['relatedMetricId']),
+      relatedMedicationId:
+          serializer.fromJson<int?>(json['relatedMedicationId']),
+      dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
+      dailyTimes: serializer.fromJson<String?>(json['dailyTimes']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'profileId': serializer.toJson<int>(profileId),
+      'kind': serializer.toJson<String>(kind),
+      'title': serializer.toJson<String>(title),
+      'detail': serializer.toJson<String?>(detail),
+      'relatedMetricId': serializer.toJson<String?>(relatedMetricId),
+      'relatedMedicationId': serializer.toJson<int?>(relatedMedicationId),
+      'dueDate': serializer.toJson<DateTime?>(dueDate),
+      'dailyTimes': serializer.toJson<String?>(dailyTimes),
+      'enabled': serializer.toJson<bool>(enabled),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Reminder copyWith(
+          {int? id,
+          int? profileId,
+          String? kind,
+          String? title,
+          Value<String?> detail = const Value.absent(),
+          Value<String?> relatedMetricId = const Value.absent(),
+          Value<int?> relatedMedicationId = const Value.absent(),
+          Value<DateTime?> dueDate = const Value.absent(),
+          Value<String?> dailyTimes = const Value.absent(),
+          bool? enabled,
+          Value<DateTime?> completedAt = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      Reminder(
+        id: id ?? this.id,
+        profileId: profileId ?? this.profileId,
+        kind: kind ?? this.kind,
+        title: title ?? this.title,
+        detail: detail.present ? detail.value : this.detail,
+        relatedMetricId: relatedMetricId.present
+            ? relatedMetricId.value
+            : this.relatedMetricId,
+        relatedMedicationId: relatedMedicationId.present
+            ? relatedMedicationId.value
+            : this.relatedMedicationId,
+        dueDate: dueDate.present ? dueDate.value : this.dueDate,
+        dailyTimes: dailyTimes.present ? dailyTimes.value : this.dailyTimes,
+        enabled: enabled ?? this.enabled,
+        completedAt: completedAt.present ? completedAt.value : this.completedAt,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  Reminder copyWithCompanion(RemindersCompanion data) {
+    return Reminder(
+      id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      title: data.title.present ? data.title.value : this.title,
+      detail: data.detail.present ? data.detail.value : this.detail,
+      relatedMetricId: data.relatedMetricId.present
+          ? data.relatedMetricId.value
+          : this.relatedMetricId,
+      relatedMedicationId: data.relatedMedicationId.present
+          ? data.relatedMedicationId.value
+          : this.relatedMedicationId,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      dailyTimes:
+          data.dailyTimes.present ? data.dailyTimes.value : this.dailyTimes,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      completedAt:
+          data.completedAt.present ? data.completedAt.value : this.completedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Reminder(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('kind: $kind, ')
+          ..write('title: $title, ')
+          ..write('detail: $detail, ')
+          ..write('relatedMetricId: $relatedMetricId, ')
+          ..write('relatedMedicationId: $relatedMedicationId, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('dailyTimes: $dailyTimes, ')
+          ..write('enabled: $enabled, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      profileId,
+      kind,
+      title,
+      detail,
+      relatedMetricId,
+      relatedMedicationId,
+      dueDate,
+      dailyTimes,
+      enabled,
+      completedAt,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Reminder &&
+          other.id == this.id &&
+          other.profileId == this.profileId &&
+          other.kind == this.kind &&
+          other.title == this.title &&
+          other.detail == this.detail &&
+          other.relatedMetricId == this.relatedMetricId &&
+          other.relatedMedicationId == this.relatedMedicationId &&
+          other.dueDate == this.dueDate &&
+          other.dailyTimes == this.dailyTimes &&
+          other.enabled == this.enabled &&
+          other.completedAt == this.completedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class RemindersCompanion extends UpdateCompanion<Reminder> {
+  final Value<int> id;
+  final Value<int> profileId;
+  final Value<String> kind;
+  final Value<String> title;
+  final Value<String?> detail;
+  final Value<String?> relatedMetricId;
+  final Value<int?> relatedMedicationId;
+  final Value<DateTime?> dueDate;
+  final Value<String?> dailyTimes;
+  final Value<bool> enabled;
+  final Value<DateTime?> completedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const RemindersCompanion({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.title = const Value.absent(),
+    this.detail = const Value.absent(),
+    this.relatedMetricId = const Value.absent(),
+    this.relatedMedicationId = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.dailyTimes = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  RemindersCompanion.insert({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    required String kind,
+    required String title,
+    this.detail = const Value.absent(),
+    this.relatedMetricId = const Value.absent(),
+    this.relatedMedicationId = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.dailyTimes = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  })  : kind = Value(kind),
+        title = Value(title),
+        createdAt = Value(createdAt),
+        updatedAt = Value(updatedAt);
+  static Insertable<Reminder> custom({
+    Expression<int>? id,
+    Expression<int>? profileId,
+    Expression<String>? kind,
+    Expression<String>? title,
+    Expression<String>? detail,
+    Expression<String>? relatedMetricId,
+    Expression<int>? relatedMedicationId,
+    Expression<DateTime>? dueDate,
+    Expression<String>? dailyTimes,
+    Expression<bool>? enabled,
+    Expression<DateTime>? completedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
+      if (kind != null) 'kind': kind,
+      if (title != null) 'title': title,
+      if (detail != null) 'detail': detail,
+      if (relatedMetricId != null) 'related_metric_id': relatedMetricId,
+      if (relatedMedicationId != null)
+        'related_medication_id': relatedMedicationId,
+      if (dueDate != null) 'due_date': dueDate,
+      if (dailyTimes != null) 'daily_times': dailyTimes,
+      if (enabled != null) 'enabled': enabled,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  RemindersCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? profileId,
+      Value<String>? kind,
+      Value<String>? title,
+      Value<String?>? detail,
+      Value<String?>? relatedMetricId,
+      Value<int?>? relatedMedicationId,
+      Value<DateTime?>? dueDate,
+      Value<String?>? dailyTimes,
+      Value<bool>? enabled,
+      Value<DateTime?>? completedAt,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt}) {
+    return RemindersCompanion(
+      id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
+      kind: kind ?? this.kind,
+      title: title ?? this.title,
+      detail: detail ?? this.detail,
+      relatedMetricId: relatedMetricId ?? this.relatedMetricId,
+      relatedMedicationId: relatedMedicationId ?? this.relatedMedicationId,
+      dueDate: dueDate ?? this.dueDate,
+      dailyTimes: dailyTimes ?? this.dailyTimes,
+      enabled: enabled ?? this.enabled,
+      completedAt: completedAt ?? this.completedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<int>(profileId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (detail.present) {
+      map['detail'] = Variable<String>(detail.value);
+    }
+    if (relatedMetricId.present) {
+      map['related_metric_id'] = Variable<String>(relatedMetricId.value);
+    }
+    if (relatedMedicationId.present) {
+      map['related_medication_id'] = Variable<int>(relatedMedicationId.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<DateTime>(dueDate.value);
+    }
+    if (dailyTimes.present) {
+      map['daily_times'] = Variable<String>(dailyTimes.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RemindersCompanion(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('kind: $kind, ')
+          ..write('title: $title, ')
+          ..write('detail: $detail, ')
+          ..write('relatedMetricId: $relatedMetricId, ')
+          ..write('relatedMedicationId: $relatedMedicationId, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('dailyTimes: $dailyTimes, ')
+          ..write('enabled: $enabled, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $NotificationsTable extends Notifications
+    with TableInfo<$NotificationsTable, NotificationRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotificationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _profileIdMeta =
+      const VerificationMeta('profileId');
+  @override
+  late final GeneratedColumn<int> profileId = GeneratedColumn<int>(
+      'profile_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _reminderIdMeta =
+      const VerificationMeta('reminderId');
+  @override
+  late final GeneratedColumn<int> reminderId = GeneratedColumn<int>(
+      'reminder_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _categoryMeta =
+      const VerificationMeta('category');
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+      'category', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+      'title', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+      'body', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _scheduledForMeta =
+      const VerificationMeta('scheduledFor');
+  @override
+  late final GeneratedColumn<DateTime> scheduledFor = GeneratedColumn<DateTime>(
+      'scheduled_for', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _deliveredAtMeta =
+      const VerificationMeta('deliveredAt');
+  @override
+  late final GeneratedColumn<DateTime> deliveredAt = GeneratedColumn<DateTime>(
+      'delivered_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _readAtMeta = const VerificationMeta('readAt');
+  @override
+  late final GeneratedColumn<DateTime> readAt = GeneratedColumn<DateTime>(
+      'read_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _channelMeta =
+      const VerificationMeta('channel');
+  @override
+  late final GeneratedColumn<String> channel = GeneratedColumn<String>(
+      'channel', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('local'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        profileId,
+        reminderId,
+        category,
+        title,
+        body,
+        scheduledFor,
+        deliveredAt,
+        readAt,
+        channel,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notifications';
+  @override
+  VerificationContext validateIntegrity(Insertable<NotificationRecord> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(_profileIdMeta,
+          profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta));
+    }
+    if (data.containsKey('reminder_id')) {
+      context.handle(
+          _reminderIdMeta,
+          reminderId.isAcceptableOrUnknown(
+              data['reminder_id']!, _reminderIdMeta));
+    }
+    if (data.containsKey('category')) {
+      context.handle(_categoryMeta,
+          category.isAcceptableOrUnknown(data['category']!, _categoryMeta));
+    } else if (isInserting) {
+      context.missing(_categoryMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+          _titleMeta, title.isAcceptableOrUnknown(data['title']!, _titleMeta));
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+          _bodyMeta, body.isAcceptableOrUnknown(data['body']!, _bodyMeta));
+    }
+    if (data.containsKey('scheduled_for')) {
+      context.handle(
+          _scheduledForMeta,
+          scheduledFor.isAcceptableOrUnknown(
+              data['scheduled_for']!, _scheduledForMeta));
+    } else if (isInserting) {
+      context.missing(_scheduledForMeta);
+    }
+    if (data.containsKey('delivered_at')) {
+      context.handle(
+          _deliveredAtMeta,
+          deliveredAt.isAcceptableOrUnknown(
+              data['delivered_at']!, _deliveredAtMeta));
+    }
+    if (data.containsKey('read_at')) {
+      context.handle(_readAtMeta,
+          readAt.isAcceptableOrUnknown(data['read_at']!, _readAtMeta));
+    }
+    if (data.containsKey('channel')) {
+      context.handle(_channelMeta,
+          channel.isAcceptableOrUnknown(data['channel']!, _channelMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NotificationRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NotificationRecord(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      profileId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}profile_id'])!,
+      reminderId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}reminder_id']),
+      category: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
+      title: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
+      body: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}body']),
+      scheduledFor: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}scheduled_for'])!,
+      deliveredAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}delivered_at']),
+      readAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}read_at']),
+      channel: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}channel'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $NotificationsTable createAlias(String alias) {
+    return $NotificationsTable(attachedDatabase, alias);
+  }
+}
+
+class NotificationRecord extends DataClass
+    implements Insertable<NotificationRecord> {
+  final int id;
+  final int profileId;
+  final int? reminderId;
+  final String category;
+  final String title;
+  final String? body;
+  final DateTime scheduledFor;
+  final DateTime? deliveredAt;
+  final DateTime? readAt;
+  final String channel;
+  final DateTime createdAt;
+  const NotificationRecord(
+      {required this.id,
+      required this.profileId,
+      this.reminderId,
+      required this.category,
+      required this.title,
+      this.body,
+      required this.scheduledFor,
+      this.deliveredAt,
+      this.readAt,
+      required this.channel,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['profile_id'] = Variable<int>(profileId);
+    if (!nullToAbsent || reminderId != null) {
+      map['reminder_id'] = Variable<int>(reminderId);
+    }
+    map['category'] = Variable<String>(category);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || body != null) {
+      map['body'] = Variable<String>(body);
+    }
+    map['scheduled_for'] = Variable<DateTime>(scheduledFor);
+    if (!nullToAbsent || deliveredAt != null) {
+      map['delivered_at'] = Variable<DateTime>(deliveredAt);
+    }
+    if (!nullToAbsent || readAt != null) {
+      map['read_at'] = Variable<DateTime>(readAt);
+    }
+    map['channel'] = Variable<String>(channel);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  NotificationsCompanion toCompanion(bool nullToAbsent) {
+    return NotificationsCompanion(
+      id: Value(id),
+      profileId: Value(profileId),
+      reminderId: reminderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderId),
+      category: Value(category),
+      title: Value(title),
+      body: body == null && nullToAbsent ? const Value.absent() : Value(body),
+      scheduledFor: Value(scheduledFor),
+      deliveredAt: deliveredAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deliveredAt),
+      readAt:
+          readAt == null && nullToAbsent ? const Value.absent() : Value(readAt),
+      channel: Value(channel),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory NotificationRecord.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NotificationRecord(
+      id: serializer.fromJson<int>(json['id']),
+      profileId: serializer.fromJson<int>(json['profileId']),
+      reminderId: serializer.fromJson<int?>(json['reminderId']),
+      category: serializer.fromJson<String>(json['category']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String?>(json['body']),
+      scheduledFor: serializer.fromJson<DateTime>(json['scheduledFor']),
+      deliveredAt: serializer.fromJson<DateTime?>(json['deliveredAt']),
+      readAt: serializer.fromJson<DateTime?>(json['readAt']),
+      channel: serializer.fromJson<String>(json['channel']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'profileId': serializer.toJson<int>(profileId),
+      'reminderId': serializer.toJson<int?>(reminderId),
+      'category': serializer.toJson<String>(category),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String?>(body),
+      'scheduledFor': serializer.toJson<DateTime>(scheduledFor),
+      'deliveredAt': serializer.toJson<DateTime?>(deliveredAt),
+      'readAt': serializer.toJson<DateTime?>(readAt),
+      'channel': serializer.toJson<String>(channel),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  NotificationRecord copyWith(
+          {int? id,
+          int? profileId,
+          Value<int?> reminderId = const Value.absent(),
+          String? category,
+          String? title,
+          Value<String?> body = const Value.absent(),
+          DateTime? scheduledFor,
+          Value<DateTime?> deliveredAt = const Value.absent(),
+          Value<DateTime?> readAt = const Value.absent(),
+          String? channel,
+          DateTime? createdAt}) =>
+      NotificationRecord(
+        id: id ?? this.id,
+        profileId: profileId ?? this.profileId,
+        reminderId: reminderId.present ? reminderId.value : this.reminderId,
+        category: category ?? this.category,
+        title: title ?? this.title,
+        body: body.present ? body.value : this.body,
+        scheduledFor: scheduledFor ?? this.scheduledFor,
+        deliveredAt: deliveredAt.present ? deliveredAt.value : this.deliveredAt,
+        readAt: readAt.present ? readAt.value : this.readAt,
+        channel: channel ?? this.channel,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  NotificationRecord copyWithCompanion(NotificationsCompanion data) {
+    return NotificationRecord(
+      id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      reminderId:
+          data.reminderId.present ? data.reminderId.value : this.reminderId,
+      category: data.category.present ? data.category.value : this.category,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      scheduledFor: data.scheduledFor.present
+          ? data.scheduledFor.value
+          : this.scheduledFor,
+      deliveredAt:
+          data.deliveredAt.present ? data.deliveredAt.value : this.deliveredAt,
+      readAt: data.readAt.present ? data.readAt.value : this.readAt,
+      channel: data.channel.present ? data.channel.value : this.channel,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotificationRecord(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('reminderId: $reminderId, ')
+          ..write('category: $category, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('scheduledFor: $scheduledFor, ')
+          ..write('deliveredAt: $deliveredAt, ')
+          ..write('readAt: $readAt, ')
+          ..write('channel: $channel, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, profileId, reminderId, category, title,
+      body, scheduledFor, deliveredAt, readAt, channel, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NotificationRecord &&
+          other.id == this.id &&
+          other.profileId == this.profileId &&
+          other.reminderId == this.reminderId &&
+          other.category == this.category &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.scheduledFor == this.scheduledFor &&
+          other.deliveredAt == this.deliveredAt &&
+          other.readAt == this.readAt &&
+          other.channel == this.channel &&
+          other.createdAt == this.createdAt);
+}
+
+class NotificationsCompanion extends UpdateCompanion<NotificationRecord> {
+  final Value<int> id;
+  final Value<int> profileId;
+  final Value<int?> reminderId;
+  final Value<String> category;
+  final Value<String> title;
+  final Value<String?> body;
+  final Value<DateTime> scheduledFor;
+  final Value<DateTime?> deliveredAt;
+  final Value<DateTime?> readAt;
+  final Value<String> channel;
+  final Value<DateTime> createdAt;
+  const NotificationsCompanion({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.reminderId = const Value.absent(),
+    this.category = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.scheduledFor = const Value.absent(),
+    this.deliveredAt = const Value.absent(),
+    this.readAt = const Value.absent(),
+    this.channel = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  NotificationsCompanion.insert({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.reminderId = const Value.absent(),
+    required String category,
+    required String title,
+    this.body = const Value.absent(),
+    required DateTime scheduledFor,
+    this.deliveredAt = const Value.absent(),
+    this.readAt = const Value.absent(),
+    this.channel = const Value.absent(),
+    required DateTime createdAt,
+  })  : category = Value(category),
+        title = Value(title),
+        scheduledFor = Value(scheduledFor),
+        createdAt = Value(createdAt);
+  static Insertable<NotificationRecord> custom({
+    Expression<int>? id,
+    Expression<int>? profileId,
+    Expression<int>? reminderId,
+    Expression<String>? category,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<DateTime>? scheduledFor,
+    Expression<DateTime>? deliveredAt,
+    Expression<DateTime>? readAt,
+    Expression<String>? channel,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
+      if (reminderId != null) 'reminder_id': reminderId,
+      if (category != null) 'category': category,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (scheduledFor != null) 'scheduled_for': scheduledFor,
+      if (deliveredAt != null) 'delivered_at': deliveredAt,
+      if (readAt != null) 'read_at': readAt,
+      if (channel != null) 'channel': channel,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  NotificationsCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? profileId,
+      Value<int?>? reminderId,
+      Value<String>? category,
+      Value<String>? title,
+      Value<String?>? body,
+      Value<DateTime>? scheduledFor,
+      Value<DateTime?>? deliveredAt,
+      Value<DateTime?>? readAt,
+      Value<String>? channel,
+      Value<DateTime>? createdAt}) {
+    return NotificationsCompanion(
+      id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
+      reminderId: reminderId ?? this.reminderId,
+      category: category ?? this.category,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      scheduledFor: scheduledFor ?? this.scheduledFor,
+      deliveredAt: deliveredAt ?? this.deliveredAt,
+      readAt: readAt ?? this.readAt,
+      channel: channel ?? this.channel,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<int>(profileId.value);
+    }
+    if (reminderId.present) {
+      map['reminder_id'] = Variable<int>(reminderId.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (scheduledFor.present) {
+      map['scheduled_for'] = Variable<DateTime>(scheduledFor.value);
+    }
+    if (deliveredAt.present) {
+      map['delivered_at'] = Variable<DateTime>(deliveredAt.value);
+    }
+    if (readAt.present) {
+      map['read_at'] = Variable<DateTime>(readAt.value);
+    }
+    if (channel.present) {
+      map['channel'] = Variable<String>(channel.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotificationsCompanion(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('reminderId: $reminderId, ')
+          ..write('category: $category, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('scheduledFor: $scheduledFor, ')
+          ..write('deliveredAt: $deliveredAt, ')
+          ..write('readAt: $readAt, ')
+          ..write('channel: $channel, ')
+          ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
@@ -3871,6 +5136,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MedicationsTable medications = $MedicationsTable(this);
   late final $UserProfileTable userProfile = $UserProfileTable(this);
   late final $PersonProfilesTable personProfiles = $PersonProfilesTable(this);
+  late final $RemindersTable reminders = $RemindersTable(this);
+  late final $NotificationsTable notifications = $NotificationsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3882,7 +5149,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         diseases,
         medications,
         userProfile,
-        personProfiles
+        personProfiles,
+        reminders,
+        notifications
       ];
 }
 
@@ -4653,6 +5922,7 @@ typedef $$MedicalReportsTableCreateCompanionBuilder = MedicalReportsCompanion
   Value<String?> sourceImagePath,
   Value<String?> rawText,
   Value<String> recognitionStatus,
+  Value<String> tags,
   required DateTime createdAt,
 });
 typedef $$MedicalReportsTableUpdateCompanionBuilder = MedicalReportsCompanion
@@ -4665,6 +5935,7 @@ typedef $$MedicalReportsTableUpdateCompanionBuilder = MedicalReportsCompanion
   Value<String?> sourceImagePath,
   Value<String?> rawText,
   Value<String> recognitionStatus,
+  Value<String> tags,
   Value<DateTime> createdAt,
 });
 
@@ -4702,6 +5973,9 @@ class $$MedicalReportsTableFilterComposer
   ColumnFilters<String> get recognitionStatus => $composableBuilder(
       column: $table.recognitionStatus,
       builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tags => $composableBuilder(
+      column: $table.tags, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -4743,6 +6017,9 @@ class $$MedicalReportsTableOrderingComposer
       column: $table.recognitionStatus,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get tags => $composableBuilder(
+      column: $table.tags, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
@@ -4779,6 +6056,9 @@ class $$MedicalReportsTableAnnotationComposer
 
   GeneratedColumn<String> get recognitionStatus => $composableBuilder(
       column: $table.recognitionStatus, builder: (column) => column);
+
+  GeneratedColumn<String> get tags =>
+      $composableBuilder(column: $table.tags, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -4819,6 +6099,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
             Value<String?> sourceImagePath = const Value.absent(),
             Value<String?> rawText = const Value.absent(),
             Value<String> recognitionStatus = const Value.absent(),
+            Value<String> tags = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
           }) =>
               MedicalReportsCompanion(
@@ -4830,6 +6111,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
             sourceImagePath: sourceImagePath,
             rawText: rawText,
             recognitionStatus: recognitionStatus,
+            tags: tags,
             createdAt: createdAt,
           ),
           createCompanionCallback: ({
@@ -4841,6 +6123,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
             Value<String?> sourceImagePath = const Value.absent(),
             Value<String?> rawText = const Value.absent(),
             Value<String> recognitionStatus = const Value.absent(),
+            Value<String> tags = const Value.absent(),
             required DateTime createdAt,
           }) =>
               MedicalReportsCompanion.insert(
@@ -4852,6 +6135,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
             sourceImagePath: sourceImagePath,
             rawText: rawText,
             recognitionStatus: recognitionStatus,
+            tags: tags,
             createdAt: createdAt,
           ),
           withReferenceMapper: (p0) => p0
@@ -5511,6 +6795,7 @@ typedef $$PersonProfilesTableCreateCompanionBuilder = PersonProfilesCompanion
   Value<String> relationship,
   Value<String?> sex,
   Value<DateTime?> dateOfBirth,
+  Value<double?> heightCm,
   required DateTime createdAt,
   required DateTime updatedAt,
 });
@@ -5521,6 +6806,7 @@ typedef $$PersonProfilesTableUpdateCompanionBuilder = PersonProfilesCompanion
   Value<String> relationship,
   Value<String?> sex,
   Value<DateTime?> dateOfBirth,
+  Value<double?> heightCm,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -5548,6 +6834,9 @@ class $$PersonProfilesTableFilterComposer
 
   ColumnFilters<DateTime> get dateOfBirth => $composableBuilder(
       column: $table.dateOfBirth, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get heightCm => $composableBuilder(
+      column: $table.heightCm, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -5581,6 +6870,9 @@ class $$PersonProfilesTableOrderingComposer
   ColumnOrderings<DateTime> get dateOfBirth => $composableBuilder(
       column: $table.dateOfBirth, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get heightCm => $composableBuilder(
+      column: $table.heightCm, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -5611,6 +6903,9 @@ class $$PersonProfilesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get dateOfBirth => $composableBuilder(
       column: $table.dateOfBirth, builder: (column) => column);
+
+  GeneratedColumn<double> get heightCm =>
+      $composableBuilder(column: $table.heightCm, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -5651,6 +6946,7 @@ class $$PersonProfilesTableTableManager extends RootTableManager<
             Value<String> relationship = const Value.absent(),
             Value<String?> sex = const Value.absent(),
             Value<DateTime?> dateOfBirth = const Value.absent(),
+            Value<double?> heightCm = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -5660,6 +6956,7 @@ class $$PersonProfilesTableTableManager extends RootTableManager<
             relationship: relationship,
             sex: sex,
             dateOfBirth: dateOfBirth,
+            heightCm: heightCm,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -5669,6 +6966,7 @@ class $$PersonProfilesTableTableManager extends RootTableManager<
             Value<String> relationship = const Value.absent(),
             Value<String?> sex = const Value.absent(),
             Value<DateTime?> dateOfBirth = const Value.absent(),
+            Value<double?> heightCm = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
           }) =>
@@ -5678,6 +6976,7 @@ class $$PersonProfilesTableTableManager extends RootTableManager<
             relationship: relationship,
             sex: sex,
             dateOfBirth: dateOfBirth,
+            heightCm: heightCm,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -5703,6 +7002,547 @@ typedef $$PersonProfilesTableProcessedTableManager = ProcessedTableManager<
     ),
     PersonProfile,
     PrefetchHooks Function()>;
+typedef $$RemindersTableCreateCompanionBuilder = RemindersCompanion Function({
+  Value<int> id,
+  Value<int> profileId,
+  required String kind,
+  required String title,
+  Value<String?> detail,
+  Value<String?> relatedMetricId,
+  Value<int?> relatedMedicationId,
+  Value<DateTime?> dueDate,
+  Value<String?> dailyTimes,
+  Value<bool> enabled,
+  Value<DateTime?> completedAt,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+});
+typedef $$RemindersTableUpdateCompanionBuilder = RemindersCompanion Function({
+  Value<int> id,
+  Value<int> profileId,
+  Value<String> kind,
+  Value<String> title,
+  Value<String?> detail,
+  Value<String?> relatedMetricId,
+  Value<int?> relatedMedicationId,
+  Value<DateTime?> dueDate,
+  Value<String?> dailyTimes,
+  Value<bool> enabled,
+  Value<DateTime?> completedAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+
+class $$RemindersTableFilterComposer
+    extends Composer<_$AppDatabase, $RemindersTable> {
+  $$RemindersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get detail => $composableBuilder(
+      column: $table.detail, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get relatedMetricId => $composableBuilder(
+      column: $table.relatedMetricId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get relatedMedicationId => $composableBuilder(
+      column: $table.relatedMedicationId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get dueDate => $composableBuilder(
+      column: $table.dueDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get dailyTimes => $composableBuilder(
+      column: $table.dailyTimes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$RemindersTableOrderingComposer
+    extends Composer<_$AppDatabase, $RemindersTable> {
+  $$RemindersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get detail => $composableBuilder(
+      column: $table.detail, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get relatedMetricId => $composableBuilder(
+      column: $table.relatedMetricId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get relatedMedicationId => $composableBuilder(
+      column: $table.relatedMedicationId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get dueDate => $composableBuilder(
+      column: $table.dueDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get dailyTimes => $composableBuilder(
+      column: $table.dailyTimes, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+      column: $table.enabled, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$RemindersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RemindersTable> {
+  $$RemindersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get detail =>
+      $composableBuilder(column: $table.detail, builder: (column) => column);
+
+  GeneratedColumn<String> get relatedMetricId => $composableBuilder(
+      column: $table.relatedMetricId, builder: (column) => column);
+
+  GeneratedColumn<int> get relatedMedicationId => $composableBuilder(
+      column: $table.relatedMedicationId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<String> get dailyTimes => $composableBuilder(
+      column: $table.dailyTimes, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$RemindersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $RemindersTable,
+    Reminder,
+    $$RemindersTableFilterComposer,
+    $$RemindersTableOrderingComposer,
+    $$RemindersTableAnnotationComposer,
+    $$RemindersTableCreateCompanionBuilder,
+    $$RemindersTableUpdateCompanionBuilder,
+    (Reminder, BaseReferences<_$AppDatabase, $RemindersTable, Reminder>),
+    Reminder,
+    PrefetchHooks Function()> {
+  $$RemindersTableTableManager(_$AppDatabase db, $RemindersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RemindersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RemindersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RemindersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String?> detail = const Value.absent(),
+            Value<String?> relatedMetricId = const Value.absent(),
+            Value<int?> relatedMedicationId = const Value.absent(),
+            Value<DateTime?> dueDate = const Value.absent(),
+            Value<String?> dailyTimes = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<DateTime?> completedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              RemindersCompanion(
+            id: id,
+            profileId: profileId,
+            kind: kind,
+            title: title,
+            detail: detail,
+            relatedMetricId: relatedMetricId,
+            relatedMedicationId: relatedMedicationId,
+            dueDate: dueDate,
+            dailyTimes: dailyTimes,
+            enabled: enabled,
+            completedAt: completedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
+            required String kind,
+            required String title,
+            Value<String?> detail = const Value.absent(),
+            Value<String?> relatedMetricId = const Value.absent(),
+            Value<int?> relatedMedicationId = const Value.absent(),
+            Value<DateTime?> dueDate = const Value.absent(),
+            Value<String?> dailyTimes = const Value.absent(),
+            Value<bool> enabled = const Value.absent(),
+            Value<DateTime?> completedAt = const Value.absent(),
+            required DateTime createdAt,
+            required DateTime updatedAt,
+          }) =>
+              RemindersCompanion.insert(
+            id: id,
+            profileId: profileId,
+            kind: kind,
+            title: title,
+            detail: detail,
+            relatedMetricId: relatedMetricId,
+            relatedMedicationId: relatedMedicationId,
+            dueDate: dueDate,
+            dailyTimes: dailyTimes,
+            enabled: enabled,
+            completedAt: completedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$RemindersTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $RemindersTable,
+    Reminder,
+    $$RemindersTableFilterComposer,
+    $$RemindersTableOrderingComposer,
+    $$RemindersTableAnnotationComposer,
+    $$RemindersTableCreateCompanionBuilder,
+    $$RemindersTableUpdateCompanionBuilder,
+    (Reminder, BaseReferences<_$AppDatabase, $RemindersTable, Reminder>),
+    Reminder,
+    PrefetchHooks Function()>;
+typedef $$NotificationsTableCreateCompanionBuilder = NotificationsCompanion
+    Function({
+  Value<int> id,
+  Value<int> profileId,
+  Value<int?> reminderId,
+  required String category,
+  required String title,
+  Value<String?> body,
+  required DateTime scheduledFor,
+  Value<DateTime?> deliveredAt,
+  Value<DateTime?> readAt,
+  Value<String> channel,
+  required DateTime createdAt,
+});
+typedef $$NotificationsTableUpdateCompanionBuilder = NotificationsCompanion
+    Function({
+  Value<int> id,
+  Value<int> profileId,
+  Value<int?> reminderId,
+  Value<String> category,
+  Value<String> title,
+  Value<String?> body,
+  Value<DateTime> scheduledFor,
+  Value<DateTime?> deliveredAt,
+  Value<DateTime?> readAt,
+  Value<String> channel,
+  Value<DateTime> createdAt,
+});
+
+class $$NotificationsTableFilterComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get reminderId => $composableBuilder(
+      column: $table.reminderId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get category => $composableBuilder(
+      column: $table.category, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get body => $composableBuilder(
+      column: $table.body, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get scheduledFor => $composableBuilder(
+      column: $table.scheduledFor, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get deliveredAt => $composableBuilder(
+      column: $table.deliveredAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get readAt => $composableBuilder(
+      column: $table.readAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get channel => $composableBuilder(
+      column: $table.channel, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$NotificationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get profileId => $composableBuilder(
+      column: $table.profileId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get reminderId => $composableBuilder(
+      column: $table.reminderId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get category => $composableBuilder(
+      column: $table.category, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get title => $composableBuilder(
+      column: $table.title, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get body => $composableBuilder(
+      column: $table.body, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get scheduledFor => $composableBuilder(
+      column: $table.scheduledFor,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get deliveredAt => $composableBuilder(
+      column: $table.deliveredAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get readAt => $composableBuilder(
+      column: $table.readAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get channel => $composableBuilder(
+      column: $table.channel, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$NotificationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
+
+  GeneratedColumn<int> get reminderId => $composableBuilder(
+      column: $table.reminderId, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get scheduledFor => $composableBuilder(
+      column: $table.scheduledFor, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deliveredAt => $composableBuilder(
+      column: $table.deliveredAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get readAt =>
+      $composableBuilder(column: $table.readAt, builder: (column) => column);
+
+  GeneratedColumn<String> get channel =>
+      $composableBuilder(column: $table.channel, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$NotificationsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $NotificationsTable,
+    NotificationRecord,
+    $$NotificationsTableFilterComposer,
+    $$NotificationsTableOrderingComposer,
+    $$NotificationsTableAnnotationComposer,
+    $$NotificationsTableCreateCompanionBuilder,
+    $$NotificationsTableUpdateCompanionBuilder,
+    (
+      NotificationRecord,
+      BaseReferences<_$AppDatabase, $NotificationsTable, NotificationRecord>
+    ),
+    NotificationRecord,
+    PrefetchHooks Function()> {
+  $$NotificationsTableTableManager(_$AppDatabase db, $NotificationsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NotificationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NotificationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NotificationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
+            Value<int?> reminderId = const Value.absent(),
+            Value<String> category = const Value.absent(),
+            Value<String> title = const Value.absent(),
+            Value<String?> body = const Value.absent(),
+            Value<DateTime> scheduledFor = const Value.absent(),
+            Value<DateTime?> deliveredAt = const Value.absent(),
+            Value<DateTime?> readAt = const Value.absent(),
+            Value<String> channel = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              NotificationsCompanion(
+            id: id,
+            profileId: profileId,
+            reminderId: reminderId,
+            category: category,
+            title: title,
+            body: body,
+            scheduledFor: scheduledFor,
+            deliveredAt: deliveredAt,
+            readAt: readAt,
+            channel: channel,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> profileId = const Value.absent(),
+            Value<int?> reminderId = const Value.absent(),
+            required String category,
+            required String title,
+            Value<String?> body = const Value.absent(),
+            required DateTime scheduledFor,
+            Value<DateTime?> deliveredAt = const Value.absent(),
+            Value<DateTime?> readAt = const Value.absent(),
+            Value<String> channel = const Value.absent(),
+            required DateTime createdAt,
+          }) =>
+              NotificationsCompanion.insert(
+            id: id,
+            profileId: profileId,
+            reminderId: reminderId,
+            category: category,
+            title: title,
+            body: body,
+            scheduledFor: scheduledFor,
+            deliveredAt: deliveredAt,
+            readAt: readAt,
+            channel: channel,
+            createdAt: createdAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$NotificationsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $NotificationsTable,
+    NotificationRecord,
+    $$NotificationsTableFilterComposer,
+    $$NotificationsTableOrderingComposer,
+    $$NotificationsTableAnnotationComposer,
+    $$NotificationsTableCreateCompanionBuilder,
+    $$NotificationsTableUpdateCompanionBuilder,
+    (
+      NotificationRecord,
+      BaseReferences<_$AppDatabase, $NotificationsTable, NotificationRecord>
+    ),
+    NotificationRecord,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5721,4 +7561,8 @@ class $AppDatabaseManager {
       $$UserProfileTableTableManager(_db, _db.userProfile);
   $$PersonProfilesTableTableManager get personProfiles =>
       $$PersonProfilesTableTableManager(_db, _db.personProfiles);
+  $$RemindersTableTableManager get reminders =>
+      $$RemindersTableTableManager(_db, _db.reminders);
+  $$NotificationsTableTableManager get notifications =>
+      $$NotificationsTableTableManager(_db, _db.notifications);
 }

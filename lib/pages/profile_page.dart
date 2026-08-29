@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import 'about_page.dart';
 import 'condition_page.dart';
+import 'family_members_page.dart';
+import 'medical_summary_page.dart';
 import 'medication_page.dart';
 import 'privacy_page.dart';
 import 'profile_edit_page.dart';
+import 'reminders_page.dart';
 
 /// 我的页面：个人资料卡 + 设置列表
 class ProfilePage extends StatefulWidget {
@@ -97,6 +100,19 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                         ),
                         const SizedBox(height: 4),
+                        if ((appRepository?.activeProfileId ?? 1) != 1)
+                          Container(
+                            margin: const EdgeInsets.only(top: 4, bottom: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text('当前查看的是家庭成员',
+                                style: TextStyle(
+                                    fontSize: 11, color: AppColors.primary)),
+                          ),
                         Text(
                           _gender.isEmpty ? '请补全个人资料' : '性别：$_gender',
                           style: const TextStyle(
@@ -126,10 +142,16 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: 16),
+          const _GroupLabel('档案'),
           _SettingTile(
             title: '个人资料',
             onTap: () => _open(const ProfileEditPage()),
           ),
+          _SettingTile(
+            title: '家庭成员',
+            onTap: () => _open(const FamilyMembersPage()),
+          ),
+          const _GroupLabel('健康记录'),
           _SettingTile(
             title: '疾病史',
             trailing: _diseaseCount > 0 ? '$_diseaseCount条' : null,
@@ -140,6 +162,17 @@ class _ProfilePageState extends State<ProfilePage> {
             trailing: _medicationCount > 0 ? '$_medicationCount条' : null,
             onTap: () => _open(const MedicationPage()),
           ),
+          _SettingTile(
+            title: '提醒',
+            onTap: () => _open(const RemindersPage()),
+          ),
+          const _GroupLabel('就医'),
+          _SettingTile(
+            title: '给医生看的摘要',
+            trailing: '导出',
+            onTap: () => _open(const MedicalSummaryPage()),
+          ),
+          const _GroupLabel('数据'),
           _SettingTile(
             title: '数据与隐私',
             onTap: () => _open(const PrivacyPage()),
@@ -155,6 +188,25 @@ class _ProfilePageState extends State<ProfilePage> {
 
   static String _fmtHeight(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+}
+
+class _GroupLabel extends StatelessWidget {
+  final String text;
+  const _GroupLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 6, left: 4),
+      child: Text(
+        text,
+        style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary),
+      ),
+    );
+  }
 }
 
 class _SettingTile extends StatelessWidget {

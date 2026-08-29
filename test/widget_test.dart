@@ -12,8 +12,7 @@ void main() {
     appDatabase = null;
   });
 
-  testWidgets('首页显示身体关注概览与优先关注部位', (tester) async {
-    // 用较高的视口，让首页所有内容一次性构建出来，避免滚动分片
+  testWidgets('精简首页：状态条 + 健康冷知识 + 需关注，不展示个人信息', (tester) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -21,31 +20,28 @@ void main() {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
-    // 顶部身体关注概览
-    expect(find.text('身体关注概览'), findsOneWidget);
-    expect(find.text('当前个体'), findsOneWidget);
-    expect(find.textContaining('个身体部位需关注'), findsOneWidget);
-
-    // 首页首屏优先展示身体部位，而不是报告列表或单纯指标列表
-    expect(find.text('健康资料主题'), findsOneWidget);
-    expect(find.text('暂无相关检查资料'), findsWidgets);
-    expect(find.text('优先关注部位'), findsOneWidget);
-    expect(find.text('选择'), findsOneWidget);
+    expect(find.text('首页'), findsWidgets);
+    // 状态条：说「N 项需关注 · 上次更新 …」，不出现姓名/年龄
+    expect(find.textContaining('项需关注'), findsOneWidget);
+    expect(find.text('当前个体'), findsNothing);
+    // 健康冷知识卡片
+    expect(find.text('健康冷知识'), findsOneWidget);
+    // 需关注区块 + 查看全部身体部位
+    expect(find.text('需关注'), findsOneWidget);
     expect(find.text('查看全部身体部位'), findsOneWidget);
-
-    // 空库只展示空状态，不得注入历史演示指标。
-    expect(find.text('心血管'), findsWidgets);
-    expect(find.text('数据不足'), findsWidgets);
+    // 空库不注入演示指标
     expect(find.text('LDL-C 3.6 mmol/L'), findsNothing);
     expect(find.text('HbA1c 6.8%'), findsNothing);
-    expect(find.text('ALT 32 U/L'), findsNothing);
+    // 旧的「健康资料主题 / 优先关注部位」已从首页移除
+    expect(find.text('健康资料主题'), findsNothing);
+    expect(find.text('优先关注部位'), findsNothing);
   });
 
   testWidgets('App 启动后显示底部 4 个 Tab 与悬浮添加按钮', (tester) async {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('身体关注概览'), findsOneWidget);
+    expect(find.text('首页'), findsWidgets);
 
     final Finder navBar = find.byType(NavigationBar);
     for (final label in ['首页', '身体', '记录', '我的']) {
@@ -103,14 +99,14 @@ void main() {
     expect(find.text('ALT'), findsNothing);
   });
 
-  testWidgets('点击拍摄检查报告进入拍摄页面', (tester) async {
+  testWidgets('点击拍摄化验单进入拍摄页面', (tester) async {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('拍摄检查报告'));
+    await tester.tap(find.text('拍摄化验单'));
     // 不等待 settle（拍摄页可能因相机不可用一直加载）；推进几次路由过渡帧
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
@@ -133,7 +129,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('账号与云端备份'), findsNothing);
-    await tester.ensureVisible(find.text('关于健康档案'));
+    await tester.scrollUntilVisible(
+      find.text('关于健康档案'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
