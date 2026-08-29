@@ -97,14 +97,7 @@ class _BodyPageState extends State<BodyPage> {
           // 底部多留一点空间，避免最后一项被悬浮的"添加"按钮挡住。
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
           children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 4, bottom: 4),
-              child: Text(
-                '按身体部位查看指标证据，异常和需关注部位会优先显示。',
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-              ),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             const SectionTitle(title: '健康背景'),
             _BackgroundTile(
               icon: Icons.coronavirus_outlined,
@@ -151,7 +144,6 @@ class _BodyPageState extends State<BodyPage> {
               for (final area in _attentionAreas) ...[
                 _BodyAreaCard(
                   area: area,
-                  isExample: false,
                   onTap: () => _openAreaDetail(context, area),
                 ),
                 const SizedBox(height: 12),
@@ -160,7 +152,6 @@ class _BodyPageState extends State<BodyPage> {
                 for (final area in _normalAreas) ...[
                   _BodyAreaCard(
                     area: area,
-                    isExample: false,
                     onTap: () => _openAreaDetail(context, area),
                   ),
                   const SizedBox(height: 12),
@@ -177,7 +168,6 @@ class _BodyPageState extends State<BodyPage> {
                   for (final area in _normalAreas) ...[
                     _BodyAreaCard(
                       area: area,
-                      isExample: false,
                       onTap: () => _openAreaDetail(context, area),
                     ),
                     const SizedBox(height: 12),
@@ -249,26 +239,27 @@ class _BackgroundTile extends StatelessWidget {
 
 class _BodyAreaCard extends StatelessWidget {
   final BodyAreaHealthSummary area;
-  final bool isExample;
   final VoidCallback onTap;
 
   const _BodyAreaCard({
     required this.area,
-    required this.isExample,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    // 只有异常 / 需关注的部位才在卡片上带一行关键指标；正常 / 数据不足的不铺小字，
+    // 状态胶囊已经说明一切，点开看详情即可。
     final key = area.keyMetric;
-    final source = area.latestMeasuredAt == null
-        ? (isExample ? '示例数据' : '暂无来源')
-        : formatDate(area.latestMeasuredAt!);
-    final subtitle = key == null
-        ? '暂无可用于判断的检查指标'
-        : area.abnormalCount > 0
-            ? '异常指标：${key.name} ${key.valueText} · 来源 $source'
-            : '关键指标：${key.name} ${key.valueText} · 来源 $source';
+    final needsAttention = area.status == '异常' || area.status == '需关注';
+    String? subtitle;
+    if (needsAttention && key != null) {
+      final source = area.latestMeasuredAt == null
+          ? '暂无来源'
+          : formatDate(area.latestMeasuredAt!);
+      subtitle =
+          '${area.abnormalCount > 0 ? '异常指标' : '需关注指标'}：${key.name} ${key.valueText} · 来源 $source';
+    }
 
     return HealthStatusCard(
       title: area.name,

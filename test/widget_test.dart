@@ -134,8 +134,9 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.6.1+11'), findsOneWidget);
-    expect(find.text('记录页：搜索改放大镜、来源筛选换行不遮挡、去掉重复的用药入口'),
+    expect(find.text('版本 1.6.2+12'), findsOneWidget);
+    expect(
+        find.text('减字：身体页去说明行、正常部位不铺小字；报告卡三行；日常记录每类只留最新一条'),
         findsOneWidget);
   });
 

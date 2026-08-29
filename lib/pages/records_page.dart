@@ -43,7 +43,6 @@ class _RecordsPageState extends State<RecordsPage> {
   List<RealEntry> _real = [];
   List<MedicalReport> _reports = [];
   Map<int, int> _reportMetricCounts = {};
-  Map<int, List<String>> _reportAffectedAreas = {};
   Map<int, List<String>> _reportMetricNames = {};
   Map<int, bool> _reportHasAbnormal = {};
   List<String> _allTags = const [];
@@ -86,20 +85,22 @@ class _RecordsPageState extends State<RecordsPage> {
         final metrics = await repo.getAllMetrics();
         final dailies = await repo.getAllDailyRecords();
         final reports = await repo.getAllReports();
+        // 日常记录（血压 / 血糖 / 体重 / 心率）在列表里每类只留最近一条，
+        // 点开进 DailyHistoryPage 看曲线。dailies 已按时间倒序，首次出现即最新。
+        final seenDailyTypes = <String>{};
         final entries = <RealEntry>[
           for (final m in metrics) RealEntry.metric(m),
-          for (final d in dailies) RealEntry.daily(d),
+          for (final d in dailies)
+            if (seenDailyTypes.add(d.type)) RealEntry.daily(d),
         ];
         entries.sort((a, b) => b.measuredAt.compareTo(a.measuredAt));
         // 计算每份报告的指标数量 / 指标名 / 是否含异常
         final counts = <int, int>{};
-        final affectedAreas = <int, List<String>>{};
         final metricNames = <int, List<String>>{};
         final hasAbnormal = <int, bool>{};
         for (final r in reports) {
           final reportMetrics = await repo.getMetricsByReport(r.id);
           counts[r.id] = reportMetrics.length;
-          affectedAreas[r.id] = affectedBodyAreasForMetrics(reportMetrics);
           metricNames[r.id] = [for (final m in reportMetrics) m.metricName];
           hasAbnormal[r.id] = reportMetrics.any((m) =>
               isMetricAbnormalStatus(m.status) || m.status.contains('异常'));
@@ -111,7 +112,6 @@ class _RecordsPageState extends State<RecordsPage> {
             _real = entries;
             _reports = reports;
             _reportMetricCounts = counts;
-            _reportAffectedAreas = affectedAreas;
             _reportMetricNames = metricNames;
             _reportHasAbnormal = hasAbnormal;
             _allTags = tags;
@@ -253,7 +253,6 @@ class _RecordsPageState extends State<RecordsPage> {
                 _ReportTile(
                   report: r,
                   metricCount: _reportMetricCounts[r.id] ?? 0,
-                  affectedAreas: _reportAffectedAreas[r.id] ?? const [],
                   onTap: () => _openReport(context, r),
                   onShare: () => _shareReport(r),
                   onEditTags: () => _editTags(r),
@@ -507,11 +506,11 @@ String _valueText(double value, String unit) => '${fmtNum(value)} $unit';
 /// 来源类型的规范定义（含 Apple Health / 设备等未来预留项）见 [metric_source.dart]。
 String sourceTypeLabel(String sourceType) => metricSourceLabelFromWire(sourceType);
 
-/// 一份导入报告的时间线卡片
+/// 一份导入报告的时间线卡片：只三行——日期、医院、类型。
+/// 结论 / 影响部位 / 标签等详情点开报告看，卡片上不铺。
 class _ReportTile extends StatelessWidget {
   final MedicalReport report;
   final int metricCount;
-  final List<String> affectedAreas;
   final VoidCallback onTap;
   final VoidCallback onShare;
   final VoidCallback onEditTags;
@@ -519,7 +518,6 @@ class _ReportTile extends StatelessWidget {
   const _ReportTile({
     required this.report,
     required this.metricCount,
-    required this.affectedAreas,
     required this.onTap,
     required this.onShare,
     required this.onEditTags,
@@ -533,15 +531,8 @@ class _ReportTile extends StatelessWidget {
       ? '$_typeLabel · $metricCount 项指标'
       : '$_typeLabel · 图文报告';
 
-  /// 无指标报告的结论首行摘要（把换行折叠成空格，供卡片预览用）。
-  String? get _conclusionPreview {
-    final text = (report.rawText ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
-    return text.isEmpty ? null : text;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final tags = HealthRepository.parseTags(report.tags);
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -588,45 +579,6 @@ class _ReportTile extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary),
               ),
-              if (metricCount == 0 && _conclusionPreview != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  _conclusionPreview!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 13, color: AppColors.textSecondary),
-                ),
-              ],
-              if (affectedAreas.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  '影响部位：${affectedAreas.join('、')}',
-                  style: const TextStyle(
-                      fontSize: 13, color: AppColors.textSecondary),
-                ),
-              ],
-              if (tags.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    for (final t in tags)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text('# $t',
-                            style: const TextStyle(
-                                fontSize: 11, color: AppColors.primary)),
-                      ),
-                  ],
-                ),
-              ],
             ],
           ),
         ),

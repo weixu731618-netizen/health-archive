@@ -1,7 +1,7 @@
 class AppMetadata {
   const AppMetadata._();
 
-  static const String versionName = '1.6.1';
-  static const int versionCode = 11;
-  static const String buildLabel = '记录页：搜索改放大镜、来源筛选换行不遮挡、去掉重复的用药入口';
+  static const String versionName = '1.6.2';
+  static const int versionCode = 12;
+  static const String buildLabel = '减字：身体页去说明行、正常部位不铺小字；报告卡三行；日常记录每类只留最新一条';
 }
