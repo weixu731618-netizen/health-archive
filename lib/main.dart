@@ -298,9 +298,7 @@ class _MainShellState extends State<MainShell> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton(
         tooltip: '添加健康数据',
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const AddPage()),
-        ),
+        onPressed: () => showAddDataSheet(context),
         child: const Icon(Icons.add),
       ),
       bottomNavigationBar: NavigationBar(

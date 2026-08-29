@@ -8,91 +8,149 @@ import 'medication_page.dart';
 import 'report_capture_page.dart';
 import 'report_import_page.dart';
 
-/// 添加页面：拍摄/上传/影像报告/手工录入/日常记录/用药 入口
-class AddPage extends StatelessWidget {
-  const AddPage({super.key});
+/// 「+」的添加入口：不再是整屏页面，改成从底部浮出的轻量菜单。
+/// 点 `+` → 菜单浮出（盖在当前页上，无页面跳转）→ 选一项 → 进对应录入页。
+/// 每一层 sheet 都用「pop 出一个结果」的方式，导航统一在这里做，避免在正被
+/// 销毁的 sheet 里查 Navigator。
+Future<void> showAddDataSheet(BuildContext context) async {
+  final pick = await showModalBottomSheet<_AddPick>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (_) => const _AddDataSheet(),
+  );
+  if (pick == null || !context.mounted) return;
+
+  Widget? page;
+  switch (pick) {
+    case _AddPick.lab:
+      final mode = await showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        builder: (_) => const _LabModeSheet(),
+      );
+      if (!context.mounted) return;
+      if (mode == 'camera') {
+        page = const ReportCapturePage();
+      } else if (mode == 'upload') {
+        page = const ReportImportPage();
+      }
+    case _AddPick.imaging:
+      page = const ImagingReportPage();
+    case _AddPick.manual:
+      page = const ManualMetricEntryPage();
+    case _AddPick.daily:
+      page = const DailyHealthEntryPage();
+    case _AddPick.medication:
+      page = const MedicationPage();
+  }
+
+  if (page != null && context.mounted) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => page!));
+  }
+}
+
+enum _AddPick { lab, imaging, manual, daily, medication }
+
+class _AddDataSheet extends StatelessWidget {
+  const _AddDataSheet();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('添加健康数据')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
+              child: Text('添加健康数据',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            ),
+            _AddRow(
+              icon: Icons.description_outlined,
+              title: '拍化验单 / 上传',
+              subtitle: '拍照或选文件，自动识别检查指标',
+              onTap: () => Navigator.pop(context, _AddPick.lab),
+            ),
+            _AddRow(
+              icon: Icons.medical_information_outlined,
+              title: '影像 / 病理报告',
+              subtitle: 'X光·CT·B超·病理，识别文字并存原件',
+              onTap: () => Navigator.pop(context, _AddPick.imaging),
+            ),
+            _AddRow(
+              icon: Icons.edit_note,
+              title: '手工录入',
+              subtitle: '手动加一个化验指标',
+              onTap: () => Navigator.pop(context, _AddPick.manual),
+            ),
+            _AddRow(
+              icon: Icons.favorite_border,
+              title: '日常记录',
+              subtitle: '体重 · 血压 · 血糖 · 心率',
+              onTap: () => Navigator.pop(context, _AddPick.daily),
+            ),
+            _AddRow(
+              icon: Icons.medication_outlined,
+              title: '用药',
+              subtitle: '药物 · 剂量 · 服药提醒',
+              onTap: () => Navigator.pop(context, _AddPick.medication),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 化验单的「拍照 / 上传」二选一。
+class _LabModeSheet extends StatelessWidget {
+  const _LabModeSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Padding(
-            padding: EdgeInsets.only(top: 4, bottom: 12),
-            child: Text(
-              '记录新的检查或日常健康数据',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('化验单',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             ),
           ),
-          _ActionCard(
-            icon: Icons.camera_alt,
-            title: '拍摄化验单',
-            subtitle: '拍血常规/生化/肝肾功能等化验单，自动识别检查指标',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ReportCapturePage()),
-            ),
+          ListTile(
+            leading:
+                const Icon(Icons.camera_alt_outlined, color: AppColors.primary),
+            title: const Text('拍照'),
+            onTap: () => Navigator.pop(context, 'camera'),
           ),
-          const SizedBox(height: 12),
-          _ActionCard(
-            icon: Icons.upload_file,
-            title: '上传化验单',
-            subtitle: '选化验单图片或 PDF，自动识别检查指标',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ReportImportPage()),
-            ),
+          ListTile(
+            leading: const Icon(Icons.upload_file_outlined,
+                color: AppColors.primary),
+            title: const Text('从相册或文件选'),
+            subtitle: const Text('图片或 PDF'),
+            onTap: () => Navigator.pop(context, 'upload'),
           ),
-          const SizedBox(height: 12),
-          _ActionCard(
-            icon: Icons.medical_information_outlined,
-            title: '添加影像/病理报告',
-            subtitle: 'X光/CT/MRI/B超/心电图/病理等图文报告（图片或 PDF），自动识别文字后存档',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ImagingReportPage()),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _ActionCard(
-            icon: Icons.edit_note,
-            title: '手工录入',
-            subtitle: '手动添加检查指标',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ManualMetricEntryPage()),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _ActionCard(
-            icon: Icons.favorite,
-            title: '日常记录',
-            subtitle: '记录体重、血压、血糖和心率',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const DailyHealthEntryPage()),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _ActionCard(
-            icon: Icons.medication_outlined,
-            title: '用药',
-            subtitle: '添加药物、设置服药计划（到点提醒）',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const MedicationPage()),
-            ),
-          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
 }
 
-/// 一个带图标的操作大卡片
-class _ActionCard extends StatelessWidget {
+class _AddRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
-  const _ActionCard({
+  const _AddRow({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -101,55 +159,24 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: AppColors.primary, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: AppColors.textSecondary,
-              ),
-            ],
-          ),
+    return ListTile(
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(9),
         ),
+        child: Icon(icon, color: AppColors.primary, size: 20),
       ),
+      title: Text(title,
+          style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary)),
+      subtitle: Text(subtitle,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+      onTap: onTap,
     );
   }
 }

@@ -97,14 +97,19 @@ void main() {
     expect(find.text('ALT'), findsNothing);
   });
 
-  testWidgets('点击拍摄化验单进入拍摄页面', (tester) async {
+  testWidgets('+ 弹出添加菜单，化验单 → 拍照进入拍摄页', (tester) async {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
+    // 点 + → 底部菜单浮出（不再是整屏页面）
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
+    expect(find.text('添加健康数据'), findsOneWidget);
 
-    await tester.tap(find.text('拍摄化验单'));
+    // 化验单 → 顺序弹「拍照 / 上传」
+    await tester.tap(find.text('拍化验单 / 上传'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('拍照'));
     // 不等待 settle（拍摄页可能因相机不可用一直加载）；推进几次路由过渡帧
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
@@ -134,10 +139,8 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.6.2+12'), findsOneWidget);
-    expect(
-        find.text('减字：身体页去说明行、正常部位不铺小字；报告卡三行；日常记录每类只留最新一条'),
-        findsOneWidget);
+    expect(find.text('版本 1.6.3+13'), findsOneWidget);
+    expect(find.text('「+」改成底部轻量菜单：拍摄/上传化验单合并为一项'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {
