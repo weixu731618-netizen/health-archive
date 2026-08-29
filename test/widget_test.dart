@@ -12,7 +12,7 @@ void main() {
     appDatabase = null;
   });
 
-  testWidgets('极简首页：只有待办提醒 + 健康冷知识', (tester) async {
+  testWidgets('极简首页：铃铛 + 健康冷知识', (tester) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -21,16 +21,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('首页'), findsWidgets);
-    // 待办提醒卡（空库 → 无待办）
-    expect(find.text('今天没有待办提醒'), findsOneWidget);
-    // 健康冷知识卡片
+    // AppBar 提醒铃铛
+    expect(find.byIcon(Icons.notifications_none), findsOneWidget);
+    // 正文只有健康冷知识卡片
     expect(find.text('健康冷知识'), findsOneWidget);
-    // 不出现姓名 / 需关注列表 / 身体部位概览
+    // 待办卡 / 姓名 / 需关注列表都不在
+    expect(find.text('今天没有待办提醒'), findsNothing);
     expect(find.text('当前个体'), findsNothing);
     expect(find.text('需关注'), findsNothing);
     expect(find.text('查看全部身体部位'), findsNothing);
-    expect(find.text('健康资料主题'), findsNothing);
-    expect(find.text('优先关注部位'), findsNothing);
   });
 
   testWidgets('App 启动后显示底部 4 个 Tab 与悬浮添加按钮', (tester) async {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../data/app_database.dart';
 import '../main.dart';
 import '../widgets/health_tip_card.dart';
 import '../widgets/profile_switcher.dart';
@@ -9,8 +8,8 @@ import 'reminders_page.dart';
 /// 内容区域的最大宽度：宽屏下避免卡片无限拉宽。
 const double _kContentMaxWidth = 720;
 
-/// 首页：只保留「待办提醒」+「健康冷知识」。
-/// 健康状况看板在「身体」tab；这里不展示姓名 / 指标 / 需关注列表。
+/// 首页：AppBar 一个提醒铃铛（有未读带红点）+ 档案切换器；正文只有健康冷知识。
+/// 健康状况看板在「身体」tab；提醒管理在铃铛点进去的「提醒」页。
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -19,7 +18,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Reminder> _reminders = [];
   int _unread = 0;
 
   @override
@@ -33,33 +31,11 @@ class _HomePageState extends State<HomePage> {
       final repo = appRepository;
       if (repo == null) return;
       await repo.syncNotificationsFromReminders();
-      final reminders = await repo.getActiveReminders();
       final unread = await repo.unreadNotificationCount();
-      if (mounted) {
-        setState(() {
-          _reminders = reminders;
-          _unread = unread;
-        });
-      }
+      if (mounted) setState(() => _unread = unread);
     } catch (_) {
-      // 首页失败不阻塞：只是提醒/冷知识
+      // 首页失败不阻塞
     }
-  }
-
-  int get _medReminderCount =>
-      _reminders.where((r) => r.kind == 'medication' && r.enabled).length;
-
-  int get _recheckDueCount {
-    final today = DateTime.now();
-    final d0 = DateTime(today.year, today.month, today.day);
-    return _reminders
-        .where((r) =>
-            r.kind == 'recheck' &&
-            r.enabled &&
-            r.completedAt == null &&
-            r.dueDate != null &&
-            !r.dueDate!.isAfter(d0.add(const Duration(days: 1))))
-        .length;
   }
 
   Future<void> _openReminders() => Navigator.of(context)
@@ -68,9 +44,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final medCount = _medReminderCount;
-    final recheckDue = _recheckDueCount;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('首页'),
@@ -86,14 +59,8 @@ class _HomePageState extends State<HomePage> {
             onRefresh: _load,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-              children: [
-                _TodoCard(
-                  medCount: medCount,
-                  recheckDue: recheckDue,
-                  onTap: _openReminders,
-                ),
-                const SizedBox(height: 12),
-                const HealthTipCard(),
+              children: const [
+                HealthTipCard(),
               ],
             ),
           ),
@@ -137,61 +104,6 @@ class _BellAction extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _TodoCard extends StatelessWidget {
-  final int medCount;
-  final int recheckDue;
-  final VoidCallback onTap;
-
-  const _TodoCard({
-    required this.medCount,
-    required this.recheckDue,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final hasTodo = medCount > 0 || recheckDue > 0;
-    final parts = <String>[
-      if (medCount > 0) '$medCount 项服药',
-      if (recheckDue > 0) '$recheckDue 项复查到期',
-    ];
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(
-                hasTodo
-                    ? Icons.notifications_active_outlined
-                    : Icons.notifications_none,
-                size: 20,
-                color: hasTodo ? AppColors.primary : AppColors.textSecondary,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  hasTodo ? '今天：${parts.join(' · ')}' : '今天没有待办提醒',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: hasTodo ? FontWeight.w600 : FontWeight.w400,
-                    color: hasTodo
-                        ? AppColors.textPrimary
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

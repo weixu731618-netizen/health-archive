@@ -4,10 +4,11 @@ import '../main.dart';
 import 'daily_health_entry_page.dart';
 import 'imaging_report_page.dart';
 import 'manual_metric_entry_page.dart';
+import 'medication_page.dart';
 import 'report_capture_page.dart';
 import 'report_import_page.dart';
 
-/// 添加页面：拍摄/上传/手工录入/日常记录 四个入口均已可用
+/// 添加页面：拍摄/上传/影像报告/手工录入/日常记录/用药 入口
 class AddPage extends StatelessWidget {
   const AddPage({super.key});
 
@@ -67,6 +68,15 @@ class AddPage extends StatelessWidget {
             subtitle: '记录体重、血压、血糖和心率',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const DailyHealthEntryPage()),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _ActionCard(
+            icon: Icons.medication_outlined,
+            title: '用药',
+            subtitle: '添加药物、设置服药计划（到点提醒）',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MedicationPage()),
             ),
           ),
         ],
