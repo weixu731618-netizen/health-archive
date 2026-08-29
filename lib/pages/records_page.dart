@@ -161,15 +161,8 @@ class _RecordsPageState extends State<RecordsPage> {
         onRefresh: _load,
         child: ListView(
           // 底部多留一点空间，避免最后一项被悬浮的"添加"按钮挡住。
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
           children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 4, bottom: 12),
-              child: Text(
-                '报告、手工录入和日常记录作为身体状态的来源证据保留在这里。',
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-              ),
-            ),
             if (_searchOpen) ...[
               TextField(
                 controller: _searchCtrl,
@@ -553,7 +546,6 @@ class _ReportTile extends StatelessWidget {
                         color: AppColors.textPrimary),
                   ),
                   const Spacer(),
-                  const _SourceChip(text: '报告导入'),
                   IconButton(
                     tooltip: '分享 / 导出原件',
                     icon: const Icon(Icons.ios_share, size: 18),

@@ -98,8 +98,8 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-/// 脱敏待办卡：只显示"今天有 N 项健康提醒"，不透露是什么药 / 什么指标。
-/// 点进去才看到具体内容。
+/// 脱敏待办卡：只一行"今天有 N 项健康提醒"，不透露是什么药 / 什么指标，
+/// 也不放图标和"点击查看"这类废话——点进去才看到具体内容。
 class _TodoCard extends StatelessWidget {
   final int count;
   final VoidCallback onTap;
@@ -110,14 +110,9 @@ class _TodoCard extends StatelessWidget {
     return Card(
       child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: const Icon(Icons.checklist_rtl, color: AppColors.primary),
         title: Text(
           '今天有 $count 项健康提醒',
           style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-        ),
-        subtitle: const Text(
-          '点击查看复查 / 服药安排',
-          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
         onTap: onTap,

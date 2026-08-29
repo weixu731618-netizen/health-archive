@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
+import '../data/health_repository.dart';
 import '../main.dart';
 import '../pages/family_members_page.dart';
 import '../pages/profile_page.dart';
@@ -63,6 +64,9 @@ class _ProfileSwitcherState extends State<ProfileSwitcher> {
     final activeId = appRepository?.activeProfileId ?? 1;
     final name = _activeName;
     final multi = _people.length > 1;
+    // 默认（看自己的档案）：右上角只有一个素头像图标，最轻。
+    // 切到家人时才显示 头像 + 名字 + 箭头，提醒"现在看的不是自己"。
+    final viewingOther = activeId != HealthRepository.defaultProfileId;
 
     return PopupMenuButton<int>(
       tooltip: '个人中心',
@@ -89,37 +93,38 @@ class _ProfileSwitcherState extends State<ProfileSwitcher> {
         const PopupMenuItem<int>(value: -2, child: Text('设置')),
       ],
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 13,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.14),
-              child: Text(
-                name.isNotEmpty ? name.characters.first : '我',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-            if (multi) ...[
-              const SizedBox(width: 6),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 96),
-                child: Text(
-                  name,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-            const Icon(Icons.arrow_drop_down, size: 20),
-          ],
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: viewingOther
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundColor:
+                        AppColors.primary.withValues(alpha: 0.14),
+                    child: Text(
+                      name.isNotEmpty ? name.characters.first : '我',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 96),
+                    child: Text(
+                      name,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_drop_down, size: 20),
+                ],
+              )
+            : const Icon(Icons.account_circle_outlined, size: 26),
       ),
     );
   }

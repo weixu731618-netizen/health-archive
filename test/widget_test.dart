@@ -139,8 +139,10 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.6.3+13'), findsOneWidget);
-    expect(find.text('「+」改成底部轻量菜单：拍摄/上传化验单合并为一项'), findsOneWidget);
+    expect(find.text('版本 1.6.4+14'), findsOneWidget);
+    expect(
+        find.text('首页减重：头像默认只留图标、待办卡收一行；记录页去掉说明行和"报告导入"标'),
+        findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {
