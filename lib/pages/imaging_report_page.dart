@@ -27,7 +27,10 @@ const List<String> imagingReportTypes = [
 /// 添加影像/病理报告：拍照或选图 → 自动 OCR 提取全部文字（含诊断结论，可编辑修正）
 /// → 手填医院/日期/类型 → 保存为一条 medical_reports 记录，不关联任何检查指标。
 class ImagingReportPage extends StatefulWidget {
-  const ImagingReportPage({super.key});
+  /// 从某个器官 / 系统详情页的 `+` 进来时传入该部位名，作为「建议关联」默认勾上。
+  final String? initialArea;
+
+  const ImagingReportPage({super.key, this.initialArea});
 
   @override
   State<ImagingReportPage> createState() => _ImagingReportPageState();
@@ -41,7 +44,12 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
   DateTime _reportDate = DateTime.now();
 
   /// 这份影像涉及的身体部位（手选，影像没有指标推不出来）。
-  final Set<String> _organs = {};
+  /// 从器官详情页进来时预置该部位（[ImagingReportPage.initialArea]），用户可改。
+  late final Set<String> _organs = {
+    if (widget.initialArea != null &&
+        coreBodyAreaOrder.contains(widget.initialArea))
+      widget.initialArea!,
+  };
 
   /// 可选的复查安排：null = 不设；否则为「多少天之后」。
   int? _recheckDays;

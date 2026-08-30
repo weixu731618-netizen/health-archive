@@ -145,7 +145,9 @@ void main() {
     expect(HomePage, isA<Type>());
     expect(CHECKUP_ASPECTS, isNotEmpty);
     expect(buildCheckupCoverage, isA<Function>());
-    expect(bodyAreaForSystem('血糖代谢'), '代谢');
+    expect(bodyAreaForSystem('血糖代谢'), '内分泌/代谢');
+    expect(bodyAreaForSystem('电解质'), '肾脏/泌尿'); // 指标分类下沉到器官/系统
+    expect(bodyAreaForSystem('未知系统XYZ'), '其他'); // 未知一律归其他，不再自成一级
     expect(AppMetadata.versionName, '1.8.0');
     expect(AppMetadata.versionCode, 18);
     // V0.4C-1：OCR 服务与调试页

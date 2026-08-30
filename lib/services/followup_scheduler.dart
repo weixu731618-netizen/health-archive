@@ -91,10 +91,12 @@ List<PlannedFollowUp> planFollowUps({
         conditionName: condName,
         itemKey: item.key,
         itemLabel: item.label,
-        title: '复查 ${item.label}（$condName）',
+        // 标题只放复查项本身；关联的慢性病名字通过 conditionCode 在详情页体现，
+        // 不在首页 / 提醒列表标题里高频重复疾病名。
+        title: item.label,
         detail: item.note.isEmpty
-            ? '建议${item.intervalText}检查一次'
-            : '建议${item.intervalText}检查一次。${item.note}',
+            ? '关联长期关注：$condName · 建议${item.intervalText}检查一次'
+            : '关联长期关注：$condName · 建议${item.intervalText}检查一次。${item.note}',
         dueDate: due,
       ));
     }

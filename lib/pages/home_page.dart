@@ -35,9 +35,14 @@ class _HomePageState extends State<HomePage> {
   int _unread = 0;
   bool _attnExpanded = false;
 
+  /// 首页「需要关注」上门槛：即将到期的复查只提前这么多天进首页，
+  /// 更远的留在「提醒」页里，不占首页注意力。
+  static const int _upcomingWindowDays = 30;
+
   List<HealthMetric> _metrics = const [];
   List<_AttentionArea> _attention = const [];
-  List<Reminder> _dueRechecks = const [];
+  List<Reminder> _overdueFollowups = const [];
+  List<Reminder> _upcomingFollowups = const [];
   List<MedicalReport> _recent = const [];
 
   @override
@@ -61,18 +66,17 @@ class _HomePageState extends State<HomePage> {
       final metrics = await repo.getAllMetrics();
       final reports = await repo.getAllReports();
       final reminders = await repo.getActiveReminders();
-      final unread = await repo.unreadNotificationCount();
+      final unread = await repo.actionableUnreadCount();
 
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
+      final horizon = today.add(const Duration(days: _upcomingWindowDays));
 
-      // --- 需要关注：按身体部位分组的异常 / 需关注 ---
-      final areas = buildBodyAreaHealthFromMetrics(metrics)
-          .where((a) => a.priorityRank <= 1)
-          .toList();
-
-      // 未完成、带到期日的复查 / 随访提醒，按到期日升序
-      final rechecks = <Reminder>[
+      // 首页「需要关注」把三类东西分开处理，不再互相混合：
+      //   1) FollowUpTask —— 真实存在的复查 / 随访提醒（已到期 / 即将到期）
+      //   2) HealthAttention —— 身体部位层面的异常 / 需关注
+      //   3) ChronicCondition（长期关注）—— 不在首页高频展示疾病名，放到详情页
+      final followups = <Reminder>[
         for (final r in reminders)
           if ((r.kind == 'recheck' || r.kind == 'followup') &&
               r.completedAt == null &&
@@ -80,41 +84,21 @@ class _HomePageState extends State<HomePage> {
             r,
       ]..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
 
-      final matchedIds = <int>{};
-      final attention = <_AttentionArea>[];
-      for (final a in areas) {
-        final keys = <String>{
-          a.name,
-          for (final seg in a.name.split('/'))
-            if (seg.trim().isNotEmpty) seg.trim(),
-        };
-        Reminder? match;
-        for (final r in rechecks) {
-          if (keys.any((k) => r.title.contains(k))) {
-            match = r;
-            break;
-          }
-        }
-        String suffix;
-        var overdue = false;
-        if (match != null) {
-          matchedIds.add(match.id);
-          final d = match.dueDate!;
-          if (d.isBefore(today)) {
-            suffix = '复查已逾期';
-            overdue = true;
-          } else {
-            suffix = '${d.month}月复查';
-          }
-        } else {
-          suffix = '持续关注';
-        }
-        attention.add(_AttentionArea(area: a, suffix: suffix, overdue: overdue));
-      }
+      final overdue = [
+        for (final r in followups)
+          if (r.dueDate!.isBefore(today)) r,
+      ];
+      final upcoming = [
+        for (final r in followups)
+          if (!r.dueDate!.isBefore(today) && !r.dueDate!.isAfter(horizon)) r,
+      ];
 
-      // 没有被任何部位卡片认领的复查 / 随访提醒，单独列成一行
-      final dueRows =
-          rechecks.where((r) => !matchedIds.contains(r.id)).toList();
+      // HealthAttention：只看身体部位的异常 / 需关注，不再往上贴复查后缀。
+      final attention = [
+        for (final a in buildBodyAreaHealthFromMetrics(metrics)
+            .where((a) => a.priorityRank <= 1))
+          _AttentionArea(area: a),
+      ];
 
       final sortedReports = [...reports]
         ..sort((a, b) => b.reportDate.compareTo(a.reportDate));
@@ -124,7 +108,8 @@ class _HomePageState extends State<HomePage> {
           _unread = unread;
           _metrics = metrics;
           _attention = attention;
-          _dueRechecks = dueRows;
+          _overdueFollowups = overdue;
+          _upcomingFollowups = upcoming;
           _recent = sortedReports.take(3).toList();
           _loading = false;
         });
@@ -138,10 +123,21 @@ class _HomePageState extends State<HomePage> {
       .push(MaterialPageRoute(builder: (_) => page))
       .then((_) => _load());
 
-  /// 需要关注：部位卡片 + 未认领的复查行。超过 3 行时默认只显示前 3，
-  /// 余下折叠到「展开其余 N 项」后面。
+  /// 需要关注：按「已到期复查 → 即将到期复查 → 当前明确异常」排序。
+  /// 长期关注（慢性病）不在首页列，放到部位详情页。
+  /// 超过 3 行时默认只显示前 3，余下折叠到「展开其余 N 项」后面。
   List<Widget> _buildAttentionRows() {
     final rows = <Widget>[
+      for (final r in _overdueFollowups)
+        _RecheckRow(
+          reminder: r,
+          onTap: () => _push(const RemindersPage()),
+        ),
+      for (final r in _upcomingFollowups)
+        _RecheckRow(
+          reminder: r,
+          onTap: () => _push(const RemindersPage()),
+        ),
       for (final a in _attention)
         _AttentionCard(
           entry: a,
@@ -150,11 +146,6 @@ class _HomePageState extends State<HomePage> {
             allMetrics: _metrics,
             isExample: false,
           )),
-        ),
-      for (final r in _dueRechecks)
-        _RecheckRow(
-          reminder: r,
-          onTap: () => _push(const RemindersPage()),
         ),
     ];
 
@@ -182,7 +173,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final showAttention = _attention.isNotEmpty || _dueRechecks.isNotEmpty;
+    final showAttention = _attention.isNotEmpty ||
+        _overdueFollowups.isNotEmpty ||
+        _upcomingFollowups.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -265,13 +258,7 @@ class _HomePageState extends State<HomePage> {
 
 class _AttentionArea {
   final BodyAreaHealthSummary area;
-  final String suffix; // "11月复查" / "复查已逾期" / "持续关注"
-  final bool overdue;
-  const _AttentionArea({
-    required this.area,
-    required this.suffix,
-    required this.overdue,
-  });
+  const _AttentionArea({required this.area});
 }
 
 /// 首页第一优先级入口：拍报告。
@@ -354,8 +341,6 @@ class _AttentionCard extends StatelessWidget {
     final dotColor = isAbnormal ? AppColors.abnormal : AppColors.warning;
     final count = area.abnormalCount;
     final countText = count > 0 ? '$count 项异常' : '需关注';
-    final subColor =
-        entry.overdue ? AppColors.warning : AppColors.textSecondary;
 
     return Card(
       child: ListTile(
@@ -363,8 +348,9 @@ class _AttentionCard extends StatelessWidget {
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         leading: Icon(Icons.circle, size: 12, color: dotColor),
         title: Text(area.name, style: const TextStyle(fontSize: 15)),
-        subtitle: Text('$countText · ${entry.suffix}',
-            style: TextStyle(fontSize: 12, color: subColor)),
+        subtitle: Text(countText,
+            style: const TextStyle(
+                fontSize: 12, color: AppColors.textSecondary)),
         trailing:
             const Icon(Icons.chevron_right, color: AppColors.textSecondary),
         onTap: onTap,
@@ -381,18 +367,29 @@ class _RecheckRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final due = reminder.dueDate!;
-    final overdue = due.isBefore(DateTime(
-        DateTime.now().year, DateTime.now().month, DateTime.now().day));
+    final today = DateTime(
+        DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final dueDay = DateTime(due.year, due.month, due.day);
+    final overdue = dueDay.isBefore(today);
+    final days = dueDay.difference(today).inDays;
+    final String sub;
+    if (overdue) {
+      sub = '复查已到期';
+    } else if (days == 0) {
+      sub = '复查就在今天';
+    } else {
+      sub = '距离复查还有 $days 天';
+    }
     return Card(
       child: ListTile(
         dense: true,
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: const Icon(Icons.event_outlined,
-            color: AppColors.textSecondary),
+        leading: Icon(Icons.event_outlined,
+            color: overdue ? AppColors.warning : AppColors.textSecondary),
         title: Text(reminder.title, style: const TextStyle(fontSize: 14)),
         subtitle: Text(
-          overdue ? '${formatDate(due)} · 已逾期' : formatDate(due),
+          sub,
           style: TextStyle(
               fontSize: 12,
               color: overdue ? AppColors.warning : AppColors.textSecondary),

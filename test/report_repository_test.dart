@@ -72,7 +72,7 @@ void main() {
     final body = await repo.getMetricsByBodySystem('肾脏');
     expect(body.any((m) => m.metricId == 'UA'), isTrue);
     expect(bodyAreaForSystem('肾脏'), '肾脏/泌尿');
-    expect(bodyAreaForSystem('血糖代谢'), '代谢');
+    expect(bodyAreaForSystem('血糖代谢'), '内分泌/代谢');
   });
 
   test('级联删除：删除报告会连带删除其指标，且手工录入数据不受影响', () async {

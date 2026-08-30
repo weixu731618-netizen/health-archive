@@ -39,7 +39,7 @@ void main() {
     expect(find.textContaining('记一次血压'), findsNothing);
   });
 
-  testWidgets('App 启动后显示底部 3 个 Tab 与悬浮添加按钮', (tester) async {
+  testWidgets('App 启动后底部只保留 3 个 Tab，没有悬浮 + 按钮', (tester) async {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
@@ -56,7 +56,8 @@ void main() {
     // 「我的」不再占底部 Tab，收进右上角头像。
     expect(find.descendant(of: navBar, matching: find.text('我的')), findsNothing);
     expect(find.descendant(of: navBar, matching: find.text('添加')), findsNothing);
-    expect(find.byType(FloatingActionButton), findsOneWidget);
+    // 底部大型悬浮 + 已删除，Tab Bar 只负责页面切换。
+    expect(find.byType(FloatingActionButton), findsNothing);
   });
 
   testWidgets('身体页无数据时只显示空状态，不铺一堆「未检查」部位', (tester) async {
@@ -101,12 +102,19 @@ void main() {
     expect(find.text('ALT'), findsNothing);
   });
 
-  testWidgets('+ 弹出添加菜单，报告 → 拍照进入拍摄页', (tester) async {
+  testWidgets('记录页右上角 + 弹出添加菜单，报告 → 拍照进入拍摄页', (tester) async {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
-    // 点 + → 底部菜单浮出（不再是整屏页面）
-    await tester.tap(find.byType(FloatingActionButton));
+    // 进「记录」页
+    await tester.tap(find.descendant(
+      of: find.byType(NavigationBar),
+      matching: find.text('记录'),
+    ));
+    await tester.pumpAndSettle();
+
+    // 点右上角 + → 底部菜单浮出（复用首页那套添加菜单）
+    await tester.tap(find.byTooltip('新增记录'));
     await tester.pumpAndSettle();
     expect(find.text('添加健康数据'), findsOneWidget);
 

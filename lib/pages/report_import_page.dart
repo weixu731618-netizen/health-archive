@@ -7,7 +7,11 @@ import 'report_recognition_flow.dart';
 
 /// 报告导入页（上传）：选择化验单图片或 PDF -> 识别（走共享 [startReportRecognitionFlow]）。
 class ReportImportPage extends StatefulWidget {
-  const ReportImportPage({super.key});
+  /// 从某个器官 / 系统详情页的 `+` 进来时传入该部位名，识别核对页会作为
+  /// 「建议关联部位」默认带上。
+  final String? initialArea;
+
+  const ReportImportPage({super.key, this.initialArea});
 
   @override
   State<ReportImportPage> createState() => _ReportImportPageState();
@@ -37,7 +41,8 @@ class _ReportImportPageState extends State<ReportImportPage> {
     if (img == null) return;
     setState(() => _error = null);
     // 共享识别流程自带全屏 Loading，天然防止重复点击。
-    await startReportRecognitionFlow(context, img);
+    await startReportRecognitionFlow(context, img,
+        initialArea: widget.initialArea);
   }
 
   void _goManual() {

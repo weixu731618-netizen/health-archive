@@ -17,18 +17,23 @@ import 'report_review_page.dart';
 ///   → 失败在 Loading 页展示错误，提供「重新识别 / 手工录入 / 返回」
 Future<void> startReportRecognitionFlow(
   BuildContext context,
-  PickedReportImage image,
-) {
+  PickedReportImage image, {
+  String? initialArea,
+}) {
   return Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (_) => _RecognizingPage(image: image),
+      builder: (_) => _RecognizingPage(image: image, initialArea: initialArea),
     ),
   );
 }
 
 class _RecognizingPage extends StatefulWidget {
   final PickedReportImage image;
-  const _RecognizingPage({required this.image});
+
+  /// 从器官详情页 `+` 进来时的「建议关联部位」，透传给 [ReportReviewPage]。
+  final String? initialArea;
+
+  const _RecognizingPage({required this.image, this.initialArea});
 
   @override
   State<_RecognizingPage> createState() => _RecognizingPageState();
@@ -71,6 +76,7 @@ class _RecognizingPageState extends State<_RecognizingPage> {
             report: report,
             imageBytes: img.bytes,
             imageFileName: img.fileName,
+            initialArea: widget.initialArea,
           ),
         ),
       );

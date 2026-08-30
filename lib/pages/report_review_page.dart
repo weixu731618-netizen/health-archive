@@ -16,11 +16,16 @@ class ReportReviewPage extends StatefulWidget {
   final Uint8List imageBytes;
   final String imageFileName;
 
+  /// 从器官 / 系统详情页 `+` 进来时的「建议关联部位」。保存时并入从指标推导出的
+  /// 部位集合一起写进 reportOrgans（即使这份报告的指标本身没落到该部位）。
+  final String? initialArea;
+
   const ReportReviewPage({
     super.key,
     required this.report,
     required this.imageBytes,
     required this.imageFileName,
+    this.initialArea,
   });
 
   @override
@@ -235,7 +240,11 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
         sourceImagePath: _report.sourceImagePath,
         rawText: _report.rawText, // 存库，但不打印到日志
       );
-      final areas = <String>{};
+      final areas = <String>{
+        if (widget.initialArea != null &&
+            coreBodyAreaOrder.contains(widget.initialArea))
+          widget.initialArea!,
+      };
       for (final m in _report.metrics) {
         if (!m.isSelected) continue;
         areas.add(bodyAreaForSystem(m.bodySystem));

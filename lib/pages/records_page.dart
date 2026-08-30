@@ -8,6 +8,7 @@ import '../models/metric_source.dart';
 import '../utils/format.dart';
 import '../widgets/profile_switcher.dart';
 import '../utils/records_filter.dart';
+import 'add_page.dart';
 import 'daily_health_entry_page.dart';
 import 'daily_history_page.dart';
 import 'manual_metric_entry_page.dart';
@@ -162,6 +163,11 @@ class _RecordsPageState extends State<RecordsPage> {
             ),
             onPressed: _toggleSearch,
           ),
+          IconButton(
+            tooltip: '新增记录',
+            icon: const Icon(Icons.add),
+            onPressed: _openAddMenu,
+          ),
           const ProfileSwitcher(),
         ],
       ),
@@ -200,6 +206,7 @@ class _RecordsPageState extends State<RecordsPage> {
               ),
               const SizedBox(height: 10),
             ],
+            // 第一层：资料类型。视觉权重最高。
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -216,10 +223,17 @@ class _RecordsPageState extends State<RecordsPage> {
                       _recordsTypeFilter = _typeFilter; // 记住，切 Tab 不丢
                     }),
                   ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            // 第二层：器官 / 高级筛选。放在下面一行，用文字按钮，权重明显更低。
+            Row(
+              children: [
                 _OrganFilterButton(
                   organ: _organFilter,
                   onTap: _pickOrgan,
                 ),
+                const SizedBox(width: 4),
                 _FilterButton(
                   activeCount: _filter.activeCount,
                   onTap: _openFilterSheet,
@@ -294,6 +308,13 @@ class _RecordsPageState extends State<RecordsPage> {
         ),
       ),
     );
+  }
+
+  /// 记录页右上角 `+`：完整新增菜单（拍报告 / 相册·文件 / 影像 / 手工 / 日常 / 用药）。
+  /// 复用首页那套 [showAddDataSheet]，不另起一套业务逻辑；回来后刷新时间轴。
+  Future<void> _openAddMenu() async {
+    await showAddDataSheet(context);
+    if (mounted) _load();
   }
 
   Future<void> _pickOrgan() async {
@@ -467,11 +488,12 @@ class _OrganFilterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = organ != null;
-    return OutlinedButton.icon(
+    return TextButton.icon(
       onPressed: onTap,
-      icon: const Icon(Icons.category_outlined, size: 18),
-      label: Text(active ? '器官·$organ' : '器官'),
-      style: OutlinedButton.styleFrom(
+      icon: const Icon(Icons.category_outlined, size: 16),
+      label: Text(active ? '器官·$organ' : '器官',
+          style: const TextStyle(fontSize: 13)),
+      style: TextButton.styleFrom(
         visualDensity: VisualDensity.compact,
         foregroundColor:
             active ? AppColors.primary : AppColors.textSecondary,
@@ -487,11 +509,12 @@ class _FilterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
+    return TextButton.icon(
       onPressed: onTap,
-      icon: const Icon(Icons.tune, size: 18),
-      label: Text(activeCount == 0 ? '筛选' : '筛选·$activeCount'),
-      style: OutlinedButton.styleFrom(
+      icon: const Icon(Icons.tune, size: 16),
+      label: Text(activeCount == 0 ? '筛选' : '筛选·$activeCount',
+          style: const TextStyle(fontSize: 13)),
+      style: TextButton.styleFrom(
         visualDensity: VisualDensity.compact,
         foregroundColor:
             activeCount == 0 ? AppColors.textSecondary : AppColors.primary,
@@ -577,6 +600,24 @@ class RealEntry {
         measuredAt = d.measuredAt,
         areas = _areasForDailyType(d.type);
 
+  /// 记录卡片右上角标签：日常记录用具体类型（血压 / 血糖 / 体重 / 心率 / 腰围），
+  /// 手工录入的化验指标保留「手工录入」。报告 / 影像走各自的 Tile，不用这个。
+  String get cornerLabel {
+    switch (dailyType) {
+      case 'blood_pressure':
+        return '血压';
+      case 'blood_glucose':
+        return '血糖';
+      case 'weight':
+        return '体重';
+      case 'heart_rate':
+        return '心率';
+      case 'waist':
+        return '腰围';
+    }
+    return source;
+  }
+
   static Set<String> _areasForDailyType(String t) {
     switch (t) {
       case 'blood_pressure':
@@ -585,7 +626,7 @@ class RealEntry {
       case 'blood_glucose':
       case 'weight':
       case 'waist':
-        return {'代谢'};
+        return {'内分泌/代谢'};
       default:
         return const {};
     }
@@ -733,7 +774,7 @@ class _RealTile extends StatelessWidget {
                         color: AppColors.textPrimary),
                   ),
                   const Spacer(),
-                  _SourceChip(text: entry.source),
+                  _SourceChip(text: entry.cornerLabel),
                 ],
               ),
               const SizedBox(height: 6),

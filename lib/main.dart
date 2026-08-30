@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/app_database.dart';
 import 'data/health_repository.dart';
-import 'pages/add_page.dart';
 import 'pages/body_page.dart';
 import 'pages/home_page.dart';
 import 'pages/records_page.dart';
@@ -276,7 +275,8 @@ class _MainShellState extends State<MainShell> {
   int _index = 0;
 
   /// 每次切换 Tab 都重新构建对应页面，确保「记录」「身体」等页能加载到最新保存的数据。
-  /// 「添加」不是底部 Tab，改为悬浮按钮，见 [build] 里的 floatingActionButton。
+  /// 「添加」不占底部导航，也不再用悬浮 `+`：首页有三个核心导入入口，记录页 / 器官详情页
+  /// 右上角有上下文 `+`（见各页 AppBar）。Tab Bar 只负责页面切换。
   Widget _buildPage(int index) {
     switch (index) {
       case 0:
@@ -300,12 +300,6 @@ class _MainShellState extends State<MainShell> {
           key: ValueKey('tab-$_index-profile-$profileId'),
           child: _buildPage(_index),
         ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: FloatingActionButton(
-        tooltip: '添加健康数据',
-        onPressed: () => showAddDataSheet(context),
-        child: const Icon(Icons.add),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,

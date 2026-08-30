@@ -12,7 +12,14 @@ import 'report_import_page.dart';
 /// 点 `+` → 菜单浮出（盖在当前页上，无页面跳转）→ 选一项 → 进对应录入页。
 /// 每一层 sheet 都用「pop 出一个结果」的方式，导航统一在这里做，避免在正被
 /// 销毁的 sheet 里查 Navigator。
-Future<void> showAddDataSheet(BuildContext context) async {
+///
+/// [contextArea]：从某个器官 / 系统详情页的 `+` 进来时传入该部位名，
+/// 报告 / 影像录入页会把它作为「建议关联部位」默认勾上（用户仍可改）。
+/// 从首页 / 记录页的 `+` 进来时为 null，不预设。
+Future<void> showAddDataSheet(BuildContext context, {String? contextArea}) async {
+  final area = (contextArea != null && contextArea.trim().isNotEmpty)
+      ? contextArea.trim()
+      : null;
   final pick = await showModalBottomSheet<_AddPick>(
     context: context,
     showDragHandle: true,
@@ -31,12 +38,12 @@ Future<void> showAddDataSheet(BuildContext context) async {
       );
       if (!context.mounted) return;
       if (mode == 'camera') {
-        page = const ReportCapturePage();
+        page = ReportCapturePage(initialArea: area);
       } else if (mode == 'upload') {
-        page = const ReportImportPage();
+        page = ReportImportPage(initialArea: area);
       }
     case _AddPick.imaging:
-      page = const ImagingReportPage();
+      page = ImagingReportPage(initialArea: area);
     case _AddPick.manual:
       page = const ManualMetricEntryPage();
     case _AddPick.daily:

@@ -1147,6 +1147,30 @@ class HealthRepository {
     return rows.length;
   }
 
+  /// 只有「真正需要用户处理」的通知类别才计入首页红色 badge：
+  /// 复查到期 / OCR 识别失败 / 待确认报告 / 上传失败。
+  /// 日常服药提醒、资料归档、系统消息等按普通通知处理，不进红点
+  /// （它们仍显示在通知中心列表里）。
+  static const Set<String> actionableNotificationCategories = {
+    'recheck',
+    'followup',
+    'ocr_failed',
+    'report_confirm',
+    'upload_failed',
+  };
+
+  Future<int> actionableUnreadCount() async {
+    final rows = await (_db.select(_db.notifications)
+          ..where((t) =>
+              t.profileId.equals(_activeProfileId) &
+              t.readAt.isNull() &
+              t.deliveredAt.isNotNull()))
+        .get();
+    return rows
+        .where((n) => actionableNotificationCategories.contains(n.category))
+        .length;
+  }
+
   Future<int> insertNotification({
     int? profileId,
     int? reminderId,

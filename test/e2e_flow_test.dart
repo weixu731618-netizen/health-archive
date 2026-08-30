@@ -64,12 +64,12 @@ void main() {
     expect(find.text('糖化血红蛋白'), findsWidgets);
     expect(find.textContaining('6.8 %'), findsWidgets);
 
-    // 身体页 → 代谢部位进入「需要关注」，标注异常项数
+    // 身体页 → 内分泌/代谢部位进入「需要关注」，标注异常项数
     await tester.tap(find.descendant(
         of: find.byType(NavigationBar), matching: find.text('身体')));
     await tester.pumpAndSettle();
     expect(find.text('需要关注'), findsWidgets);
-    expect(find.text('代谢'), findsWidgets);
+    expect(find.text('内分泌/代谢'), findsWidgets);
     expect(find.textContaining('1 项异常'), findsWidgets);
   });
 

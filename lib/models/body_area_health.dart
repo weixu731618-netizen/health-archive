@@ -1,19 +1,24 @@
 import '../data/app_database.dart';
 import 'metric_dictionary.dart';
 
+/// 身体页一级导航 = 器官 / 身体系统，全部同一层级。
+/// 指标分类（血糖 / 血脂 / 电解质 / 肝功能 / 肾功能 / 肿瘤标志物…）不进这一层，
+/// 它们下沉到所属器官 / 系统内部，见 [metricGroupLabelForSystem]。
 const List<String> coreBodyAreaOrder = [
-  '肾脏/泌尿',
   '心血管',
+  '呼吸系统',
+  '消化系统',
   '肝胆',
-  '代谢',
-  '甲状腺',
-  '血液',
-  '电解质',
-  '皮肤与足部',
-  '口腔牙齿',
+  '胰腺',
+  '肾脏/泌尿',
+  '内分泌/代谢',
+  '血液系统',
   '眼睛',
   '耳鼻喉',
+  '口腔牙齿',
   '骨骼关节',
+  '皮肤与足部',
+  '生殖系统',
   '其他',
 ];
 
@@ -40,6 +45,12 @@ class BodyAreaMetricEvidence {
 
   bool get isAbnormal => isMetricAbnormalStatus(status);
   bool get needsAttention => isAbnormal || isMetricAttentionStatus(status);
+
+  /// 详情页里所属的「指标分类」小标题（血糖 / 电解质 / 肝功能…）。
+  String get groupLabel {
+    final def = findMetricDefinition(metricId);
+    return metricGroupLabelForSystem(def?.bodySystem ?? '');
+  }
 }
 
 class BodyAreaHealthSummary {
@@ -108,20 +119,28 @@ class HealthTopicSummary {
   }
 }
 
+/// 指标字典里的 `bodySystem` → 身体页一级器官 / 系统。
+/// 指标分类级别的值（血糖代谢 / 电解质 / 甲状腺 / 肿瘤标志物…）在这里被归并进
+/// 所属器官 / 系统，不再单独成为一级节点。未知值一律落到「其他」。
 String bodyAreaForSystem(String system) {
   switch (system.trim()) {
     case '肾脏':
     case '尿常规':
     case '泌尿':
     case '泌尿系统':
+    case '电解质': // 电解质随肾脏/泌尿一起看
       return '肾脏/泌尿';
     case '肝脏':
     case '肝胆':
+    case '胆囊':
       return '肝胆';
+    case '胰腺':
+      return '胰腺';
     case '血糖代谢':
     case '代谢':
     case '内分泌':
-      return '代谢';
+    case '甲状腺': // 甲状腺归入内分泌/代谢
+      return '内分泌/代谢';
     case '皮肤':
     case '足部':
     case '皮肤与足部':
@@ -139,13 +158,55 @@ String bodyAreaForSystem(String system) {
     case '关节':
     case '骨骼关节':
       return '骨骼关节';
+    case '呼吸':
+    case '呼吸系统':
+    case '肺':
+      return '呼吸系统';
+    case '消化':
+    case '消化系统':
+    case '胃肠':
+      return '消化系统';
+    case '生殖':
+    case '生殖系统':
+    case '前列腺':
+    case '妇科':
+      return '生殖系统';
     case '心血管':
-    case '甲状腺':
+      return '心血管';
     case '血液':
-    case '电解质':
-      return system.trim();
+    case '血液系统':
+      return '血液系统';
     default:
-      return system.trim().isEmpty ? '其他' : system.trim();
+      return '其他';
+  }
+}
+
+/// 器官 / 系统详情页里，把指标再按「指标分类」分组显示时用的小标题。
+/// 入参是指标字典的 `bodySystem`。返回 null 表示不额外分组（归到「其他指标」）。
+String metricGroupLabelForSystem(String system) {
+  switch (system.trim()) {
+    case '血糖代谢':
+      return '血糖';
+    case '甲状腺':
+      return '甲状腺';
+    case '电解质':
+      return '电解质';
+    case '肾脏':
+      return '肾功能';
+    case '尿常规':
+      return '尿液';
+    case '肝脏':
+      return '肝功能';
+    case '心血管':
+      return '血脂 / 心血管';
+    case '血液':
+      return '血常规';
+    case '骨骼':
+      return '骨代谢';
+    case '肿瘤标志物':
+      return '肿瘤标志物';
+    default:
+      return '其他指标';
   }
 }
 

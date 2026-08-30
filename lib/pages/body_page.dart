@@ -11,6 +11,7 @@ import '../widgets/health_status_card.dart';
 import '../widgets/normal_items_toggle.dart';
 import '../widgets/profile_switcher.dart';
 import '../widgets/section_title.dart';
+import 'add_page.dart';
 import 'metric_history_page.dart';
 import 'reminders_page.dart';
 import 'report_capture_page.dart';
@@ -260,7 +261,7 @@ String? _areaForDailyType(String t) {
     case 'blood_glucose':
     case 'weight':
     case 'waist':
-      return '代谢';
+      return '内分泌/代谢';
   }
   return null;
 }
@@ -568,7 +569,21 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
   Widget build(BuildContext context) {
     final key = _area.keyMetric;
     return Scaffold(
-      appBar: AppBar(title: Text(_area.name)),
+      appBar: AppBar(
+        title: Text(_area.name),
+        actions: widget.isExample
+            ? null
+            : [
+                IconButton(
+                  tooltip: '添加${_area.name}相关资料',
+                  icon: const Icon(Icons.add),
+                  onPressed: () async {
+                    await showAddDataSheet(context, contextArea: _area.name);
+                    if (mounted) _reload();
+                  },
+                ),
+              ],
+      ),
       body: RefreshIndicator(
         onRefresh: _reload,
         child: ListView(
@@ -597,17 +612,9 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
                 const SizedBox(height: 12),
               ]
             else ...[
-              for (final m in _attentionMetrics) ...[
-                _RealMetricCard(
-                    metric: m, onTap: () => _openHistoryByEvidence(m)),
-                const SizedBox(height: 12),
-              ],
+              ..._groupedMetricCards(_attentionMetrics),
               if (_attentionMetrics.isEmpty)
-                for (final m in _normalMetrics) ...[
-                  _RealMetricCard(
-                      metric: m, onTap: () => _openHistoryByEvidence(m)),
-                  const SizedBox(height: 12),
-                ]
+                ..._groupedMetricCards(_normalMetrics)
               else ...[
                 NormalItemsToggle(
                   expanded: _showNormalMetrics,
@@ -617,11 +624,7 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
                 ),
                 if (_showNormalMetrics) ...[
                   const SizedBox(height: 12),
-                  for (final m in _normalMetrics) ...[
-                    _RealMetricCard(
-                        metric: m, onTap: () => _openHistoryByEvidence(m)),
-                    const SizedBox(height: 12),
-                  ],
+                  ..._groupedMetricCards(_normalMetrics),
                 ],
               ],
             ],
@@ -664,6 +667,39 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
         ),
       ),
     );
+  }
+
+  /// 把指标卡片按「指标分类」（血糖 / 电解质 / 肝功能…）分组渲染。
+  /// 只有一个分类时不显示小标题，避免多余层级。
+  List<Widget> _groupedMetricCards(List<BodyAreaMetricEvidence> list) {
+    if (list.isEmpty) return const [];
+    final groups = <String, List<BodyAreaMetricEvidence>>{};
+    for (final m in list) {
+      groups.putIfAbsent(m.groupLabel, () => []).add(m);
+    }
+    final showHeaders = groups.length > 1;
+    final out = <Widget>[];
+    groups.forEach((label, items) {
+      if (showHeaders) {
+        out.add(Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 8),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ));
+      }
+      for (final m in items) {
+        out.add(_RealMetricCard(
+            metric: m, onTap: () => _openHistoryByEvidence(m)));
+        out.add(const SizedBox(height: 12));
+      }
+    });
+    return out;
   }
 
   Future<void> _openHistoryByEvidence(BodyAreaMetricEvidence metric) async {
