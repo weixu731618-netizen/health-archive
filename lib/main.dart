@@ -55,6 +55,10 @@ Future<void> syncReminders() async {
     await repo.purgeCompletedReminders(); // 已完成满 20 天的自动清掉
   } catch (_) {}
   try {
+    // 慢病升级 步骤4：按随访模板重算自动复查提醒（全档案）。
+    await repo.regenerateFollowUpsForAllProfiles();
+  } catch (_) {}
+  try {
     await repo.syncNotificationsFromReminders();
   } catch (_) {}
   try {

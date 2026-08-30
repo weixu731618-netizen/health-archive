@@ -457,6 +457,8 @@ class RealEntry {
         return '血糖';
       case 'weight':
         return '体重';
+      case 'waist':
+        return '腰围';
       case 'heart_rate':
         return '心率';
       default:
@@ -471,6 +473,7 @@ class RealEntry {
       case 'blood_glucose':
         return '${fmtNum(d.value1)} ${d.unit}${d.context == null ? '' : '（${d.context}）'}';
       case 'weight':
+      case 'waist':
       case 'heart_rate':
         return '${fmtNum(d.value1)} ${d.unit}';
       default:

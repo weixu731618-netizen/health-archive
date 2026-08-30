@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../utils/image_storage.dart';
 
-/// 影像/病理类报告的可选类型（X光/CT/MRI/B超/心电图/病理/其他），
-/// 这类报告是"图片 + 文字结论"，没有可提取的数字指标，跟化验单走不同的存档路径。
+/// 图文类报告 / 病历的可选类型。这类是"图片 + 文字"，没有可提取的数字指标，
+/// 跟化验单走不同的存档路径。
+/// 慢病升级 步骤5：在影像/病理之外，补上出院小结、手术记录、门诊病历、处方笺、疫苗接种。
 const List<String> imagingReportTypes = [
   'X光',
   'CT',
@@ -12,6 +13,11 @@ const List<String> imagingReportTypes = [
   'B超',
   '心电图',
   '病理',
+  '出院小结',
+  '手术记录',
+  '门诊病历',
+  '处方笺',
+  '疫苗接种',
   '其他',
 ];
 

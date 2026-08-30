@@ -103,7 +103,8 @@ class NotificationService {
         final ids = notificationIdsForReminder(r);
         if (ids.isEmpty) continue;
 
-        if (r.kind == 'recheck' && r.dueDate != null) {
+        if ((r.kind == 'recheck' || r.kind == 'followup') &&
+            r.dueDate != null) {
           final when = tz.TZDateTime(
               tz.local, r.dueDate!.year, r.dueDate!.month, r.dueDate!.day, 9);
           if (when.isAfter(now)) {

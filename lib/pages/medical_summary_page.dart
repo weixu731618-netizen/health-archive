@@ -41,6 +41,7 @@ class _MedicalSummaryPageState extends State<MedicalSummaryPage> {
     final profile = await repo.getProfile();
     final diseases = await repo.getAllDiseases();
     final meds = await repo.getAllMedications();
+    final allergies = await repo.getAllAllergies();
     final metrics = await repo.getAllMetrics();
     final reports = await repo.getAllReports();
     final counts = <int, int>{};
@@ -51,6 +52,7 @@ class _MedicalSummaryPageState extends State<MedicalSummaryPage> {
       profile: profile,
       diseases: diseases,
       medications: meds,
+      allergies: allergies,
       metrics: metrics,
       reports: reports,
       reportMetricCounts: counts,
@@ -197,6 +199,10 @@ class _SummaryCard extends StatelessWidget {
           _section('当前用药', [
             if (summary.medications.isEmpty) '（无记录）',
             ...summary.medications,
+          ]),
+          _section('过敏史', [
+            if (summary.allergies.isEmpty) '（无记录）',
+            ...summary.allergies,
           ]),
           _metricsSection(),
           _reportsSection(),

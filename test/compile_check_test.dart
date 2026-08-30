@@ -10,6 +10,19 @@ import 'package:health_archive/models/body_area_health.dart';
 import 'package:health_archive/models/app_metadata.dart';
 import 'package:health_archive/models/metric_dictionary.dart';
 import 'package:health_archive/models/metric_source.dart';
+// 慢病升级 步骤1：病种字典
+import 'package:health_archive/models/chronic_condition_dictionary.dart';
+// 慢病升级 步骤3：控制目标
+import 'package:health_archive/models/control_target.dart';
+// 慢病升级 步骤4：随访模板 + 排期
+import 'package:health_archive/models/followup_template.dart';
+import 'package:health_archive/services/followup_scheduler.dart';
+// 慢病升级 步骤5：过敏史
+import 'package:health_archive/pages/allergy_page.dart';
+import 'package:health_archive/pages/health_records_page.dart';
+// 首页重做：报告驱动 + 检查驱动完成度
+import 'package:health_archive/pages/home_page.dart';
+import 'package:health_archive/models/checkup_coverage.dart';
 
 // 页面
 import 'package:health_archive/pages/manual_metric_entry_page.dart';
@@ -54,8 +67,6 @@ import 'package:health_archive/widgets/profile_switcher.dart';
 // B2：备忘 / 提醒 + 本地通知 + 远程推送骨架
 import 'package:health_archive/pages/reminders_page.dart';
 import 'package:health_archive/pages/notification_center_page.dart';
-import 'package:health_archive/widgets/health_tip_card.dart';
-import 'package:health_archive/data/health_tips.dart';
 import 'package:health_archive/services/notification_service.dart';
 import 'package:health_archive/services/push_service.dart';
 import 'package:health_archive/utils/reminder_schedule.dart';
@@ -87,7 +98,7 @@ void main() {
     expect(ManualMetricEntryPage, isA<Type>());
     expect(DailyHealthEntryPage, isA<Type>());
     expect(DailyHistoryPage, isA<Type>());
-    expect(DailyEntryType.values.length, 4);
+    expect(DailyEntryType.values.length, 5); // 慢病升级 步骤6：+腰围
     expect(MetricHistoryPage, isA<Type>());
     expect(BodyPage, isA<Type>());
     expect(RecordsPage, isA<Type>());
@@ -106,9 +117,37 @@ void main() {
     expect(matchMetricId('Cr'), 'CREA');
     expect(matchMetricId('糖化血红蛋白'), 'HBA1C');
     expect(bodySystemForMetric('HBA1C'), '血糖代谢');
+    // 慢病升级 步骤1：病种字典
+    expect(CHRONIC_CONDITION_DICTIONARY, isNotEmpty);
+    expect(findChronicCondition('hypertension')?.name, '高血压');
+    expect(matchChronicCondition('T2DM')?.code, 'type2_diabetes');
+    expect(chronicConditionsByCategory(ChronicCategory.metabolic), isNotEmpty);
+    expect(metricsForCondition('type2_diabetes'), isNotEmpty);
+    expect(chronicCategoryLabel(ChronicCategory.other), isA<String>());
+    // 慢病升级 步骤3：控制目标
+    expect(CONTROL_TARGET_DICTIONARY, isNotEmpty);
+    expect(resolveControlTargets({'dyslipidemia', 'chd'})['LDLC']?.max, 1.8);
+    expect(
+        evaluateTarget(
+            resolveControlTargets({'gout'})['UA']!,
+            value: 300),
+        TargetStatus.met);
+    expect(targetStatusLabel(TargetStatus.notMet), '未达标');
+    // 慢病升级 步骤4：随访模板 + 排期
+    expect(FOLLOWUP_TEMPLATES, isNotEmpty);
+    expect(followUpTemplateFor('type2_diabetes')?.items, isNotEmpty);
+    expect(planFollowUps, isA<Function>());
+    expect(PlannedFollowUp, isA<Type>());
+    // 慢病升级 步骤5：过敏史 + 健康资料入口
+    expect(AllergyPage, isA<Type>());
+    expect(HealthRecordsPage, isA<Type>());
+    // 首页重做
+    expect(HomePage, isA<Type>());
+    expect(CHECKUP_ASPECTS, isNotEmpty);
+    expect(buildCheckupCoverage, isA<Function>());
     expect(bodyAreaForSystem('血糖代谢'), '代谢');
-    expect(AppMetadata.versionName, '1.6.6');
-    expect(AppMetadata.versionCode, 16);
+    expect(AppMetadata.versionName, '1.7.0');
+    expect(AppMetadata.versionCode, 17);
     // V0.4C-1：OCR 服务与调试页
     expect(ReportOcrService, isA<Type>());
     expect(RemoteOcrService, isA<Type>());
@@ -130,8 +169,6 @@ void main() {
     // B2：备忘 / 提醒
     expect(RemindersPage, isA<Type>());
     expect(NotificationCenterPage, isA<Type>());
-    expect(HealthTipCard, isA<Type>());
-    expect(kHealthTips, isNotEmpty);
     expect(NotificationService.instance, isNotNull);
     expect(PushService.pushEnabled, isFalse); // 默认不启用远程推送
     expect(defaultMedicationTimes(2), ['09:00', '21:00']);

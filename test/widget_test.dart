@@ -13,7 +13,7 @@ void main() {
     appDatabase = null;
   });
 
-  testWidgets('极简首页：铃铛 + 今日一则', (tester) async {
+  testWidgets('首页：铃铛 + 添加报告 + 最近', (tester) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -22,15 +22,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('首页'), findsWidgets);
-    // AppBar 提醒铃铛
     expect(find.byIcon(Icons.notifications_none), findsOneWidget);
-    // 正文只有「今日一则」卡片
-    expect(find.text('今日一则'), findsOneWidget);
-    // 待办卡 / 姓名 / 需关注列表都不在
-    expect(find.text('今天没有待办提醒'), findsNothing);
-    expect(find.text('当前个体'), findsNothing);
-    expect(find.text('需关注'), findsNothing);
-    expect(find.text('查看全部身体部位'), findsNothing);
+    // 报告驱动：两个大按钮
+    expect(find.text('拍化验单'), findsOneWidget);
+    expect(find.text('从相册 / 文件'), findsOneWidget);
+    // 分区
+    expect(find.text('添加'), findsOneWidget);
+    expect(find.text('最近'), findsOneWidget);
   });
 
   testWidgets('App 启动后显示底部 3 个 Tab 与悬浮添加按钮', (tester) async {
@@ -54,6 +52,11 @@ void main() {
   });
 
   testWidgets('身体页可以进入肾脏泌尿详情页', (tester) async {
+    // 放大视口，让「身体」tab（含折叠区）与详情页一次性渲染完。
+    tester.view.physicalSize = const Size(1200, 5000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
@@ -65,22 +68,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 无数据时所有部位都是「数据不足」，默认折叠，先展开。
+    // 无数据时所有部位都是「数据不足」，默认折叠，先展开其余。
     await tester.tap(find.textContaining('展开其余'));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.text('肾脏/泌尿'), 200);
-    await tester.tap(find.text('肾脏/泌尿'));
+    await tester.tap(find.text('肾脏/泌尿').first);
     await tester.pumpAndSettle();
 
     expect(find.text('肌酐'), findsNothing);
     expect(find.text('暂无可用于判断的检查指标'), findsOneWidget);
     expect(find.text('需关注问题'), findsOneWidget);
     expect(find.text('历史趋势'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.textContaining('不等同于医学诊断'),
-      400,
-    );
     expect(find.textContaining('不等同于医学诊断'), findsOneWidget);
   });
 
@@ -144,10 +142,8 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.6.6+16'), findsOneWidget);
-    expect(
-        find.text('提醒改「打勾完成」（可撤销、20 天自动消失）；记录页来源筛选切 Tab 不丢'),
-        findsOneWidget);
+    expect(find.text('版本 1.7.0+17'), findsOneWidget);
+    expect(find.textContaining('慢性病改勾选'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {

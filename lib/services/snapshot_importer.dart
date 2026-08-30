@@ -29,11 +29,15 @@ class SnapshotImporter {
         await repo.clearAllHealthData();
         await _importPersonProfiles(repo, snapshot['personProfiles']);
         await _importProfile(repo, snapshot['profile']);
-        final reportIdMap = await _importReports(repo, snapshot['reports'], reportImagePaths);
+        final encounterIdMap =
+            await _importEncounters(repo, snapshot['encounters']);
+        final reportIdMap = await _importReports(
+            repo, snapshot['reports'], reportImagePaths, encounterIdMap);
         await _importMetrics(repo, snapshot['metrics'], reportIdMap);
         await _importDaily(repo, snapshot['dailyRecords']);
         await _importDiseases(repo, snapshot['diseases']);
         await _importMedications(repo, snapshot['medications']);
+        await _importAllergies(repo, snapshot['allergies']);
         await _importReminders(repo, snapshot['reminders']);
       });
     } catch (e) {
@@ -81,11 +85,60 @@ class SnapshotImporter {
     }
   }
 
+  /// 重建就诊记录，返回 旧 id -> 新 id 映射（供报告重新归属）。
+  static Future<Map<int, int>> _importEncounters(
+      HealthRepository repo, dynamic list) async {
+    final idMap = <int, int>{};
+    if (list is! List) return idMap;
+    for (final item in list) {
+      if (item is! Map) continue;
+      final oldId = item['id'];
+      if (oldId is! num) continue;
+      try {
+        final newId = await repo.insertEncounter(
+          profileId: _toInt(item['profileId']) ??
+              HealthRepository.defaultProfileId,
+          visitDate:
+              DateTime.tryParse('${item['visitDate']}') ?? DateTime.now(),
+          hospitalName: (item['hospitalName'] ?? '').toString(),
+          department: (item['department'] ?? '').toString(),
+          diagnosis: item['diagnosis']?.toString(),
+          advice: item['advice']?.toString(),
+          notes: item['notes']?.toString(),
+          conditionCode: item['conditionCode']?.toString(),
+        );
+        idMap[oldId.toInt()] = newId;
+      } catch (_) {}
+    }
+    return idMap;
+  }
+
+  static Future<void> _importAllergies(
+      HealthRepository repo, dynamic list) async {
+    if (list is! List) return;
+    for (final item in list) {
+      if (item is! Map) continue;
+      try {
+        await repo.insertAllergy(
+          profileId: _toInt(item['profileId']) ??
+              HealthRepository.defaultProfileId,
+          substance: (item['substance'] ?? '').toString(),
+          category: (item['category'] ?? '药物').toString(),
+          reaction: item['reaction']?.toString(),
+          severity: (item['severity'] ?? '不确定').toString(),
+          notedDate: DateTime.tryParse('${item['notedDate']}'),
+          notes: item['notes']?.toString(),
+        );
+      } catch (_) {}
+    }
+  }
+
   /// 重建报告记录，返回旧报告本地 id -> 新报告本地 id 的映射，供指标恢复时重新关联。
   static Future<Map<int, int>> _importReports(
     HealthRepository repo,
     dynamic list,
     Map<String, String>? reportImagePaths,
+    Map<int, int> encounterIdMap,
   ) async {
     final idMap = <int, int>{};
     if (list is! List) return idMap;
@@ -95,6 +148,7 @@ class SnapshotImporter {
       if (oldId is! num) continue;
       try {
         final imagePath = reportImagePaths?[oldId.toInt().toString()];
+        final oldEnc = _toInt(item['encounterId']);
         final newId = await repo.insertReport(
           profileId: _toInt(item['profileId']) ?? HealthRepository.defaultProfileId,
           hospitalName: (item['hospitalName'] ?? '').toString(),
@@ -104,6 +158,8 @@ class SnapshotImporter {
           rawText: item['rawText']?.toString(),
           tags: HealthRepository.parseTags(item['tags']?.toString()),
           recognitionStatus: (item['recognitionStatus'] ?? 'confirmed').toString(),
+          conditionCode: item['conditionCode']?.toString(),
+          encounterId: oldEnc == null ? null : encounterIdMap[oldEnc],
         );
         idMap[oldId.toInt()] = newId;
       } catch (_) {
@@ -190,6 +246,9 @@ class SnapshotImporter {
           foundDate: DateTime.tryParse('${item['foundDate']}'),
           status: (item['status'] ?? '不确定').toString(),
           notes: item['notes']?.toString(),
+          conditionCode: item['conditionCode']?.toString(),
+          stage: item['stage']?.toString(),
+          diagnosisBasis: item['diagnosisBasis']?.toString(),
         );
       } catch (_) {}
     }
@@ -211,6 +270,7 @@ class SnapshotImporter {
           endDate: DateTime.tryParse('${item['endDate']}'),
           status: (item['status'] ?? '当前使用').toString(),
           notes: item['notes']?.toString(),
+          conditionCode: item['conditionCode']?.toString(),
         );
       } catch (_) {}
     }

@@ -7,6 +7,7 @@ import '../utils/format.dart';
 
 enum DailyEntryType {
   weight('weight', '体重', Icons.monitor_weight_outlined, 'kg'),
+  waist('waist', '腰围', Icons.straighten, 'cm'),
   bloodPressure('blood_pressure', '血压', Icons.speed, 'mmHg'),
   bloodGlucose('blood_glucose', '血糖', Icons.water_drop_outlined, 'mmol/L'),
   heartRate('heart_rate', '心率', Icons.favorite_border, 'bpm');
@@ -33,7 +34,7 @@ class DailyHealthEntryPage extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.only(top: 4, bottom: 12),
             child: Text(
-              '记录体重、血压、血糖和心率',
+              '记录体重、腰围、血压、血糖和心率',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
           ),
@@ -308,6 +309,7 @@ class _DailyEntryFormPageState extends State<DailyEntryFormPage> {
                 _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
           );
         case DailyEntryType.weight:
+        case DailyEntryType.waist:
         case DailyEntryType.heartRate:
           await repo.insertDaily(
             type: _type.dbType,
@@ -377,6 +379,8 @@ class _DailyEditPageState extends State<DailyEditPage> {
         return '血糖';
       case 'weight':
         return '体重';
+      case 'waist':
+        return '腰围';
       case 'heart_rate':
         return '心率';
       default:

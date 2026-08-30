@@ -8,14 +8,10 @@ import '../widgets/health_status_card.dart';
 import '../widgets/normal_items_toggle.dart';
 import '../widgets/profile_switcher.dart';
 import '../widgets/section_title.dart';
-import 'condition_page.dart';
-import 'medical_summary_page.dart';
-import 'medication_page.dart';
 import 'metric_history_page.dart';
 import 'report_detail_page.dart';
 
-/// 身体页面：以身体部位为主线查看健康数据。
-/// 第一阶段继续使用 health_metrics.bodySystem 作为指标来源字段。
+/// 「身体」tab：按检查项目（bodySystem）看指标。纯读档案，不做慢病管理。
 class BodyPage extends StatefulWidget {
   const BodyPage({super.key});
 
@@ -25,8 +21,6 @@ class BodyPage extends StatefulWidget {
 
 class _BodyPageState extends State<BodyPage> {
   List<HealthMetric> _real = [];
-  int _diseaseCount = 0;
-  int _medCount = 0;
   bool _loading = true;
   String? _error;
   bool _showNormalAreas = false;
@@ -52,13 +46,9 @@ class _BodyPageState extends State<BodyPage> {
         return;
       }
       final list = await repo.getAllMetrics();
-      final diseases = await repo.getAllDiseases();
-      final meds = await repo.getAllMedications();
       if (mounted) {
         setState(() {
           _real = list;
-          _diseaseCount = diseases.length;
-          _medCount = meds.length;
           _loading = false;
           _error = null;
         });
@@ -94,39 +84,9 @@ class _BodyPageState extends State<BodyPage> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          // 底部多留一点空间，避免最后一项被悬浮的"添加"按钮挡住。
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
           children: [
             const SizedBox(height: 4),
-            const SectionTitle(title: '健康背景'),
-            _BackgroundTile(
-              icon: Icons.coronavirus_outlined,
-              title: '疾病史',
-              count: _diseaseCount,
-              onTap: () => Navigator.of(context)
-                  .push(
-                      MaterialPageRoute(builder: (_) => const ConditionPage()))
-                  .then((_) => _load()),
-            ),
-            const SizedBox(height: 12),
-            _BackgroundTile(
-              icon: Icons.medication_outlined,
-              title: '当前用药',
-              count: _medCount,
-              onTap: () => Navigator.of(context)
-                  .push(
-                      MaterialPageRoute(builder: (_) => const MedicationPage()))
-                  .then((_) => _load()),
-            ),
-            const SizedBox(height: 12),
-            _BackgroundTile(
-              icon: Icons.description_outlined,
-              title: '给医生看的摘要',
-              trailingText: '导出',
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => const MedicalSummaryPage())),
-            ),
-            const SizedBox(height: 16),
             const SectionTitle(title: '身体部位'),
             const SizedBox(height: 4),
             if (_loading)
@@ -157,7 +117,6 @@ class _BodyPageState extends State<BodyPage> {
                         TextStyle(fontSize: 14, color: AppColors.textSecondary),
                   ),
                 ),
-              // 正常 / 数据不足的部位一律折叠，默认收起，太长了。
               if (_normalAreas.isNotEmpty) ...[
                 NormalItemsToggle(
                   expanded: _showNormalAreas,
@@ -191,50 +150,6 @@ class _BodyPageState extends State<BodyPage> {
           allMetrics: _real,
           isExample: false,
         ),
-      ),
-    );
-  }
-}
-
-/// 「健康背景」区的一行：疾病史 / 当前用药 / 给医生看的摘要。
-class _BackgroundTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final int? count;
-  final String? trailingText;
-  final VoidCallback onTap;
-
-  const _BackgroundTile({
-    required this.icon,
-    required this.title,
-    this.count,
-    this.trailingText,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tail =
-        trailingText ?? (count != null && count! > 0 ? '$count 条' : null);
-    return Card(
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: Icon(icon, color: AppColors.textSecondary),
-        title: Text(title,
-            style: const TextStyle(fontSize: 15, color: AppColors.textPrimary)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (tail != null) ...[
-              Text(tail,
-                  style: const TextStyle(
-                      fontSize: 13, color: AppColors.textSecondary)),
-              const SizedBox(width: 4),
-            ],
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-          ],
-        ),
-        onTap: onTap,
       ),
     );
   }

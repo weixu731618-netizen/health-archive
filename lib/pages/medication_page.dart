@@ -149,6 +149,7 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
   late String _status = '当前使用';
   DateTime? _start;
   DateTime? _end;
+  String? _conditionCode;
 
   // B2：服药提醒
   bool _remindEnabled = false;
@@ -171,6 +172,7 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
     _status = m?.status ?? '当前使用';
     _start = m?.startDate;
     _end = m?.endDate;
+    _conditionCode = m?.conditionCode;
     _loadReminder();
   }
 
@@ -252,6 +254,7 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
         status: _status,
         notes: drift.Value(
             _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim()),
+        conditionCode: drift.Value(_conditionCode),
       );
       await repo.updateMedication(updated);
     } else {
@@ -268,6 +271,7 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
         endDate: _end,
         status: _status,
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        conditionCode: _conditionCode,
       );
       _savedMedicationId = newId;
     }

@@ -458,6 +458,7 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+
 String _verificationLabel(String status) {
   switch (status) {
     case 'user_modified':

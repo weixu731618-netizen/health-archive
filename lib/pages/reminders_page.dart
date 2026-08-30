@@ -33,6 +33,10 @@ class _RemindersPageState extends State<RemindersPage> {
       setState(() => _loading = false);
       return;
     }
+    // 慢病升级 步骤4：进页面先按随访模板重算一遍自动复查提醒。
+    try {
+      await repo.regenerateFollowUpsForAllProfiles();
+    } catch (_) {}
     // 提醒有增删改后同步通知表，让「通知中心」拿到最新数据。
     await repo.syncNotificationsFromReminders();
     final reminders = await repo.getActiveReminders(includeCompleted: true);
@@ -105,6 +109,9 @@ class _RemindersPageState extends State<RemindersPage> {
   Widget build(BuildContext context) {
     final rechecks = _reminders.where((r) => r.kind == 'recheck').toList();
     final meds = _reminders.where((r) => r.kind == 'medication').toList();
+    final followups = _reminders.where((r) => r.kind == 'followup').toList()
+      ..sort((a, b) => (a.dueDate ?? DateTime(9999))
+          .compareTo(b.dueDate ?? DateTime(9999)));
     return Scaffold(
       appBar: AppBar(title: const Text('提醒')),
       body: _loading
@@ -112,6 +119,11 @@ class _RemindersPageState extends State<RemindersPage> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
+                if (followups.isNotEmpty) ...[
+                  const _SectionLabel('随访计划（按病种自动排期）'),
+                  for (final r in followups) _reminderTile(r),
+                  const SizedBox(height: 16),
+                ],
                 const _SectionLabel('复查提醒'),
                 if (rechecks.isEmpty) const _EmptyHint('异常指标可在「指标历史」页设置复查提醒'),
                 for (final r in rechecks) _reminderTile(r),
@@ -133,7 +145,7 @@ class _RemindersPageState extends State<RemindersPage> {
   }
 
   Widget _reminderTile(Reminder r) {
-    final isRecheck = r.kind == 'recheck';
+    final isRecheck = r.kind == 'recheck' || r.kind == 'followup';
     final done = r.completedAt != null;
     final sub = <String>[
       if (isRecheck && r.dueDate != null)

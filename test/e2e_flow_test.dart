@@ -172,6 +172,11 @@ void main() {
   });
 
   testWidgets('影像/病理报告：无关联指标时展示识别出的报告结论文字', (tester) async {
+    // 放大视口，让详情页（懒加载 ListView）一次性渲染完，避免滚动查找。
+    tester.view.physicalSize = const Size(1000, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     final reportId = await repo.insertReport(
       hospitalName: '市中心医院',
       reportDate: DateTime(2026, 8, 20),

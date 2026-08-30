@@ -34,6 +34,8 @@ class _DailyHistoryPageState extends State<DailyHistoryPage> {
         return '血糖';
       case 'weight':
         return '体重';
+      case 'waist':
+        return '腰围';
       case 'heart_rate':
         return '心率';
       default:

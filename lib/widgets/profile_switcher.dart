@@ -4,6 +4,7 @@ import '../data/app_database.dart';
 import '../data/health_repository.dart';
 import '../main.dart';
 import '../pages/family_members_page.dart';
+import '../pages/health_records_page.dart';
 import '../pages/profile_page.dart';
 
 /// 每页右上角的头像入口（首页 / 身体 / 记录共用）。
@@ -75,6 +76,8 @@ class _ProfileSwitcherState extends State<ProfileSwitcher> {
           _push(const FamilyMembersPage());
         } else if (v == -2) {
           _push(const ProfilePage());
+        } else if (v == -3) {
+          _push(const HealthRecordsPage());
         } else {
           switchActiveProfile(v);
         }
@@ -89,6 +92,7 @@ class _ProfileSwitcherState extends State<ProfileSwitcher> {
             ),
           const PopupMenuDivider(),
         ],
+        const PopupMenuItem<int>(value: -3, child: Text('健康资料')),
         const PopupMenuItem<int>(value: -1, child: Text('家庭成员')),
         const PopupMenuItem<int>(value: -2, child: Text('设置')),
       ],

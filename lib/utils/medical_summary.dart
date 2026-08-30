@@ -43,8 +43,9 @@ class MedicalSummary {
   final String personName;
   final String? ageSexLine; // "38 岁 · 男 · 172 cm"
   final DateTime generatedAt;
-  final List<String> diseases; // "2型糖尿病（确诊）"
+  final List<String> diseases; // "2型糖尿病（确诊 · 1 级）"
   final List<String> medications; // "二甲双胍缓释片 0.5g 每日2次"
+  final List<String> allergies; // "青霉素（药物 · 重）"
   final List<SummaryMetricLine> abnormalMetrics;
   final List<SummaryReportLine> recentReports;
 
@@ -54,6 +55,7 @@ class MedicalSummary {
     required this.generatedAt,
     required this.diseases,
     required this.medications,
+    this.allergies = const [],
     required this.abnormalMetrics,
     required this.recentReports,
   });
@@ -61,6 +63,7 @@ class MedicalSummary {
   bool get isEmpty =>
       diseases.isEmpty &&
       medications.isEmpty &&
+      allergies.isEmpty &&
       abnormalMetrics.isEmpty &&
       recentReports.isEmpty;
 
@@ -80,6 +83,12 @@ class MedicalSummary {
       b.writeln('\n【当前用药】');
       for (final m in medications) {
         b.writeln('· $m');
+      }
+    }
+    if (allergies.isNotEmpty) {
+      b.writeln('\n【过敏史】');
+      for (final a in allergies) {
+        b.writeln('· $a');
       }
     }
     if (abnormalMetrics.isNotEmpty) {
@@ -116,6 +125,7 @@ MedicalSummary buildMedicalSummary({
   required List<HealthMetric> metrics,
   required List<MedicalReport> reports,
   required Map<int, int> reportMetricCounts,
+  List<Allergy> allergies = const [],
   DateTime? now,
   int maxAbnormalMetrics = 12,
   int maxRecentReports = 5,
@@ -148,9 +158,19 @@ MedicalSummary buildMedicalSummary({
   final diseaseLines = [
     for (final d in diseases)
       if (d.status != '已恢复')
-        d.status.isEmpty || d.status == '不确定'
-            ? d.name
-            : '${d.name}（${d.status}）',
+        _diseaseLine(d),
+  ];
+
+  final allergyLines = [
+    for (final a in allergies)
+      [
+        a.substance,
+        '（',
+        a.category,
+        if (a.severity.isNotEmpty && a.severity != '不确定') ' · ${a.severity}',
+        if ((a.reaction ?? '').isNotEmpty) ' · ${a.reaction}',
+        '）',
+      ].join(),
   ];
 
   final medLines = <String>[];
@@ -219,7 +239,17 @@ MedicalSummary buildMedicalSummary({
     generatedAt: ref,
     diseases: diseaseLines,
     medications: medLines,
+    allergies: allergyLines,
     abnormalMetrics: abnormal.take(maxAbnormalMetrics).toList(),
     recentReports: recent,
   );
+}
+
+String _diseaseLine(Disease d) {
+  final stage = (d.stage ?? '').trim();
+  final parts = <String>[
+    if (d.status.isNotEmpty && d.status != '不确定') d.status,
+    if (stage.isNotEmpty) stage,
+  ];
+  return parts.isEmpty ? d.name : '${d.name}（${parts.join(' · ')}）';
 }

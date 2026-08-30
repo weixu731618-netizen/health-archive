@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../services/followup_scheduler.dart';
 import 'app_database.dart';
 
 /// 展示层用的「当前档案资料」轻量视图（字段名沿用旧的 user_profile，减少页面改动）。
@@ -172,6 +173,10 @@ class HealthRepository {
       await (_db.delete(_db.medications)..where((t) => t.profileId.equals(id)))
           .go();
       await (_db.delete(_db.reminders)..where((t) => t.profileId.equals(id)))
+          .go();
+      await (_db.delete(_db.encounters)..where((t) => t.profileId.equals(id)))
+          .go();
+      await (_db.delete(_db.allergies)..where((t) => t.profileId.equals(id)))
           .go();
       await (_db.delete(_db.personProfiles)..where((t) => t.id.equals(id)))
           .go();
@@ -398,6 +403,8 @@ class HealthRepository {
     String? rawText,
     List<String> tags = const [],
     String recognitionStatus = 'review', // V0.4B：识别后进入确认阶段；确认保存后置 confirmed
+    String? conditionCode,
+    int? encounterId,
   }) async {
     await ensureDefaultPersonProfile();
     return _db.into(_db.medicalReports).insert(
@@ -410,10 +417,118 @@ class HealthRepository {
             rawText: Value(rawText),
             tags: Value(normalizeTags(tags)),
             recognitionStatus: Value(recognitionStatus),
+            conditionCode: Value(conditionCode),
+            encounterId: Value(encounterId),
             createdAt: DateTime.now(),
           ),
         );
   }
+
+  /// 更新报告的主关联慢病（null 清除关联）。
+  Future<void> setReportCondition(int reportId, String? conditionCode) =>
+      (_db.update(_db.medicalReports)..where((t) => t.id.equals(reportId)))
+          .write(MedicalReportsCompanion(conditionCode: Value(conditionCode)));
+
+  /// 把报告归属到某次就诊（null 解除归属）。
+  Future<void> setReportEncounter(int reportId, int? encounterId) =>
+      (_db.update(_db.medicalReports)..where((t) => t.id.equals(reportId)))
+          .write(MedicalReportsCompanion(encounterId: Value(encounterId)));
+
+  // ---------- 慢病升级 步骤5：就诊记录 ----------
+
+  Future<int> insertEncounter({
+    int? profileId,
+    required DateTime visitDate,
+    String hospitalName = '',
+    String department = '',
+    String? diagnosis,
+    String? advice,
+    String? notes,
+    String? conditionCode,
+  }) async {
+    await ensureDefaultPersonProfile();
+    return _db.into(_db.encounters).insert(EncountersCompanion.insert(
+          profileId: Value(profileId ?? _activeProfileId),
+          visitDate: visitDate,
+          hospitalName: Value(hospitalName),
+          department: Value(department),
+          diagnosis: Value(diagnosis),
+          advice: Value(advice),
+          notes: Value(notes),
+          conditionCode: Value(conditionCode),
+          createdAt: DateTime.now(),
+        ));
+  }
+
+  Future<List<Encounter>> getAllEncounters() {
+    final q = _db.select(_db.encounters)
+      ..where((t) => t.profileId.equals(_activeProfileId))
+      ..orderBy([(t) => OrderingTerm.desc(t.visitDate)]);
+    return q.get();
+  }
+
+  Future<Encounter?> getEncounterById(int id) =>
+      (_db.select(_db.encounters)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+
+  Future<bool> updateEncounter(Encounter e) =>
+      _db.update(_db.encounters).replace(e);
+
+  /// 删除一次就诊：其下报告的 encounterId 置空（报告本身保留）。
+  Future<void> deleteEncounter(int id) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.medicalReports)
+            ..where((t) => t.encounterId.equals(id)))
+          .write(const MedicalReportsCompanion(encounterId: Value(null)));
+      await (_db.delete(_db.encounters)..where((t) => t.id.equals(id))).go();
+    });
+  }
+
+  Future<List<MedicalReport>> getReportsForEncounter(int encounterId) {
+    final q = _db.select(_db.medicalReports)
+      ..where((t) =>
+          t.profileId.equals(_activeProfileId) &
+          t.encounterId.equals(encounterId))
+      ..orderBy([(t) => OrderingTerm.desc(t.reportDate)]);
+    return q.get();
+  }
+
+  // ---------- 慢病升级 步骤5：过敏史 ----------
+
+  Future<int> insertAllergy({
+    int? profileId,
+    required String substance,
+    String category = '药物',
+    String? reaction,
+    String severity = '不确定',
+    DateTime? notedDate,
+    String? notes,
+  }) async {
+    await ensureDefaultPersonProfile();
+    return _db.into(_db.allergies).insert(AllergiesCompanion.insert(
+          profileId: Value(profileId ?? _activeProfileId),
+          substance: substance,
+          category: Value(category),
+          reaction: Value(reaction),
+          severity: Value(severity),
+          notedDate: Value(notedDate),
+          notes: Value(notes),
+          createdAt: DateTime.now(),
+        ));
+  }
+
+  Future<List<Allergy>> getAllAllergies() {
+    final q = _db.select(_db.allergies)
+      ..where((t) => t.profileId.equals(_activeProfileId))
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
+    return q.get();
+  }
+
+  Future<bool> updateAllergy(Allergy a) =>
+      _db.update(_db.allergies).replace(a);
+
+  Future<void> deleteAllergy(int id) =>
+      (_db.delete(_db.allergies)..where((t) => t.id.equals(id))).go();
 
   /// 查询全部报告（按日期倒序，最新在前）
   Future<List<MedicalReport>> getAllReports() {
@@ -516,6 +631,9 @@ class HealthRepository {
     DateTime? foundDate,
     String status = '不确定',
     String? notes,
+    String? conditionCode,
+    String? stage,
+    String? diagnosisBasis,
   }) async {
     await ensureDefaultPersonProfile();
     return _db.into(_db.diseases).insert(DiseasesCompanion.insert(
@@ -524,6 +642,9 @@ class HealthRepository {
           foundDate: Value(foundDate),
           status: Value(status),
           notes: Value(notes),
+          conditionCode: Value(conditionCode),
+          stage: Value(stage),
+          diagnosisBasis: Value(diagnosisBasis),
           createdAt: DateTime.now(),
         ));
   }
@@ -531,6 +652,14 @@ class HealthRepository {
   Future<List<Disease>> getAllDiseases() {
     final q = _db.select(_db.diseases)
       ..where((t) => t.profileId.equals(_activeProfileId));
+    return q.get();
+  }
+
+  /// 已纳入慢病字典的疾病史（condition_code 非空）。
+  Future<List<Disease>> getChronicDiseases() {
+    final q = _db.select(_db.diseases)
+      ..where((t) =>
+          t.profileId.equals(_activeProfileId) & t.conditionCode.isNotNull());
     return q.get();
   }
 
@@ -556,6 +685,7 @@ class HealthRepository {
     DateTime? endDate,
     String status = '当前使用',
     String? notes,
+    String? conditionCode,
   }) async {
     await ensureDefaultPersonProfile();
     return _db.into(_db.medications).insert(MedicationsCompanion.insert(
@@ -569,6 +699,7 @@ class HealthRepository {
           endDate: Value(endDate),
           status: Value(status),
           notes: Value(notes),
+          conditionCode: Value(conditionCode),
           createdAt: DateTime.now(),
         ));
   }
@@ -577,6 +708,45 @@ class HealthRepository {
     final q = _db.select(_db.medications)
       ..where((t) => t.profileId.equals(_activeProfileId));
     return q.get();
+  }
+
+  // ---------- 慢病升级 步骤2：按慢病聚合关联数据 ----------
+
+  /// 关联到某慢病的用药：显式关联 [Medication.conditionCode] == code。
+  Future<List<Medication>> getMedicationsForCondition(String code) {
+    final q = _db.select(_db.medications)
+      ..where((t) =>
+          t.profileId.equals(_activeProfileId) &
+          t.conditionCode.equals(code));
+    return q.get();
+  }
+
+  /// 关联到某慢病的报告：显式关联 [MedicalReport.conditionCode] == code，
+  /// 或该报告里含有该慢病相关指标（自动匹配）。按日期倒序。
+  Future<List<MedicalReport>> getReportsForCondition(
+    String code,
+    Iterable<String> relatedMetricIds,
+  ) async {
+    final reports = await getAllReports();
+    if (reports.isEmpty) return const [];
+    final metricSet = relatedMetricIds.toSet();
+    Set<int> autoLinkedReportIds = {};
+    if (metricSet.isNotEmpty) {
+      final metrics = await (_db.select(_db.healthMetrics)
+            ..where((t) =>
+                t.profileId.equals(_activeProfileId) &
+                t.reportId.isNotNull()))
+          .get();
+      autoLinkedReportIds = {
+        for (final mtr in metrics)
+          if (metricSet.contains(mtr.metricId) && mtr.reportId != null)
+            mtr.reportId!,
+      };
+    }
+    return [
+      for (final r in reports)
+        if (r.conditionCode == code || autoLinkedReportIds.contains(r.id)) r,
+    ];
   }
 
   Future<int> deleteMedication(int id) {
@@ -668,6 +838,9 @@ class HealthRepository {
     DateTime? dueDate,
     List<String>? dailyTimes,
     bool enabled = true,
+    String? conditionCode,
+    String? followUpKey,
+    bool autoGenerated = false,
   }) async {
     await ensureDefaultPersonProfile();
     final now = DateTime.now();
@@ -682,10 +855,109 @@ class HealthRepository {
             dueDate: Value(dueDate),
             dailyTimes: Value(dailyTimes?.join(',')),
             enabled: Value(enabled),
+            conditionCode: Value(conditionCode),
+            followUpKey: Value(followUpKey),
+            autoGenerated: Value(autoGenerated),
             createdAt: now,
             updatedAt: now,
           ),
         );
+  }
+
+  // ---------- 慢病升级 步骤4：随访计划自动排期 ----------
+
+  /// 当前档案的随访提醒（kind='followup'），按到期日升序。
+  Future<List<Reminder>> getFollowUpReminders({
+    int? profileId,
+    bool includeCompleted = true,
+  }) {
+    final pid = profileId ?? _activeProfileId;
+    final q = _db.select(_db.reminders)
+      ..where((t) => t.profileId.equals(pid) & t.kind.equals('followup'))
+      ..orderBy([(t) => OrderingTerm.asc(t.dueDate)]);
+    if (!includeCompleted) q.where((t) => t.completedAt.isNull());
+    return q.get();
+  }
+
+  /// 对所有档案重算随访提醒（家庭模式）。幂等：新增缺的、更新到期日、撤掉不再成立的；
+  /// 已「打勾」的项若新周期又到期则自动重新变回待办。
+  Future<void> regenerateFollowUpsForAllProfiles({DateTime? now}) async {
+    final ts = now ?? DateTime.now();
+    final persons = await getAllPersonProfiles();
+    for (final p in persons) {
+      final diseases = await (_db.select(_db.diseases)
+            ..where((t) =>
+                t.profileId.equals(p.id) & t.conditionCode.isNotNull()))
+          .get();
+      final metrics = await (_db.select(_db.healthMetrics)
+            ..where((t) => t.profileId.equals(p.id)))
+          .get();
+      final daily = await (_db.select(_db.dailyHealthRecords)
+            ..where((t) => t.profileId.equals(p.id)))
+          .get();
+      final existing = await (_db.select(_db.reminders)
+            ..where((t) =>
+                t.profileId.equals(p.id) & t.kind.equals('followup')))
+          .get();
+
+      final lastCompleted = <String, DateTime>{};
+      for (final r in existing) {
+        final key = '${r.conditionCode ?? ''}|${r.followUpKey ?? ''}';
+        if (r.completedAt != null) lastCompleted[key] = r.completedAt!;
+      }
+
+      final planned = planFollowUps(
+        chronicDiseases: diseases,
+        metrics: metrics,
+        daily: daily,
+        lastCompletedByKey: lastCompleted,
+        now: ts,
+      );
+      final byKey = {
+        for (final r in existing)
+          '${r.conditionCode ?? ''}|${r.followUpKey ?? ''}': r,
+      };
+      final plannedKeys = planned.map((x) => x.dedupeKey).toSet();
+
+      // 撤掉不再成立的（病删了 / 模板变了）。
+      for (final r in existing) {
+        final key = '${r.conditionCode ?? ''}|${r.followUpKey ?? ''}';
+        if (!plannedKeys.contains(key)) {
+          await (_db.delete(_db.reminders)..where((t) => t.id.equals(r.id)))
+              .go();
+        }
+      }
+
+      for (final x in planned) {
+        final cur = byKey[x.dedupeKey];
+        if (cur == null) {
+          await _db.into(_db.reminders).insert(RemindersCompanion.insert(
+                profileId: Value(p.id),
+                kind: 'followup',
+                title: x.title,
+                detail: Value(x.detail),
+                dueDate: Value(x.dueDate),
+                conditionCode: Value(x.conditionCode),
+                followUpKey: Value(x.itemKey),
+                autoGenerated: const Value(true),
+                createdAt: ts,
+                updatedAt: ts,
+              ));
+          continue;
+        }
+        // 已打勾但新周期又到期（计划日期已到）→ 重新变回待办。
+        final reopen = cur.completedAt != null &&
+            !x.dueDate.isAfter(ts.add(const Duration(days: 7)));
+        await (_db.update(_db.reminders)..where((t) => t.id.equals(cur.id)))
+            .write(RemindersCompanion(
+          title: Value(x.title),
+          detail: Value(x.detail),
+          dueDate: Value(x.dueDate),
+          completedAt: reopen ? const Value(null) : const Value.absent(),
+          updatedAt: Value(ts),
+        ));
+      }
+    }
   }
 
   Future<void> setReminderEnabled(int id, bool enabled) =>
@@ -720,7 +992,10 @@ class HealthRepository {
     return (_db.delete(_db.reminders)
           ..where((t) =>
               t.completedAt.isNotNull() &
-              t.completedAt.isSmallerThanValue(cutoff)))
+              t.completedAt.isSmallerThanValue(cutoff) &
+              // 随访提醒由 regenerateFollowUpsForAllProfiles 负责回滚，别在这里删，
+              // 否则会丢掉「上次已复查时间」这个排期锚点。
+              t.kind.equals('followup').not()))
         .go();
   }
 
@@ -876,7 +1151,9 @@ class HealthRepository {
 
     for (final r in reminders) {
       if (!r.enabled) continue;
-      if (r.kind == 'recheck' && r.dueDate != null) {
+      if ((r.kind == 'recheck' || r.kind == 'followup') &&
+          r.dueDate != null &&
+          r.completedAt == null) {
         final when =
             DateTime(r.dueDate!.year, r.dueDate!.month, r.dueDate!.day, 9);
         if (!has(r.id, when)) {
@@ -1053,7 +1330,36 @@ class HealthRepository {
             'rawText': r.rawText,
             'tags': r.tags,
             'recognitionStatus': r.recognitionStatus,
+            'conditionCode': r.conditionCode,
+            'encounterId': r.encounterId,
             'metricCount': metricCountByReport[r.id] ?? 0,
+          },
+      ],
+      'encounters': [
+        for (final e in await _db.select(_db.encounters).get())
+          {
+            'id': e.id,
+            'profileId': e.profileId,
+            'visitDate': iso(e.visitDate),
+            'hospitalName': e.hospitalName,
+            'department': e.department,
+            'diagnosis': e.diagnosis,
+            'advice': e.advice,
+            'notes': e.notes,
+            'conditionCode': e.conditionCode,
+          },
+      ],
+      'allergies': [
+        for (final a in await _db.select(_db.allergies).get())
+          {
+            'id': a.id,
+            'profileId': a.profileId,
+            'substance': a.substance,
+            'category': a.category,
+            'reaction': a.reaction,
+            'severity': a.severity,
+            'notedDate': iso(a.notedDate),
+            'notes': a.notes,
           },
       ],
       'diseases': [
@@ -1065,6 +1371,9 @@ class HealthRepository {
             'foundDate': iso(d.foundDate),
             'status': d.status,
             'notes': d.notes,
+            'conditionCode': d.conditionCode,
+            'stage': d.stage,
+            'diagnosisBasis': d.diagnosisBasis,
           },
       ],
       'medications': [
@@ -1081,23 +1390,28 @@ class HealthRepository {
             'endDate': iso(m.endDate),
             'status': m.status,
             'notes': m.notes,
+            'conditionCode': m.conditionCode,
           },
       ],
       'reminders': [
         for (final r in await _db.select(_db.reminders).get())
-          {
-            'id': r.id,
-            'profileId': r.profileId,
-            'kind': r.kind,
-            'title': r.title,
-            'detail': r.detail,
-            'relatedMetricId': r.relatedMetricId,
-            'relatedMedicationId': r.relatedMedicationId,
-            'dueDate': iso(r.dueDate),
-            'dailyTimes': r.dailyTimes,
-            'enabled': r.enabled,
-            'completedAt': iso(r.completedAt),
-          },
+          // 自动生成的随访提醒是派生状态，恢复后会重新排期，不进备份。
+          if (!(r.kind == 'followup' && r.autoGenerated))
+            {
+              'id': r.id,
+              'profileId': r.profileId,
+              'kind': r.kind,
+              'title': r.title,
+              'detail': r.detail,
+              'relatedMetricId': r.relatedMetricId,
+              'relatedMedicationId': r.relatedMedicationId,
+              'dueDate': iso(r.dueDate),
+              'dailyTimes': r.dailyTimes,
+              'enabled': r.enabled,
+              'completedAt': iso(r.completedAt),
+              'conditionCode': r.conditionCode,
+              'followUpKey': r.followUpKey,
+            },
       ],
     };
   }
@@ -1112,6 +1426,8 @@ class HealthRepository {
       await _db.delete(_db.diseases).go();
       await _db.delete(_db.medications).go();
       await _db.delete(_db.reminders).go();
+      await _db.delete(_db.encounters).go();
+      await _db.delete(_db.allergies).go();
       await _db.delete(_db.userProfile).go();
       await _db.delete(_db.personProfiles).go();
     });
