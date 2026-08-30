@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../data/app_database.dart';
 import '../main.dart';
 import '../models/body_area_health.dart';
+import '../models/report_followup.dart';
 import '../services/notification_service.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
@@ -89,6 +90,7 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
     if (repo == null) return;
     await NotificationService.instance.requestPermission();
     final m = _latest;
+    final due = DateTime.now().add(Duration(days: days));
     await repo.insertReminder(
       kind: 'recheck',
       title: '复查 ${widget.metricName}',
@@ -96,7 +98,10 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
           ? null
           : '上次 ${fmtLocal(m.value)} ${m.unit}（${m.status}）',
       relatedMetricId: widget.metricId,
-      dueDate: DateTime.now().add(Duration(days: days)),
+      dueDate: due,
+      sourceType: 'user',
+      areaName: m == null ? null : bodyAreaForSystem(m.bodySystem),
+      recommendedDate: due,
     );
     await syncReminders();
     await _load();
@@ -123,9 +128,9 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
                 : '复查提醒：${formatDate(r.dueDate!)}',
             style: const TextStyle(fontSize: 15),
           ),
-          subtitle: const Text('到期会发系统通知',
-              style:
-                  TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          subtitle: Text('来源：${recheckSourceLabel(r.sourceType)} · 到期会发系统通知',
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary)),
           trailing: TextButton(
             onPressed: _cancelRecheck,
             child: const Text('取消'),
@@ -249,28 +254,10 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
                 ),
               )
             else
-              for (final r in _records) ...[
-                Card(
-                  child: ListTile(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    title: Text(
-                      '${fmtLocal(r.value)} ${r.unit}',
-                      style: const TextStyle(
-                          fontSize: 16, color: AppColors.textPrimary),
-                    ),
-                    subtitle: Text(
-                      _historySubtitle(r),
-                      style: const TextStyle(
-                          fontSize: 13, color: AppColors.textSecondary),
-                    ),
-                    trailing: r.reportId == null
-                        ? null
-                        : const Icon(Icons.receipt_long_outlined,
-                            color: AppColors.textSecondary),
-                    onTap: () => _openRecord(r),
-                    onLongPress: () => _editRecord(r),
-                  ),
+              for (var i = 0; i < _records.length; i++) ...[
+                _historyCard(
+                  _records[i],
+                  i + 1 < _records.length ? _records[i + 1] : null,
                 ),
                 const SizedBox(height: 8),
               ],
@@ -477,11 +464,38 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
     await _editRecord(m);
   }
 
-  String _historySubtitle(HealthMetric r) {
+  Widget _historyCard(HealthMetric r, HealthMetric? prev) {
+    return Card(
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          '${fmtLocal(r.value)} ${r.unit}',
+          style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
+        ),
+        subtitle: Text(
+          _historySubtitle(r, prev),
+          style:
+              const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        trailing: r.reportId == null
+            ? null
+            : const Icon(Icons.receipt_long_outlined,
+                color: AppColors.textSecondary),
+        onTap: () => _openRecord(r),
+        onLongPress: () => _editRecord(r),
+      ),
+    );
+  }
+
+  String _historySubtitle(HealthMetric r, [HealthMetric? prev]) {
     final parts = <String>[
       formatDate(r.measuredAt),
       r.status,
     ];
+    final delta = prev == null
+        ? null
+        : metricDeltaLine(r.value, prev.value, r.unit);
+    if (delta != null) parts.add(delta);
     if (r.referenceRangeRaw != null && r.referenceRangeRaw!.isNotEmpty) {
       parts.add('参考 ${r.referenceRangeRaw}');
     } else if (r.referenceMin != null || r.referenceMax != null) {

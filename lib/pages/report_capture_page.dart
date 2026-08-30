@@ -60,7 +60,7 @@ class _ReportCapturePageState extends State<ReportCapturePage> {
           const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: Text(
-              '对准化验单拍照，确保文字清晰',
+              '对准报告拍照，确保文字清晰',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
           ),

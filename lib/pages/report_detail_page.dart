@@ -26,6 +26,7 @@ class ReportDetailPage extends StatefulWidget {
 class _ReportDetailPageState extends State<ReportDetailPage> {
   MedicalReport? _report;
   List<HealthMetric> _metrics = [];
+  List<String> _organs = const [];
   bool _loading = true;
   String? _error;
   bool _showNormalMetrics = false;
@@ -48,10 +49,15 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     try {
       final report = await repo.getReportById(rid);
       final metrics = await repo.getMetricsByReport(rid);
+      List<String> organs = const [];
+      try {
+        organs = await repo.getReportOrgans(rid);
+      } catch (_) {}
       if (mounted) {
         setState(() {
           _report = report;
           _metrics = metrics;
+          _organs = organs;
           _loading = false;
           _error = report == null ? '报告不存在或已删除' : null;
         });
@@ -203,11 +209,14 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               ),
             ),
           ],
-          // 影像/病理等图文报告没有结构化指标，收起「影响部位」「检查指标」两个空区块；
+          // 关联器官：化验单从指标推导，影像 / 图文报告用保存时手选的。
+          if (_effectiveAreas.isNotEmpty) ...[
+            const SectionTitle(title: '关联器官'),
+            _AffectedBodyAreasCard(areas: _effectiveAreas),
+          ],
+          // 影像/病理等图文报告没有结构化指标，收起「检查指标」区块；
           // 若连结论文字也没有，给一句说明避免页面过空。
           if (_metrics.isNotEmpty) ...[
-            const SectionTitle(title: '影响部位'),
-            _AffectedBodyAreasCard(areas: affectedBodyAreasForMetrics(_metrics)),
             const SectionTitle(title: '检查指标'),
             for (final m in _attentionMetrics) ...[
               _ImportedMetricCard(metric: m),
@@ -278,6 +287,16 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   List<HealthMetric> get _normalMetrics {
     final list = _metrics.where((m) => !_needsAttention(m)).toList();
     list.sort((a, b) => b.measuredAt.compareTo(a.measuredAt));
+    return list;
+  }
+
+  /// 关联器官 = 显式关联（影像 / 图文报告手选）∪ 从指标推导（化验单）。
+  List<String> get _effectiveAreas {
+    final set = <String>{
+      ..._organs,
+      ...affectedBodyAreasForMetrics(_metrics),
+    }..removeWhere((e) => e.trim().isEmpty);
+    final list = set.toList()..sort();
     return list;
   }
 

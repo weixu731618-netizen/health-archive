@@ -64,11 +64,13 @@ void main() {
     expect(find.text('糖化血红蛋白'), findsWidgets);
     expect(find.textContaining('6.8 %'), findsWidgets);
 
-    // 身体页 → 代谢部位能看见这条数据（异常部位优先）
+    // 身体页 → 代谢部位进入「需要关注」，标注异常项数
     await tester.tap(find.descendant(
         of: find.byType(NavigationBar), matching: find.text('身体')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('异常指标：糖化血红蛋白 6.8 %'), findsWidgets);
+    expect(find.text('需要关注'), findsWidgets);
+    expect(find.text('代谢'), findsWidgets);
+    expect(find.textContaining('1 项异常'), findsWidgets);
   });
 
   testWidgets('指标历史显示确认状态和来源报告，并可点回报告详情', (tester) async {

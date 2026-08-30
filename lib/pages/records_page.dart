@@ -14,11 +14,12 @@ import 'manual_metric_entry_page.dart';
 import 'report_detail_page.dart';
 
 /// 记录页在切 Tab 时会整页重建（为了每次进来都加载最新数据），
-/// 用这个模块级变量把「来源筛选」的选择留住，切走再回来还是原来选的那个。
+/// 用这两个模块级变量把「类型 / 器官」筛选的选择留住，切走再回来还是原来选的那个。
 /// App 重启后回到「全部」。
-String _recordsSourceFilter = 'all';
+String _recordsTypeFilter = 'all';
+String? _recordsOrganFilter;
 
-/// 记录页面：仅展示用户实际录入或导入的数据。
+/// 记录页 = 全部健康资料的时间轴 + 检索入口。
 class RecordsPage extends StatefulWidget {
   const RecordsPage({super.key});
 
@@ -26,16 +27,19 @@ class RecordsPage extends StatefulWidget {
   State<RecordsPage> createState() => _RecordsPageState();
 }
 
+/// 记录条目类型。随访记录（FOLLOW_UP_RECORD）暂无创建入口，先不做。
+enum _RecKind { report, image, manual }
+
 class _RecordsPageState extends State<RecordsPage> {
-  /// 来源筛选：all / daily / report。未来的来源（拍摄识别、用药、Apple Health、
-  /// 设备导入）在 models/metric_source.dart 的 visibleRecordSourceFilters 里登记后
-  /// 再加进来即可。
-  static const List<(String, String)> _sourceFilters = [
+  /// 资料类型筛选：all / report（化验报告）/ image（影像·图文报告）/ manual（手动·日常记录）。
+  static const List<(String, String)> _typeFilters = [
     ('全部', 'all'),
-    ('日常记录', 'daily'),
     ('报告', 'report'),
+    ('影像', 'image'),
+    ('手动记录', 'manual'),
   ];
-  String _sourceFilter = _recordsSourceFilter;
+  String _typeFilter = _recordsTypeFilter;
+  String? _organFilter = _recordsOrganFilter;
 
   /// 搜索框默认收起，点 AppBar 放大镜展开。
   bool _searchOpen = false;
@@ -148,7 +152,7 @@ class _RecordsPageState extends State<RecordsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('资料来源'),
+        title: const Text('记录'),
         actions: [
           IconButton(
             tooltip: '搜索',
@@ -201,17 +205,21 @@ class _RecordsPageState extends State<RecordsPage> {
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                for (final (label, value) in _sourceFilters)
+                for (final (label, value) in _typeFilters)
                   ChoiceChip(
                     label: Text(label),
                     showCheckmark: false,
-                    selected: _sourceFilter == value,
-                    // 再点一下选中的 chip → 取消筛选回到「全部」。
+                    selected: _typeFilter == value,
+                    // 再点一下选中的 chip → 回到「全部」。
                     onSelected: (sel) => setState(() {
-                      _sourceFilter = sel ? value : 'all';
-                      _recordsSourceFilter = _sourceFilter; // 记住，切 Tab 不丢
+                      _typeFilter = sel ? value : 'all';
+                      _recordsTypeFilter = _typeFilter; // 记住，切 Tab 不丢
                     }),
                   ),
+                _OrganFilterButton(
+                  organ: _organFilter,
+                  onTap: _pickOrgan,
+                ),
                 _FilterButton(
                   activeCount: _filter.activeCount,
                   onTap: _openFilterSheet,
@@ -239,71 +247,151 @@ class _RecordsPageState extends State<RecordsPage> {
                 child: Text(_error!,
                     style: const TextStyle(color: AppColors.textSecondary)),
               )
-            else if (_filteredReal.isEmpty && _visibleReports.isEmpty)
+            else if (_timeline.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  _filter.query.isNotEmpty || _filter.activeCount > 0
+                  _filter.query.isNotEmpty ||
+                          _filter.activeCount > 0 ||
+                          _typeFilter != 'all' ||
+                          _organFilter != null
                       ? '没有符合条件的记录'
-                      : '还没有录入数据，去「添加」页手动录入或记录日常健康吧',
+                      : '还没有健康资料\n拍摄或导入第一份医疗报告。',
                   style: const TextStyle(
                       fontSize: 14, color: AppColors.textSecondary),
                 ),
               )
-            else ...[
-              for (final r in _visibleReports) ...[
-                _ReportTile(
-                  report: r,
-                  metricCount: _reportMetricCounts[r.id] ?? 0,
-                  onTap: () => _openReport(context, r),
-                  onEditTags: () => _editTags(r),
+            else
+              for (final block in _groupByMonth(_timeline)) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(2, 4, 0, 8),
+                  child: Text(
+                    block.month,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary),
+                  ),
                 ),
-                const SizedBox(height: 12),
+                for (final item in block.items) ...[
+                  if (item.report != null)
+                    _ReportTile(
+                      report: item.report!,
+                      metricCount: _reportMetricCounts[item.report!.id] ?? 0,
+                      onTap: () => _openReport(context, item.report!),
+                      onEditTags: () => _editTags(item.report!),
+                    )
+                  else
+                    _RealTile(
+                      entry: item.entry!,
+                      onTap: () => _openReal(context, item.entry!),
+                      onLongPress: () => _openReal(context, item.entry!),
+                    ),
+                  const SizedBox(height: 12),
+                ],
               ],
-              if (_visibleReports.isNotEmpty) const SizedBox(height: 8),
-              for (final entry in _filteredReal) ...[
-                _RealTile(
-                  entry: entry,
-                  onTap: () => _openReal(context, entry),
-                  onLongPress: () => _openReal(context, entry),
-                ),
-                const SizedBox(height: 12),
-              ],
-            ],
           ],
         ),
       ),
     );
   }
 
-  /// 来源 chip + 搜索/筛选条件叠加后的真实数据列表
-  List<RealEntry> get _filteredReal {
-    Iterable<RealEntry> list = _real;
-    if (_sourceFilter == 'report') {
-      list = list.where((e) => e.source == '报告导入');
-    } else if (_sourceFilter == 'daily') {
-      list = list.where((e) => e.source == '日常记录');
-    }
-    return list
-        .where((e) => _filter.matchesEntry(
-              title: e.title,
-              subtitle: e.subtitle,
-              status: e.status,
-              measuredAt: e.measuredAt,
-            ))
-        .toList();
+  Future<void> _pickOrgan() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('全部器官'),
+                trailing: _organFilter == null
+                    ? const Icon(Icons.check, color: AppColors.primary)
+                    : null,
+                onTap: () => Navigator.pop(context, '__all__'),
+              ),
+              for (final a in coreBodyAreaOrder)
+                ListTile(
+                  title: Text(a),
+                  trailing: _organFilter == a
+                      ? const Icon(Icons.check, color: AppColors.primary)
+                      : null,
+                  onTap: () => Navigator.pop(context, a),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null) return;
+    setState(() {
+      _organFilter = picked == '__all__' ? null : picked;
+      _recordsOrganFilter = _organFilter;
+    });
   }
 
-  /// 来源 chip + 搜索/筛选条件叠加后的报告列表
-  List<MedicalReport> get _visibleReports {
-    if (_sourceFilter == 'daily') return const []; // 日常记录筛选下不显示报告
-    return _reports
-        .where((r) => _filter.matchesReport(
-              r,
-              metricNames: _reportMetricNames[r.id] ?? const [],
-              hasAbnormalMetric: _reportHasAbnormal[r.id] ?? false,
-            ))
-        .toList();
+  bool _matchesType(_RecKind k) {
+    switch (_typeFilter) {
+      case 'report':
+        return k == _RecKind.report;
+      case 'image':
+        return k == _RecKind.image;
+      case 'manual':
+        return k == _RecKind.manual;
+      default:
+        return true;
+    }
+  }
+
+  /// 报告 + 手动/日常记录合成一条按时间倒序的时间轴，逐条套用类型 / 器官 / 搜索筛选。
+  List<_TimelineItem> get _timeline {
+    final out = <_TimelineItem>[];
+    for (final r in _reports) {
+      final count = _reportMetricCounts[r.id] ?? 0;
+      final kind = count > 0 ? _RecKind.report : _RecKind.image;
+      if (!_matchesType(kind)) continue;
+      final areas = affectedBodyAreasForRawMetricNames(
+          _reportMetricNames[r.id] ?? const []);
+      if (_organFilter != null && !areas.contains(_organFilter)) continue;
+      if (!_filter.matchesReport(
+        r,
+        metricNames: _reportMetricNames[r.id] ?? const [],
+        hasAbnormalMetric: _reportHasAbnormal[r.id] ?? false,
+      )) {
+        continue;
+      }
+      out.add(_TimelineItem(date: r.reportDate, report: r));
+    }
+    for (final e in _real) {
+      if (!_matchesType(_RecKind.manual)) continue;
+      if (_organFilter != null && !e.areas.contains(_organFilter)) continue;
+      if (!_filter.matchesEntry(
+        title: e.title,
+        subtitle: e.subtitle,
+        status: e.status,
+        measuredAt: e.measuredAt,
+      )) {
+        continue;
+      }
+      out.add(_TimelineItem(date: e.measuredAt, entry: e));
+    }
+    out.sort((a, b) => b.date.compareTo(a.date));
+    return out;
+  }
+
+  List<_MonthBlock> _groupByMonth(List<_TimelineItem> items) {
+    final blocks = <_MonthBlock>[];
+    for (final it in items) {
+      final label = '${it.date.year}年${it.date.month}月';
+      if (blocks.isEmpty || blocks.last.month != label) {
+        blocks.add(_MonthBlock(label, [it]));
+      } else {
+        blocks.last.items.add(it);
+      }
+    }
+    return blocks;
   }
 
   Future<void> _openReport(BuildContext context, MedicalReport report) async {
@@ -354,6 +442,41 @@ class _RecordsPageState extends State<RecordsPage> {
     if (result == null) return;
     await repo.setReportTags(report.id, result);
     if (mounted) _load();
+  }
+}
+
+/// 时间轴上的一条：报告 或 手动/日常记录，二选一。
+class _TimelineItem {
+  final DateTime date;
+  final MedicalReport? report;
+  final RealEntry? entry;
+  const _TimelineItem({required this.date, this.report, this.entry});
+}
+
+class _MonthBlock {
+  final String month;
+  final List<_TimelineItem> items;
+  _MonthBlock(this.month, this.items);
+}
+
+class _OrganFilterButton extends StatelessWidget {
+  final String? organ;
+  final VoidCallback onTap;
+  const _OrganFilterButton({required this.organ, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final active = organ != null;
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.category_outlined, size: 18),
+      label: Text(active ? '器官·$organ' : '器官'),
+      style: OutlinedButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        foregroundColor:
+            active ? AppColors.primary : AppColors.textSecondary,
+      ),
+    );
   }
 }
 
@@ -426,6 +549,9 @@ class RealEntry {
   final String source; // 手工录入 / 日常记录
   final DateTime measuredAt;
 
+  /// 这条记录涉及的身体部位（用于记录页「器官」筛选）。
+  final Set<String> areas;
+
   RealEntry.metric(HealthMetric m)
       : metricId = m.id,
         dailyId = null,
@@ -437,7 +563,8 @@ class RealEntry {
                 : '  (参考 ${fmtNum(m.referenceMin!)}–${fmtNum(m.referenceMax!)} ${m.unit})'),
         status = m.status,
         source = sourceTypeLabel(m.sourceType),
-        measuredAt = m.measuredAt;
+        measuredAt = m.measuredAt,
+        areas = {bodyAreaForSystem(m.bodySystem)};
 
   RealEntry.daily(DailyHealthRecord d)
       : metricId = null,
@@ -447,7 +574,22 @@ class RealEntry {
         subtitle = _dailySubtitle(d),
         status = '',
         source = '日常记录',
-        measuredAt = d.measuredAt;
+        measuredAt = d.measuredAt,
+        areas = _areasForDailyType(d.type);
+
+  static Set<String> _areasForDailyType(String t) {
+    switch (t) {
+      case 'blood_pressure':
+      case 'heart_rate':
+        return {'心血管'};
+      case 'blood_glucose':
+      case 'weight':
+      case 'waist':
+        return {'代谢'};
+      default:
+        return const {};
+    }
+  }
 
   static String _dailyTitle(DailyHealthRecord d) {
     switch (d.type) {
@@ -510,7 +652,7 @@ class _ReportTile extends StatelessWidget {
   });
 
   String get _typeLabel =>
-      report.reportType.isNotEmpty ? report.reportType : '化验单';
+      report.reportType.isNotEmpty ? report.reportType : '报告';
 
   /// 有指标 → 「类型 · N 项指标」；无指标（影像/病理等图文报告）→ 「类型 · 图文报告」。
   String get _summaryLine =>

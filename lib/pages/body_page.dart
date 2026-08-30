@@ -3,15 +3,21 @@ import 'package:flutter/material.dart';
 import '../data/app_database.dart';
 import '../main.dart';
 import '../models/body_area_health.dart';
+import '../models/chronic_condition_dictionary.dart';
+import '../models/metric_dictionary.dart';
+import '../models/report_followup.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
 import '../widgets/normal_items_toggle.dart';
 import '../widgets/profile_switcher.dart';
 import '../widgets/section_title.dart';
 import 'metric_history_page.dart';
+import 'reminders_page.dart';
+import 'report_capture_page.dart';
 import 'report_detail_page.dart';
 
-/// 「身体」tab：按检查项目（bodySystem）看指标。纯读档案，不做慢病管理。
+/// 「身体」tab = 器官导航：各部位最近有什么记录、哪里需要关注、哪里暂无资料。
+/// 纯读档案聚合，不做慢病管理，不做体检计划，不打健康评分。
 class BodyPage extends StatefulWidget {
   const BodyPage({super.key});
 
@@ -19,11 +25,38 @@ class BodyPage extends StatefulWidget {
   State<BodyPage> createState() => _BodyPageState();
 }
 
+/// 部位在身体页里显示的单一状态词。优先级从高到低。
+enum _AreaState { followUp, attention, longTerm, hasRecord, noRecord }
+
+extension on _AreaState {
+  String get label => switch (this) {
+        _AreaState.followUp => '等待复查',
+        _AreaState.attention => '需要关注',
+        _AreaState.longTerm => '长期关注',
+        _AreaState.hasRecord => '近期有记录',
+        _AreaState.noRecord => '暂无记录',
+      };
+
+  Color get color => switch (this) {
+        _AreaState.followUp => AppColors.warning,
+        _AreaState.attention => AppColors.warning,
+        _AreaState.longTerm => AppColors.primary,
+        _AreaState.hasRecord => AppColors.normal,
+        _AreaState.noRecord => AppColors.insufficient,
+      };
+}
+
+class _AreaRow {
+  final BodyAreaHealthSummary area;
+  final _AreaState state;
+  const _AreaRow(this.area, this.state);
+}
+
 class _BodyPageState extends State<BodyPage> {
   List<HealthMetric> _real = [];
+  List<_AreaRow> _rows = const [];
   bool _loading = true;
   String? _error;
-  bool _showNormalAreas = false;
 
   @override
   void initState() {
@@ -39,16 +72,49 @@ class _BodyPageState extends State<BodyPage> {
         if (mounted) {
           setState(() {
             _real = const [];
+            _rows = const [];
             _loading = false;
             _error = null;
           });
         }
         return;
       }
-      final list = await repo.getAllMetrics();
+      final metrics = await repo.getAllMetrics();
+      final reminders = await repo.getActiveReminders();
+      final diseases = await repo.getChronicDiseases();
+
+      // 有未完成复查 / 随访提醒的部位
+      final followUpAreas = <String>{};
+      for (final r in reminders) {
+        if ((r.kind == 'recheck' || r.kind == 'followup') &&
+            r.completedAt == null) {
+          followUpAreas.addAll(_areasForReminder(r));
+        }
+      }
+      // 关联到已确认慢性病的部位
+      final longTermAreas = <String>{};
+      for (final d in diseases) {
+        if (d.status == '已恢复') continue;
+        longTermAreas.addAll(_areasForCondition(d.conditionCode));
+      }
+
+      final areas = buildBodyAreaHealthFromMetrics(metrics);
+      final rows = [
+        for (final a in areas)
+          _AreaRow(
+            a,
+            _stateFor(
+              a,
+              followUp: followUpAreas.contains(a.name),
+              longTerm: longTermAreas.contains(a.name),
+            ),
+          ),
+      ];
+
       if (mounted) {
         setState(() {
-          _real = list;
+          _real = metrics;
+          _rows = rows;
           _loading = false;
           _error = null;
         });
@@ -63,16 +129,24 @@ class _BodyPageState extends State<BodyPage> {
     }
   }
 
-  List<BodyAreaHealthSummary> get _bodyAreas =>
-      buildBodyAreaHealthFromMetrics(_real);
+  _AreaState _stateFor(
+    BodyAreaHealthSummary a, {
+    required bool followUp,
+    required bool longTerm,
+  }) {
+    if (followUp) return _AreaState.followUp;
+    if (a.status == '异常' || a.status == '需关注') return _AreaState.attention;
+    if (longTerm) return _AreaState.longTerm;
+    if (a.metrics.isNotEmpty) return _AreaState.hasRecord;
+    return _AreaState.noRecord;
+  }
 
-  /// 异常 / 需关注的部位：始终展示在前。
-  List<BodyAreaHealthSummary> get _attentionAreas =>
-      _bodyAreas.where((a) => a.priorityRank <= 1).toList();
+  bool get _hasAnyRecord => _rows.any((r) => r.area.metrics.isNotEmpty);
 
-  /// 正常（含数据不足）的部位：默认折叠。
-  List<BodyAreaHealthSummary> get _normalAreas =>
-      _bodyAreas.where((a) => a.priorityRank > 1).toList();
+  List<_AreaRow> get _attentionRows => _rows
+      .where((r) =>
+          r.state == _AreaState.followUp || r.state == _AreaState.attention)
+      .toList();
 
   @override
   Widget build(BuildContext context) {
@@ -83,107 +157,271 @@ class _BodyPageState extends State<BodyPage> {
       ),
       body: RefreshIndicator(
         onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-          children: [
-            const SizedBox(height: 4),
-            const SectionTitle(title: '身体部位'),
-            const SizedBox(height: 4),
-            if (_loading)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_error != null)
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(_error!,
-                    style: const TextStyle(color: AppColors.textSecondary)),
-              )
-            else ...[
-              for (final area in _attentionAreas) ...[
-                _BodyAreaCard(
-                  area: area,
-                  onTap: () => _openAreaDetail(context, area),
-                ),
-                const SizedBox(height: 12),
-              ],
-              if (_attentionAreas.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    '暂无异常 / 需关注的部位',
-                    style:
-                        TextStyle(fontSize: 14, color: AppColors.textSecondary),
-                  ),
-                ),
-              if (_normalAreas.isNotEmpty) ...[
-                NormalItemsToggle(
-                  expanded: _showNormalAreas,
-                  hiddenCount: _normalAreas.length,
-                  onTap: () =>
-                      setState(() => _showNormalAreas = !_showNormalAreas),
-                ),
-                if (_showNormalAreas) ...[
-                  const SizedBox(height: 12),
-                  for (final area in _normalAreas) ...[
-                    _BodyAreaCard(
-                      area: area,
-                      onTap: () => _openAreaDetail(context, area),
+        child: _loading
+            ? const Center(child: Padding(
+                padding: EdgeInsets.all(48),
+                child: CircularProgressIndicator(),
+              ))
+            : _error != null
+                ? ListView(children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(_error!,
+                          style: const TextStyle(
+                              color: AppColors.textSecondary)),
                     ),
-                    const SizedBox(height: 12),
-                  ],
-                ],
-              ],
-            ],
-          ],
-        ),
+                  ])
+                : !_hasAnyRecord
+                    ? _BodyEmptyState(
+                        onCapture: () => _push(const ReportCapturePage()),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                        children: [
+                          _OverviewCard(rows: _rows),
+                          if (_attentionRows.isNotEmpty) ...[
+                            const SizedBox(height: 18),
+                            const SectionTitle(title: '需要关注'),
+                            const SizedBox(height: 8),
+                            for (final r in _attentionRows) ...[
+                              _AttentionAreaCard(
+                                row: r,
+                                onTap: () => _openAreaDetail(r.area),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          ],
+                          const SizedBox(height: 18),
+                          const SectionTitle(title: '身体记录'),
+                          const SizedBox(height: 8),
+                          for (final r in _rows) ...[
+                            _AreaListRow(
+                              row: r,
+                              onTap: () => _openAreaDetail(r.area),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                        ],
+                      ),
       ),
     );
   }
 
-  void _openAreaDetail(BuildContext context, BodyAreaHealthSummary area) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => BodySystemDetailPage(
-          area: area,
-          allMetrics: _real,
-          isExample: false,
+  Future<void> _push(Widget page) => Navigator.of(context)
+      .push(MaterialPageRoute(builder: (_) => page))
+      .then((_) => _load());
+
+  void _openAreaDetail(BodyAreaHealthSummary area) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (_) => BodySystemDetailPage(
+            area: area,
+            allMetrics: _real,
+            isExample: false,
+          ),
+        ))
+        .then((_) => _load());
+  }
+}
+
+/// 慢病字典的 conditionCode → 受影响的身体部位集合。
+Set<String> _areasForCondition(String? code) {
+  final def = findChronicCondition(code);
+  if (def == null) return const {};
+  final out = <String>{};
+  for (final mid in def.relatedMetricIds) {
+    final d = findMetricDefinition(mid);
+    if (d != null) out.add(bodyAreaForSystem(d.bodySystem));
+  }
+  for (final dt in def.relatedDailyTypes) {
+    final a = _areaForDailyType(dt);
+    if (a != null) out.add(a);
+  }
+  return out;
+}
+
+/// 一条复查 / 随访提醒 → 受影响的身体部位集合。
+/// 先按 conditionCode 走字典；再用提醒标题里是否包含部位名兜底。
+Set<String> _areasForReminder(Reminder r) {
+  final out = <String>{..._areasForCondition(r.conditionCode)};
+  for (final area in coreBodyAreaOrder) {
+    for (final seg in area.split('/')) {
+      if (seg.trim().isNotEmpty && r.title.contains(seg.trim())) out.add(area);
+    }
+  }
+  return out;
+}
+
+String? _areaForDailyType(String t) {
+  switch (t) {
+    case 'blood_pressure':
+    case 'heart_rate':
+      return '心血管';
+    case 'blood_glucose':
+    case 'weight':
+    case 'waist':
+      return '代谢';
+  }
+  return null;
+}
+
+/// 身体记录概览：有近期记录 / 需要关注 / 暂无记录 三个计数（不用百分比）。
+class _OverviewCard extends StatelessWidget {
+  final List<_AreaRow> rows;
+  const _OverviewCard({required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    var attention = 0;
+    var hasRecord = 0;
+    var noRecord = 0;
+    for (final r in rows) {
+      switch (r.state) {
+        case _AreaState.followUp:
+        case _AreaState.attention:
+          attention++;
+        case _AreaState.longTerm:
+        case _AreaState.hasRecord:
+          hasRecord++;
+        case _AreaState.noRecord:
+          noRecord++;
+      }
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        child: Row(
+          children: [
+            _OverviewStat(
+                n: hasRecord, label: '有近期记录', color: AppColors.normal),
+            _OverviewStat(
+                n: attention, label: '需要关注', color: AppColors.warning),
+            _OverviewStat(
+                n: noRecord, label: '暂无记录', color: AppColors.insufficient),
+          ],
         ),
       ),
     );
   }
 }
 
-class _BodyAreaCard extends StatelessWidget {
-  final BodyAreaHealthSummary area;
-  final VoidCallback onTap;
-
-  const _BodyAreaCard({
-    required this.area,
-    required this.onTap,
-  });
+class _OverviewStat extends StatelessWidget {
+  final int n;
+  final String label;
+  final Color color;
+  const _OverviewStat(
+      {required this.n, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    // 只有异常 / 需关注的部位才在卡片上带一行关键指标；正常 / 数据不足的不铺小字，
-    // 状态胶囊已经说明一切，点开看详情即可。
-    final key = area.keyMetric;
-    final needsAttention = area.status == '异常' || area.status == '需关注';
-    String? subtitle;
-    if (needsAttention && key != null) {
-      final source = area.latestMeasuredAt == null
-          ? '暂无来源'
-          : formatDate(area.latestMeasuredAt!);
-      subtitle =
-          '${area.abnormalCount > 0 ? '异常指标' : '需关注指标'}：${key.name} ${key.valueText} · 来源 $source';
-    }
+    return Expanded(
+      child: Column(children: [
+        Text('$n',
+            style: TextStyle(
+                fontSize: 24, fontWeight: FontWeight.w700, color: color)),
+        const SizedBox(height: 4),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 12, color: AppColors.textSecondary)),
+      ]),
+    );
+  }
+}
 
-    return HealthStatusCard(
-      title: area.name,
-      status: area.status,
-      subtitle: subtitle,
-      onTap: onTap,
+/// 「需要关注」里的一张部位卡片："肝脏 · 1项异常" / "甲状腺 · 等待复查"。
+class _AttentionAreaCard extends StatelessWidget {
+  final _AreaRow row;
+  final VoidCallback onTap;
+  const _AttentionAreaCard({required this.row, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final a = row.area;
+    final String detail;
+    if (row.state == _AreaState.followUp) {
+      detail = '等待复查';
+    } else if (a.abnormalCount > 0) {
+      detail = '${a.abnormalCount} 项异常';
+    } else {
+      detail = '需关注';
+    }
+    return Card(
+      child: ListTile(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        leading: Icon(Icons.circle, size: 12, color: row.state.color),
+        title: Text(a.name, style: const TextStyle(fontSize: 15)),
+        subtitle: Text(detail,
+            style: const TextStyle(
+                fontSize: 12, color: AppColors.textSecondary)),
+        trailing:
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+/// 「身体记录」里的一行：部位名 ……… 状态词。
+class _AreaListRow extends StatelessWidget {
+  final _AreaRow row;
+  final VoidCallback onTap;
+  const _AreaListRow({required this.row, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        dense: true,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Text(row.area.name, style: const TextStyle(fontSize: 15)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(row.state.label,
+                style: TextStyle(fontSize: 13, color: row.state.color)),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          ],
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _BodyEmptyState extends StatelessWidget {
+  final VoidCallback onCapture;
+  const _BodyEmptyState({required this.onCapture});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 40, 16, 96),
+      children: [
+        const Icon(Icons.accessibility_new,
+            size: 48, color: AppColors.insufficient),
+        const SizedBox(height: 16),
+        const Text('还没有身体健康记录',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary)),
+        const SizedBox(height: 8),
+        const Text('上传报告后，系统会自动整理到对应身体部位。',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        const SizedBox(height: 20),
+        Center(
+          child: FilledButton.icon(
+            onPressed: onCapture,
+            icon: const Icon(Icons.photo_camera_outlined, size: 18),
+            label: const Text('拍报告'),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -210,6 +448,24 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
   late BodyAreaHealthSummary _area = widget.area;
   bool _showNormalMetrics = false;
 
+  /// 本部位的未完成复查 / 随访提醒（取最早到期的一条）。
+  Reminder? _recheck;
+
+  /// 本部位关联到的已确认慢性病名称。
+  List<String> _longTerm = const [];
+
+  /// reportId → 报告（用于「历史报告」列表显示日期 / 医院 / 类型）。
+  Map<int, MedicalReport> _reportsById = const {};
+
+  /// 显式关联到本部位、但没有指标喂进来的报告（主要是影像 / 图文报告）。
+  List<int> _extraReportIds = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
   Future<void> _reload() async {
     final repo = appRepository;
     if (repo == null || widget.isExample) return;
@@ -223,10 +479,51 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
         metrics: const [],
       ),
     );
+
+    Reminder? recheck;
+    try {
+      final reminders = await repo.getActiveReminders();
+      final mine = [
+        for (final r in reminders)
+          if ((r.kind == 'recheck' || r.kind == 'followup') &&
+              r.completedAt == null &&
+              r.dueDate != null &&
+              _areasForReminder(r).contains(widget.area.name))
+            r,
+      ]..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+      recheck = mine.isEmpty ? null : mine.first;
+    } catch (_) {}
+
+    var longTerm = const <String>[];
+    try {
+      final diseases = await repo.getChronicDiseases();
+      longTerm = [
+        for (final d in diseases)
+          if (d.status != '已恢复' &&
+              _areasForCondition(d.conditionCode).contains(widget.area.name))
+            d.name,
+      ];
+    } catch (_) {}
+
+    var reportsById = const <int, MedicalReport>{};
+    try {
+      final reports = await repo.getAllReports();
+      reportsById = {for (final r in reports) r.id: r};
+    } catch (_) {}
+
+    var extraReportIds = const <int>[];
+    try {
+      extraReportIds = await repo.reportIdsForArea(widget.area.name);
+    } catch (_) {}
+
     if (mounted) {
       setState(() {
         _allMetrics = list;
         _area = area;
+        _recheck = recheck;
+        _longTerm = longTerm;
+        _reportsById = reportsById;
+        _extraReportIds = extraReportIds;
       });
     }
   }
@@ -251,6 +548,12 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
   List<BodyAreaMetricEvidence> get _normalMetrics =>
       _area.metrics.where((m) => !m.needsAttention).toList();
 
+  /// 显式关联到本部位、但不在 _metricsByReport 里的报告 id（影像 / 图文报告）。
+  List<int> get _extraOnlyReportIds {
+    final withMetrics = _metricsByReport.keys.toSet();
+    return _extraReportIds.where((id) => !withMetrics.contains(id)).toList();
+  }
+
   Map<int, List<HealthMetric>> get _metricsByReport {
     final out = <int, List<HealthMetric>>{};
     for (final m in _metrics) {
@@ -272,6 +575,19 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
             _SummaryCard(area: _area, isExample: widget.isExample),
+            if (!widget.isExample) ...[
+              if (_longTerm.isNotEmpty) ...[
+                const SectionTitle(title: '长期关注'),
+                _LongTermCard(names: _longTerm),
+              ],
+              const SectionTitle(title: '复查'),
+              _RecheckCard(
+                reminder: _recheck,
+                canSet: key != null,
+                onSet: key == null ? null : () => _openHistoryByEvidence(key),
+                onView: () => _openRecheck(key),
+              ),
+            ],
             const SectionTitle(title: '需关注问题'),
             if (_area.metrics.isEmpty)
               const _EmptyDataCard()
@@ -318,19 +634,30 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
                 onTap:
                     widget.isExample ? null : () => _openHistoryByEvidence(key),
               ),
-            const SectionTitle(title: '数据来源报告'),
+            const SectionTitle(title: '历史报告'),
             if (widget.isExample)
               const _SourceNoteCard(text: '示例数据来自本地演示内容。导入报告或手动录入后，将展示实际来源。')
-            else if (_metricsByReport.isEmpty)
-              const _SourceNoteCard(text: '当前指标来自手工录入，暂无关联的原始报告。')
-            else
+            else if (_metricsByReport.isEmpty && _extraOnlyReportIds.isEmpty)
+              const _SourceNoteCard(text: '暂无关联到本部位的报告。')
+            else ...[
               for (final entry in _metricsByReport.entries) ...[
                 _ReportSourceCard(
                   reportId: entry.key,
                   metricCount: entry.value.length,
+                  report: _reportsById[entry.key],
                 ),
                 const SizedBox(height: 12),
               ],
+              // 影像 / 图文报告：没有指标，但显式关联到了本部位。
+              for (final id in _extraOnlyReportIds) ...[
+                _ReportSourceCard(
+                  reportId: id,
+                  metricCount: 0,
+                  report: _reportsById[id],
+                ),
+                const SizedBox(height: 12),
+              ],
+            ],
             const SizedBox(height: 4),
             const _DisclaimerCard(),
           ],
@@ -348,6 +675,19 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
           unit: _unitFromValueText(metric.valueText),
         ),
       ),
+    );
+    if (mounted) _reload();
+  }
+
+  /// 查看 / 修改本部位的复查提醒：有关键指标就进它的历史页（复查设置在那里），
+  /// 否则退回到提醒页。
+  Future<void> _openRecheck(BodyAreaMetricEvidence? key) async {
+    if (key != null) {
+      await _openHistoryByEvidence(key);
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const RemindersPage()),
     );
     if (mounted) _reload();
   }
@@ -480,20 +820,109 @@ class _TrendEntryCard extends StatelessWidget {
 class _ReportSourceCard extends StatelessWidget {
   final int reportId;
   final int metricCount;
+  final MedicalReport? report;
 
   const _ReportSourceCard({
     required this.reportId,
     required this.metricCount,
+    this.report,
   });
 
   @override
   Widget build(BuildContext context) {
+    final r = report;
+    final title = r == null
+        ? '原始报告 #$reportId'
+        : [
+            formatDate(r.reportDate),
+            if (r.hospitalName.trim().isNotEmpty) r.hospitalName.trim(),
+            if (r.reportType.trim().isNotEmpty) r.reportType.trim(),
+          ].join(' · ');
     return HealthStatusCard(
-      title: '原始报告 #$reportId',
-      status: '$metricCount 项指标',
-      subtitle: '点击查看这份报告及其影响的身体部位',
+      title: title,
+      status: metricCount > 0 ? '$metricCount 项指标' : '图文报告',
+      subtitle: '点击查看这份报告',
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => ReportDetailPage(reportId: reportId)),
+      ),
+    );
+  }
+}
+
+/// 本部位的复查提醒卡片：有安排 → 显示下次复查日期 + 修改入口；
+/// 没安排但有关键指标 → 一个「设置复查提醒」按钮；否则不显示。
+class _RecheckCard extends StatelessWidget {
+  final Reminder? reminder;
+  final bool canSet;
+  final VoidCallback? onSet;
+  final VoidCallback onView;
+
+  const _RecheckCard({
+    required this.reminder,
+    required this.canSet,
+    required this.onSet,
+    required this.onView,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = reminder;
+    if (r != null && r.dueDate != null) {
+      final overdue = r.dueDate!.isBefore(DateTime(
+          DateTime.now().year, DateTime.now().month, DateTime.now().day));
+      return Card(
+        child: ListTile(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          leading: const Icon(Icons.event_available_outlined,
+              color: AppColors.primary),
+          title: Text(overdue ? '复查已逾期' : '下次复查',
+              style: const TextStyle(fontSize: 15)),
+          subtitle: Text(
+            '${formatDate(r.dueDate!)} · ${recheckSourceLabel(r.sourceType)}',
+            style: TextStyle(
+                fontSize: 12,
+                color: overdue ? AppColors.warning : AppColors.textSecondary),
+          ),
+          trailing: const Text('修改',
+              style: TextStyle(fontSize: 13, color: AppColors.primary)),
+          onTap: onView,
+        ),
+      );
+    }
+    if (!canSet) {
+      return const _SourceNoteCard(text: '有异常指标时，可在指标历史页里设置复查提醒。');
+    }
+    return Card(
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        leading: const Icon(Icons.add_alarm_outlined,
+            color: AppColors.primary),
+        title: const Text('设置复查提醒', style: TextStyle(fontSize: 15)),
+        subtitle: const Text('到期提醒你复查这个部位的相关指标',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        trailing:
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+        onTap: onSet,
+      ),
+    );
+  }
+}
+
+/// 「长期关注」卡片：自然呈现关联的已确认慢性病名字，不加「慢病患者」这类标签。
+class _LongTermCard extends StatelessWidget {
+  final List<String> names;
+  const _LongTermCard({required this.names});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          names.join('、'),
+          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+        ),
       ),
     );
   }

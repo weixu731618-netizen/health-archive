@@ -3,10 +3,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../models/body_area_health.dart';
 import '../models/report_models.dart';
 import '../utils/format.dart';
 import '../utils/report_image_save.dart';
 import '../widgets/metric_selector.dart';
+import 'followup_match.dart';
 
 /// 报告识别结果确认页：医院/日期/类型可改，指标可编辑、可取消勾选、低置信度提示。
 class ReportReviewPage extends StatefulWidget {
@@ -233,8 +235,10 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
         sourceImagePath: _report.sourceImagePath,
         rawText: _report.rawText, // 存库，但不打印到日志
       );
+      final areas = <String>{};
       for (final m in _report.metrics) {
         if (!m.isSelected) continue;
+        areas.add(bodyAreaForSystem(m.bodySystem));
         await repo.insertMetric(
           metricId: m.matchedMetricId ?? 'UNKNOWN',
           metricName: m.canonicalName,
@@ -262,11 +266,22 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
       }
       // 用户确认保存成功 → 报告状态置为 confirmed
       await repo.setReportStatus(reportId, 'confirmed');
+      // 03：化验单的器官从指标自动推导并显式落表（多器官）。
+      if (areas.isNotEmpty) {
+        await repo.setReportOrgans(reportId, areas);
+      }
       _saved = true;
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text('保存成功')));
+      // 03（§17）：可能是某条待复查的结果 → 弹非破坏性关联确认。
+      await offerFollowUpLink(
+        context,
+        reportAreas: areas,
+        reportDate: _report.reportDate,
+      );
+      if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {

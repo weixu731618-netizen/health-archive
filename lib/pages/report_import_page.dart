@@ -56,7 +56,7 @@ class _ReportImportPageState extends State<ReportImportPage> {
           const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: Text(
-              '选择一张化验单图片或 PDF，系统将自动识别其中的检查指标（PDF 按首页识别）',
+              '选择一张报告图片或 PDF，系统将自动识别其中的检查指标（PDF 按首页识别）',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
           ),
@@ -77,7 +77,7 @@ class _ReportImportPageState extends State<ReportImportPage> {
                         FilledButton.tonalIcon(
                           onPressed: _pickImage,
                           icon: const Icon(Icons.add_photo_alternate_outlined),
-                          label: const Text('选择化验单图片 / PDF'),
+                          label: const Text('选择报告图片 / PDF'),
                         ),
                       ],
                     )

@@ -146,8 +146,8 @@ void main() {
     expect(CHECKUP_ASPECTS, isNotEmpty);
     expect(buildCheckupCoverage, isA<Function>());
     expect(bodyAreaForSystem('血糖代谢'), '代谢');
-    expect(AppMetadata.versionName, '1.7.0');
-    expect(AppMetadata.versionCode, 17);
+    expect(AppMetadata.versionName, '1.8.0');
+    expect(AppMetadata.versionCode, 18);
     // V0.4C-1：OCR 服务与调试页
     expect(ReportOcrService, isA<Type>());
     expect(RemoteOcrService, isA<Type>());

@@ -70,7 +70,7 @@ class _AddDataSheet extends StatelessWidget {
             ),
             _AddRow(
               icon: Icons.description_outlined,
-              title: '拍化验单 / 上传',
+              title: '拍报告 / 上传',
               subtitle: '拍照或选文件，自动识别检查指标',
               onTap: () => Navigator.pop(context, _AddPick.lab),
             ),
@@ -106,7 +106,7 @@ class _AddDataSheet extends StatelessWidget {
   }
 }
 
-/// 化验单的「拍照 / 上传」二选一。
+/// 报告的「拍照 / 上传」二选一。
 class _LabModeSheet extends StatelessWidget {
   const _LabModeSheet();
 
@@ -120,7 +120,7 @@ class _LabModeSheet extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('化验单',
+              child: Text('报告',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             ),
           ),

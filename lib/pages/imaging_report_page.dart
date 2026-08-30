@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../models/body_area_health.dart';
+import '../models/report_followup.dart';
 import '../utils/image_storage.dart';
+import 'followup_match.dart';
 
 /// 图文类报告 / 病历的可选类型。这类是"图片 + 文字"，没有可提取的数字指标，
 /// 跟化验单走不同的存档路径。
@@ -36,6 +39,12 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
   final _hospitalCtrl = TextEditingController();
   String _reportType = imagingReportTypes.first;
   DateTime _reportDate = DateTime.now();
+
+  /// 这份影像涉及的身体部位（手选，影像没有指标推不出来）。
+  final Set<String> _organs = {};
+
+  /// 可选的复查安排：null = 不设；否则为「多少天之后」。
+  int? _recheckDays;
 
   bool _ocrRunning = false;
   String? _ocrError;
@@ -110,7 +119,7 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
     }
     setState(() => _saving = true);
     try {
-      await repo.insertReport(
+      final reportId = await repo.insertReport(
         hospitalName: _hospitalCtrl.text.trim(),
         reportDate: _reportDate,
         reportType: _reportType,
@@ -118,6 +127,33 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
         rawText: _textCtrl.text.trim().isEmpty ? null : _textCtrl.text.trim(),
         recognitionStatus: 'confirmed',
       );
+
+      if (_organs.isNotEmpty) {
+        await repo.setReportOrgans(reportId, _organs);
+      }
+
+      if (_recheckDays != null) {
+        final due = _reportDate.add(Duration(days: _recheckDays!));
+        await repo.insertReminder(
+          kind: 'recheck',
+          title: '复查 $_reportType',
+          detail: '影像报告建议复查',
+          sourceType: 'report',
+          areaName: _organs.isEmpty ? null : _organs.first,
+          dueDate: due,
+          recommendedDate: due,
+        );
+        await syncReminders();
+      }
+
+      if (mounted) {
+        await offerFollowUpLink(
+          context,
+          reportAreas: _organs,
+          reportDate: _reportDate,
+        );
+      }
+
       if (mounted) {
         _toast('已保存');
         Navigator.of(context).pop(true);
@@ -133,6 +169,13 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(s)));
+  }
+
+  String _recheckLabel() {
+    for (final e in kRecheckIntervalOptions.entries) {
+      if (e.value == _recheckDays) return e.key;
+    }
+    return '$_recheckDays 天后';
   }
 
   @override
@@ -231,6 +274,65 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
                 '${_reportDate.year}-${_reportDate.month.toString().padLeft(2, '0')}-${_reportDate.day.toString().padLeft(2, '0')}',
               ),
             ),
+          ),
+          const SizedBox(height: 16),
+          const Text('涉及的身体部位（多选，可留空）',
+              style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final a in coreBodyAreaOrder)
+                FilterChip(
+                  label: Text(a),
+                  selected: _organs.contains(a),
+                  onSelected: (s) => setState(
+                      () => s ? _organs.add(a) : _organs.remove(a)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('设置复查提醒'),
+            subtitle: Text(_recheckDays == null
+                ? '报告写了「建议随访 / 复查」时打开'
+                : '${_recheckLabel()} · 到期会提醒你'),
+            value: _recheckDays != null,
+            onChanged: (on) async {
+              if (!on) {
+                setState(() => _recheckDays = null);
+                return;
+              }
+              final days = await showModalBottomSheet<int>(
+                context: context,
+                showDragHandle: true,
+                builder: (_) => SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Text('参考复查时间',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                      for (final e in kRecheckIntervalOptions.entries)
+                        ListTile(
+                          title: Text(e.key),
+                          onTap: () => Navigator.pop(context, e.value),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+              if (days != null) setState(() => _recheckDays = days);
+            },
           ),
           const SizedBox(height: 16),
           Row(

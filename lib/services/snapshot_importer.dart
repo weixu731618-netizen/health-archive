@@ -39,6 +39,7 @@ class SnapshotImporter {
         await _importMedications(repo, snapshot['medications']);
         await _importAllergies(repo, snapshot['allergies']);
         await _importReminders(repo, snapshot['reminders']);
+        await _importReportOrgans(repo, snapshot['reportOrgans'], reportIdMap);
       });
     } catch (e) {
       return '恢复过程中出现错误，部分数据可能未恢复：$e';
@@ -294,6 +295,43 @@ class SnapshotImporter {
           dailyTimes: item['dailyTimes']?.toString(),
           enabled: item['enabled'] == null ? true : item['enabled'] == true,
           completedAt: DateTime.tryParse('${item['completedAt']}'),
+          conditionCode: item['conditionCode']?.toString(),
+          followUpKey: item['followUpKey']?.toString(),
+          sourceType: (item['sourceType'] ?? 'user').toString(),
+          areaName: item['areaName']?.toString(),
+          recommendedDate: DateTime.tryParse('${item['recommendedDate']}'),
+        );
+      } catch (_) {
+        // 单条失败跳过
+      }
+    }
+  }
+
+  /// 03：报告-器官关联。旧 reportId 经 [reportIdMap] 映射到新库里的 id。
+  static Future<void> _importReportOrgans(
+    HealthRepository repo,
+    dynamic list,
+    Map<int, int> reportIdMap,
+  ) async {
+    if (list is! List) return;
+    final byReport = <int, List<String>>{};
+    final profileByReport = <int, int>{};
+    for (final item in list) {
+      if (item is! Map) continue;
+      final oldId = item['reportId'];
+      final newId = oldId is num ? reportIdMap[oldId.toInt()] : null;
+      final area = item['areaName']?.toString();
+      if (newId == null || area == null || area.isEmpty) continue;
+      byReport.putIfAbsent(newId, () => []).add(area);
+      final pid = _toInt(item['profileId']);
+      if (pid != null) profileByReport[newId] = pid;
+    }
+    for (final entry in byReport.entries) {
+      try {
+        await repo.setReportOrgans(
+          entry.key,
+          entry.value,
+          profileId: profileByReport[entry.key],
         );
       } catch (_) {
         // 单条失败跳过

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
-import '../data/health_repository.dart';
 import '../main.dart';
-import '../models/checkup_coverage.dart';
+import '../models/body_area_health.dart';
 import '../utils/format.dart';
 import '../widgets/profile_switcher.dart';
 import '../widgets/section_title.dart';
-import 'daily_health_entry_page.dart';
+import 'body_page.dart';
+import 'imaging_report_page.dart';
 import 'notification_center_page.dart';
 import 'reminders_page.dart';
 import 'report_capture_page.dart';
@@ -16,10 +16,13 @@ import 'report_import_page.dart';
 
 const double _kContentMaxWidth = 720;
 
-/// 首页 = 两个驱动:
-///  - 报告驱动:打开就想「把刚拿到的报告存进去」→ 两个大按钮
-///  - 检查驱动:「我该做的检查跟上了吗」→ 完成度 + 待办
-/// 加一段「最近存了什么」确认它在工作。
+/// 首页 = 一句话说清 App 是什么：
+///  「拍 / 导入医疗报告，长期保存并追踪的健康档案」。
+///
+/// 自上而下:
+///  1. 拍报告 —— 第一优先级，配相册 / 文件 / 影像
+///  2. 需要关注 —— 有异常 / 待复查才显示；超过 3 行折叠
+///  3. 最近 —— 最近导入的医疗资料
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -30,10 +33,12 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   bool _loading = true;
   int _unread = 0;
-  int _todo = 0;
-  CoverageOverview? _coverage;
-  List<MedicalReport> _recentReports = const [];
-  String _memberName = '本人';
+  bool _attnExpanded = false;
+
+  List<HealthMetric> _metrics = const [];
+  List<_AttentionArea> _attention = const [];
+  List<Reminder> _dueRechecks = const [];
+  List<MedicalReport> _recent = const [];
 
   @override
   void initState() {
@@ -53,47 +58,74 @@ class _HomePageState extends State<HomePage> {
       } catch (_) {}
       await repo.syncNotificationsFromReminders();
 
-      final profile = await repo.getProfile();
       final metrics = await repo.getAllMetrics();
       final reports = await repo.getAllReports();
-      final daily = await repo.getAllDailyRecords();
       final reminders = await repo.getActiveReminders();
       final unread = await repo.unreadNotificationCount();
 
       final now = DateTime.now();
-      final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
-      var todo = 0;
-      for (final r in reminders) {
-        if (r.kind == 'recheck' || r.kind == 'followup') {
-          if (r.completedAt == null &&
-              r.dueDate != null &&
-              !r.dueDate!.isAfter(endOfToday)) {
-            todo++;
+      final today = DateTime(now.year, now.month, now.day);
+
+      // --- 需要关注：按身体部位分组的异常 / 需关注 ---
+      final areas = buildBodyAreaHealthFromMetrics(metrics)
+          .where((a) => a.priorityRank <= 1)
+          .toList();
+
+      // 未完成、带到期日的复查 / 随访提醒，按到期日升序
+      final rechecks = <Reminder>[
+        for (final r in reminders)
+          if ((r.kind == 'recheck' || r.kind == 'followup') &&
+              r.completedAt == null &&
+              r.dueDate != null)
+            r,
+      ]..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+
+      final matchedIds = <int>{};
+      final attention = <_AttentionArea>[];
+      for (final a in areas) {
+        final keys = <String>{
+          a.name,
+          for (final seg in a.name.split('/'))
+            if (seg.trim().isNotEmpty) seg.trim(),
+        };
+        Reminder? match;
+        for (final r in rechecks) {
+          if (keys.any((k) => r.title.contains(k))) {
+            match = r;
+            break;
           }
-        } else if (r.kind == 'medication' && r.enabled) {
-          todo++;
         }
+        String suffix;
+        var overdue = false;
+        if (match != null) {
+          matchedIds.add(match.id);
+          final d = match.dueDate!;
+          if (d.isBefore(today)) {
+            suffix = '复查已逾期';
+            overdue = true;
+          } else {
+            suffix = '${d.month}月复查';
+          }
+        } else {
+          suffix = '持续关注';
+        }
+        attention.add(_AttentionArea(area: a, suffix: suffix, overdue: overdue));
       }
 
-      final coverage = buildCheckupCoverage(
-        metrics: metrics,
-        reports: reports,
-        daily: daily,
-        now: now,
-      );
+      // 没有被任何部位卡片认领的复查 / 随访提醒，单独列成一行
+      final dueRows =
+          rechecks.where((r) => !matchedIds.contains(r.id)).toList();
 
-      final sorted = [...reports]
+      final sortedReports = [...reports]
         ..sort((a, b) => b.reportDate.compareTo(a.reportDate));
 
       if (mounted) {
         setState(() {
-          _memberName = (profile?.nickname.trim().isNotEmpty ?? false)
-              ? profile!.nickname.trim()
-              : '本人';
           _unread = unread;
-          _todo = todo;
-          _coverage = coverage;
-          _recentReports = sorted.take(3).toList();
+          _metrics = metrics;
+          _attention = attention;
+          _dueRechecks = dueRows;
+          _recent = sortedReports.take(3).toList();
           _loading = false;
         });
       }
@@ -106,46 +138,60 @@ class _HomePageState extends State<HomePage> {
       .push(MaterialPageRoute(builder: (_) => page))
       .then((_) => _load());
 
-  Future<void> _captureLab() async {
-    final mode = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            leading: const Icon(Icons.camera_alt_outlined,
-                color: AppColors.primary),
-            title: const Text('拍照'),
-            onTap: () => Navigator.pop(context, 'camera'),
+  /// 需要关注：部位卡片 + 未认领的复查行。超过 3 行时默认只显示前 3，
+  /// 余下折叠到「展开其余 N 项」后面。
+  List<Widget> _buildAttentionRows() {
+    final rows = <Widget>[
+      for (final a in _attention)
+        _AttentionCard(
+          entry: a,
+          onTap: () => _push(BodySystemDetailPage(
+            area: a.area,
+            allMetrics: _metrics,
+            isExample: false,
+          )),
+        ),
+      for (final r in _dueRechecks)
+        _RecheckRow(
+          reminder: r,
+          onTap: () => _push(const RemindersPage()),
+        ),
+    ];
+
+    const cap = 3;
+    final collapsed = rows.length > cap && !_attnExpanded;
+    final shown = collapsed ? rows.sublist(0, cap) : rows;
+
+    return [
+      for (final w in shown) ...[w, const SizedBox(height: 10)],
+      if (rows.length > cap)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () =>
+                setState(() => _attnExpanded = !_attnExpanded),
+            icon: Icon(
+                _attnExpanded ? Icons.expand_less : Icons.expand_more),
+            label: Text(_attnExpanded
+                ? '收起'
+                : '展开其余 ${rows.length - cap} 项'),
           ),
-          ListTile(
-            leading: const Icon(Icons.upload_file_outlined,
-                color: AppColors.primary),
-            title: const Text('从相册或文件选'),
-            subtitle: const Text('图片或 PDF'),
-            onTap: () => Navigator.pop(context, 'upload'),
-          ),
-          const SizedBox(height: 8),
-        ]),
-      ),
-    );
-    if (!mounted) return;
-    if (mode == 'camera') {
-      _push(const ReportCapturePage());
-    } else if (mode == 'upload') {
-      _push(const ReportImportPage());
-    }
+        ),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
+    final showAttention = _attention.isNotEmpty || _dueRechecks.isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('首页'),
         actions: [
-          _BellAction(unread: _unread, onTap: () {
-            _push(const NotificationCenterPage());
-          }),
+          _BellAction(
+            unread: _unread,
+            onTap: () => _push(const NotificationCenterPage()),
+          ),
           const ProfileSwitcher(),
         ],
       ),
@@ -162,59 +208,51 @@ class _HomePageState extends State<HomePage> {
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                     children: [
-                      _MemberHeader(name: _memberName),
-                      const SizedBox(height: 14),
-
-                      // 检查驱动:待办 + 完成度
-                      _StatusCard(
-                        todo: _todo,
-                        coverage: _coverage,
-                        onTapTodo: () => _push(const RemindersPage()),
-                        onTapCoverage: _coverage == null
-                            ? null
-                            : () => _push(_CoverageDetailPage(
-                                  overview: _coverage!,
-                                )),
+                      // 拍报告为第一优先级
+                      _PrimaryAddCard(
+                        onTap: () => _push(const ReportCapturePage()),
                       ),
-                      const SizedBox(height: 18),
-
-                      // 报告驱动:两个大按钮
-                      const SectionTitle(title: '添加'),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       Row(children: [
                         Expanded(
                           child: _BigButton(
-                            icon: Icons.photo_camera_outlined,
-                            label: '拍化验单',
-                            onTap: _captureLab,
+                            icon: Icons.image_outlined,
+                            label: '相册 / 文件',
+                            onTap: () => _push(const ReportImportPage()),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _BigButton(
-                            icon: Icons.image_outlined,
-                            label: '从相册 / 文件',
-                            onTap: () => _push(const ReportImportPage()),
+                            icon: Icons.medical_information_outlined,
+                            label: '添加影像',
+                            onTap: () => _push(const ImagingReportPage()),
                           ),
                         ),
                       ]),
-                      const SizedBox(height: 10),
-                      _MiniButton(
-                        label: '记一次血压 / 血糖 / 体重',
-                        onTap: () => _push(const DailyHealthEntryPage()),
-                      ),
-                      const SizedBox(height: 18),
 
-                      // 最近存了什么
+                      // 2. 需要关注 —— 有内容才显示；超过 3 行折叠
+                      if (showAttention) ...[
+                        const SizedBox(height: 22),
+                        const SectionTitle(title: '需要关注'),
+                        const SizedBox(height: 8),
+                        ..._buildAttentionRows(),
+                      ],
+
+                      // 3. 最近
+                      const SizedBox(height: 22),
                       const SectionTitle(title: '最近'),
-                      if (_recentReports.isEmpty)
-                        const _QuietText('还没有存过报告，点上面「拍化验单」开始。')
+                      const SizedBox(height: 8),
+                      if (_recent.isEmpty)
+                        _EmptyRecent(
+                          onTap: () => _push(const ReportCapturePage()),
+                        )
                       else
-                        for (final r in _recentReports)
+                        for (final r in _recent)
                           _RecentTile(
                             report: r,
-                            onTap: () => _push(
-                                ReportDetailPage(reportId: r.id)),
+                            onTap: () =>
+                                _push(ReportDetailPage(reportId: r.id)),
                           ),
                     ],
                   ),
@@ -225,220 +263,49 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _MemberHeader extends StatelessWidget {
-  final String name;
-  const _MemberHeader({required this.name});
-
-  @override
-  Widget build(BuildContext context) {
-    final viewingOther = (appRepository?.activeProfileId ?? 1) !=
-        HealthRepository.defaultProfileId;
-    return Row(children: [
-      const CircleAvatar(
-        radius: 18,
-        backgroundColor: Color(0xFFE0F2F1),
-        child: Icon(Icons.person, color: AppColors.primary, size: 20),
-      ),
-      const SizedBox(width: 12),
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(name,
-            style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary)),
-        Text(viewingOther ? '家庭成员档案' : '本人档案',
-            style: const TextStyle(
-                fontSize: 12, color: AppColors.textSecondary)),
-      ]),
-    ]);
-  }
+class _AttentionArea {
+  final BodyAreaHealthSummary area;
+  final String suffix; // "11月复查" / "复查已逾期" / "持续关注"
+  final bool overdue;
+  const _AttentionArea({
+    required this.area,
+    required this.suffix,
+    required this.overdue,
+  });
 }
 
-class _StatusCard extends StatelessWidget {
-  final int todo;
-  final CoverageOverview? coverage;
-  final VoidCallback onTapTodo;
-  final VoidCallback? onTapCoverage;
-
-  const _StatusCard({
-    required this.todo,
-    required this.coverage,
-    required this.onTapTodo,
-    required this.onTapCoverage,
-  });
+/// 首页第一优先级入口：拍报告。
+class _PrimaryAddCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _PrimaryAddCard({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final cov = coverage;
-    final due = cov?.dueList ?? const [];
-    final dueLabels = due.take(3).map((a) => a.aspect.label).join(' · ');
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 待办行
-            InkWell(
-              onTap: todo > 0 ? onTapTodo : null,
-              borderRadius: BorderRadius.circular(8),
-              child: Row(children: [
-                Icon(
-                  todo > 0 ? Icons.notifications_active_outlined
-                           : Icons.check_circle_outline,
-                  size: 20,
-                  color: todo > 0 ? AppColors.warning : AppColors.normal,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    todo > 0 ? '$todo 项待办：该复查 / 该服药' : '目前没有待办',
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
-                  ),
-                ),
-                if (todo > 0)
-                  const Icon(Icons.chevron_right,
-                      color: AppColors.textSecondary),
-              ]),
-            ),
-
-            if (cov != null) ...[
-              const Divider(height: 22),
-              InkWell(
-                onTap: onTapCoverage,
-                borderRadius: BorderRadius.circular(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Expanded(
-                        child: Text(cov.headline,
-                            style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary)),
-                      ),
-                      Text('${cov.coveredCount} / ${cov.total}',
-                          style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary)),
-                      const Icon(Icons.chevron_right,
-                          color: AppColors.textSecondary),
-                    ]),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: LinearProgressIndicator(
-                        value: cov.ratio,
-                        minHeight: 7,
-                        backgroundColor:
-                            AppColors.primary.withValues(alpha: .12),
-                        valueColor: const AlwaysStoppedAnimation(
-                            AppColors.primary),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      due.isEmpty
-                          ? '该做的检查都跟上了'
-                          : '该做的：$dueLabels',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          color: due.isEmpty
-                              ? AppColors.textSecondary
-                              : AppColors.warning),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
+    return Material(
+      color: AppColors.primary.withValues(alpha: .08),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          child: Column(children: [
+            const Icon(Icons.photo_camera_outlined,
+                size: 30, color: AppColors.primary),
+            const SizedBox(height: 10),
+            const Text('拍报告',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary)),
+            const SizedBox(height: 4),
+            Text('拍照识别并保存健康资料',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.primary.withValues(alpha: .8))),
+          ]),
         ),
       ),
-    );
-  }
-}
-
-class _CoverageDetailPage extends StatelessWidget {
-  final CoverageOverview overview;
-  const _CoverageDetailPage({required this.overview});
-
-  @override
-  Widget build(BuildContext context) {
-    final list = [...overview.aspects]..sort((a, b) {
-        int rank(AspectStatus s) => s.neverDone ? 0 : (s.overdue ? 1 : 2);
-        final r = rank(a).compareTo(rank(b));
-        return r != 0 ? r : a.aspect.label.compareTo(b.aspect.label);
-      });
-    return Scaffold(
-      appBar: AppBar(title: const Text('检查完成度')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          Text(overview.headline,
-              style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary)),
-          const SizedBox(height: 4),
-          const Text('按常见体检项目粗算，只作提醒，不是医疗建议。具体查什么听医生的。',
-              style:
-                  TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-          const SizedBox(height: 14),
-          for (final s in list)
-            Card(
-              child: ListTile(
-                dense: true,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                title: Text(s.aspect.label,
-                    style: const TextStyle(fontSize: 15)),
-                subtitle: Text(
-                  s.lastDone == null
-                      ? '从没查过 · ${s.aspect.cycleText}'
-                      : '上次 ${formatDate(s.lastDone!)} · ${s.aspect.cycleText}',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary),
-                ),
-                trailing: _CoverChip(s),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CoverChip extends StatelessWidget {
-  final AspectStatus s;
-  const _CoverChip(this.s);
-  @override
-  Widget build(BuildContext context) {
-    late final String t;
-    late final Color c;
-    if (s.neverDone) {
-      t = '没查过';
-      c = AppColors.insufficient;
-    } else if (s.overdue) {
-      t = '该查了';
-      c = AppColors.warning;
-    } else {
-      t = '已覆盖';
-      c = AppColors.normal;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(t,
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w600, color: c)),
     );
   }
 }
@@ -459,9 +326,9 @@ class _BigButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 22),
+          padding: const EdgeInsets.symmetric(vertical: 18),
           child: Column(children: [
-            Icon(icon, size: 26, color: AppColors.primary),
+            Icon(icon, size: 24, color: AppColors.primary),
             const SizedBox(height: 8),
             Text(label,
                 style: const TextStyle(
@@ -475,20 +342,65 @@ class _BigButton extends StatelessWidget {
   }
 }
 
-class _MiniButton extends StatelessWidget {
-  final String label;
+class _AttentionCard extends StatelessWidget {
+  final _AttentionArea entry;
   final VoidCallback onTap;
-  const _MiniButton({required this.label, required this.onTap});
+  const _AttentionCard({required this.entry, required this.onTap});
+
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(44),
-        side: const BorderSide(color: Color(0xFFC9D3D1)),
-        foregroundColor: AppColors.textSecondary,
+    final area = entry.area;
+    final isAbnormal = area.status == '异常';
+    final dotColor = isAbnormal ? AppColors.abnormal : AppColors.warning;
+    final count = area.abnormalCount;
+    final countText = count > 0 ? '$count 项异常' : '需关注';
+    final subColor =
+        entry.overdue ? AppColors.warning : AppColors.textSecondary;
+
+    return Card(
+      child: ListTile(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        leading: Icon(Icons.circle, size: 12, color: dotColor),
+        title: Text(area.name, style: const TextStyle(fontSize: 15)),
+        subtitle: Text('$countText · ${entry.suffix}',
+            style: TextStyle(fontSize: 12, color: subColor)),
+        trailing:
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+        onTap: onTap,
       ),
-      child: Text(label, style: const TextStyle(fontSize: 13)),
+    );
+  }
+}
+
+class _RecheckRow extends StatelessWidget {
+  final Reminder reminder;
+  final VoidCallback onTap;
+  const _RecheckRow({required this.reminder, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final due = reminder.dueDate!;
+    final overdue = due.isBefore(DateTime(
+        DateTime.now().year, DateTime.now().month, DateTime.now().day));
+    return Card(
+      child: ListTile(
+        dense: true,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        leading: const Icon(Icons.event_outlined,
+            color: AppColors.textSecondary),
+        title: Text(reminder.title, style: const TextStyle(fontSize: 14)),
+        subtitle: Text(
+          overdue ? '${formatDate(due)} · 已逾期' : formatDate(due),
+          style: TextStyle(
+              fontSize: 12,
+              color: overdue ? AppColors.warning : AppColors.textSecondary),
+        ),
+        trailing:
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+        onTap: onTap,
+      ),
     );
   }
 }
@@ -504,33 +416,62 @@ class _RecentTile extends StatelessWidget {
     final label = [r.hospitalName, r.reportType]
         .where((e) => e.trim().isNotEmpty)
         .join(' · ');
-    return Card(
-      child: ListTile(
-        dense: true,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: const Icon(Icons.description_outlined,
-            color: AppColors.textSecondary),
-        title: Text(label.isEmpty ? '报告' : label,
-            style: const TextStyle(fontSize: 14)),
-        subtitle: Text(formatDate(r.reportDate),
-            style: const TextStyle(
-                fontSize: 12, color: AppColors.textSecondary)),
-        onTap: onTap,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Card(
+        child: ListTile(
+          dense: true,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14)),
+          leading: const Icon(Icons.description_outlined,
+              color: AppColors.textSecondary),
+          title: Text(label.isEmpty ? '报告' : label,
+              style: const TextStyle(fontSize: 14)),
+          subtitle: Text(formatDate(r.reportDate),
+              style: const TextStyle(
+                  fontSize: 12, color: AppColors.textSecondary)),
+          onTap: onTap,
+        ),
       ),
     );
   }
 }
 
-class _QuietText extends StatelessWidget {
-  final String text;
-  const _QuietText(this.text);
+class _EmptyRecent extends StatelessWidget {
+  final VoidCallback onTap;
+  const _EmptyRecent({required this.onTap});
+
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(text,
-            style: const TextStyle(
-                fontSize: 13, color: AppColors.textSecondary)),
-      );
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('还没有健康记录',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary)),
+            const SizedBox(height: 6),
+            const Text('拍一份报告，开始建立你的健康档案。',
+                style: TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary)),
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.icon(
+                onPressed: onTap,
+                icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                label: const Text('拍报告'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _BellAction extends StatelessWidget {

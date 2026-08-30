@@ -23,12 +23,20 @@ void main() {
 
     expect(find.text('首页'), findsWidgets);
     expect(find.byIcon(Icons.notifications_none), findsOneWidget);
-    // 报告驱动：两个大按钮
-    expect(find.text('拍化验单'), findsOneWidget);
-    expect(find.text('从相册 / 文件'), findsOneWidget);
-    // 分区
-    expect(find.text('添加'), findsOneWidget);
+    // 拍报告为第一优先级 + 两个次级入口
+    // （空数据时「最近」空状态里也有一个「拍报告」按钮，故 findsWidgets）
+    expect(find.text('拍报告'), findsWidgets);
+    expect(find.text('相册 / 文件'), findsOneWidget);
+    expect(find.text('添加影像'), findsOneWidget);
+    // 首页顶部不再有「徐先生 档案」头 / 「添加健康资料」分区标题
+    expect(find.text('添加健康资料'), findsNothing);
+    expect(find.text('本人档案'), findsNothing);
     expect(find.text('最近'), findsOneWidget);
+    // 「健康档案完成度」「该做的」已从首页移除
+    expect(find.textContaining('健康档案完成度'), findsNothing);
+    expect(find.textContaining('该做的'), findsNothing);
+    // 血压 / 血糖 / 体重 不再常驻首页
+    expect(find.textContaining('记一次血压'), findsNothing);
   });
 
   testWidgets('App 启动后显示底部 3 个 Tab 与悬浮添加按钮', (tester) async {
@@ -51,8 +59,7 @@ void main() {
     expect(find.byType(FloatingActionButton), findsOneWidget);
   });
 
-  testWidgets('身体页可以进入肾脏泌尿详情页', (tester) async {
-    // 放大视口，让「身体」tab（含折叠区）与详情页一次性渲染完。
+  testWidgets('身体页无数据时只显示空状态，不铺一堆「未检查」部位', (tester) async {
     tester.view.physicalSize = const Size(1200, 5000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -68,18 +75,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 无数据时所有部位都是「数据不足」，默认折叠，先展开其余。
-    await tester.tap(find.textContaining('展开其余'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('肾脏/泌尿').first);
-    await tester.pumpAndSettle();
-
-    expect(find.text('肌酐'), findsNothing);
-    expect(find.text('暂无可用于判断的检查指标'), findsOneWidget);
-    expect(find.text('需关注问题'), findsOneWidget);
-    expect(find.text('历史趋势'), findsOneWidget);
-    expect(find.textContaining('不等同于医学诊断'), findsOneWidget);
+    // 空状态：一句话 + 拍报告，不出现器官清单、不出现「风险 / 未检查」字样。
+    expect(find.text('还没有身体健康记录'), findsOneWidget);
+    expect(find.text('拍报告'), findsOneWidget);
+    expect(find.text('身体记录'), findsNothing);
+    expect(find.textContaining('风险'), findsNothing);
+    expect(find.textContaining('未检查'), findsNothing);
   });
 
   testWidgets('空记录页不展示历史假报告', (tester) async {
@@ -94,13 +95,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('还没有录入数据'), findsOneWidget);
+    expect(find.textContaining('还没有健康资料'), findsOneWidget);
     expect(find.text('生化检查'), findsNothing);
     expect(find.text('深圳某医院'), findsNothing);
     expect(find.text('ALT'), findsNothing);
   });
 
-  testWidgets('+ 弹出添加菜单，化验单 → 拍照进入拍摄页', (tester) async {
+  testWidgets('+ 弹出添加菜单，报告 → 拍照进入拍摄页', (tester) async {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
@@ -109,8 +110,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('添加健康数据'), findsOneWidget);
 
-    // 化验单 → 顺序弹「拍照 / 上传」
-    await tester.tap(find.text('拍化验单 / 上传'));
+    // 报告 → 顺序弹「拍照 / 上传」
+    await tester.tap(find.text('拍报告 / 上传'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('拍照'));
     // 不等待 settle（拍摄页可能因相机不可用一直加载）；推进几次路由过渡帧
@@ -119,7 +120,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // 进入拍摄页（该页独有文案）
-    expect(find.text('对准化验单拍照，确保文字清晰'), findsOneWidget);
+    expect(find.text('对准报告拍照，确保文字清晰'), findsOneWidget);
   });
 
   testWidgets('从右上角头像进入设置，可打开关于页', (tester) async {
@@ -142,8 +143,8 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.7.0+17'), findsOneWidget);
-    expect(find.textContaining('慢性病改勾选'), findsOneWidget);
+    expect(find.text('版本 1.8.0+18'), findsOneWidget);
+    expect(find.textContaining('器官导航'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {
