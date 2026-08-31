@@ -33,7 +33,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   bool _loading = true;
   int _unread = 0;
-  bool _attnExpanded = false;
 
   /// 首页「需要关注」上门槛：即将到期的复查只提前这么多天进首页，
   /// 更远的留在「提醒」页里，不占首页注意力。
@@ -125,47 +124,47 @@ class _HomePageState extends State<HomePage> {
 
   /// 需要关注：按「已到期复查 → 即将到期复查 → 当前明确异常」排序。
   /// 长期关注（慢性病）不在首页列，放到部位详情页。
-  /// 超过 3 行时默认只显示前 3，余下折叠到「展开其余 N 项」后面。
-  List<Widget> _buildAttentionRows() {
-    final rows = <Widget>[
-      for (final r in _overdueFollowups)
-        _RecheckRow(
-          reminder: r,
-          onTap: () => _push(const RemindersPage()),
-        ),
-      for (final r in _upcomingFollowups)
-        _RecheckRow(
-          reminder: r,
-          onTap: () => _push(const RemindersPage()),
-        ),
-      for (final a in _attention)
-        _AttentionCard(
-          entry: a,
-          onTap: () => _push(BodySystemDetailPage(
-            area: a.area,
-            allMetrics: _metrics,
-            isExample: false,
-          )),
-        ),
-    ];
+  /// 首页最多显示前 3 项，超过时给一行「查看全部 N 项 ›」进完整列表页。
+  List<Widget> _attentionWidgets() => [
+        for (final r in _overdueFollowups)
+          _RecheckRow(
+            reminder: r,
+            onTap: () => _push(const RemindersPage()),
+          ),
+        for (final r in _upcomingFollowups)
+          _RecheckRow(
+            reminder: r,
+            onTap: () => _push(const RemindersPage()),
+          ),
+        for (final a in _attention)
+          _AttentionCard(
+            entry: a,
+            onTap: () => _push(BodySystemDetailPage(
+              area: a.area,
+              allMetrics: _metrics,
+              isExample: false,
+            )),
+          ),
+      ];
 
+  List<Widget> _buildAttentionRows() {
+    final rows = _attentionWidgets();
     const cap = 3;
-    final collapsed = rows.length > cap && !_attnExpanded;
-    final shown = collapsed ? rows.sublist(0, cap) : rows;
+    final shown = rows.length > cap ? rows.sublist(0, cap) : rows;
 
     return [
       for (final w in shown) ...[w, const SizedBox(height: 10)],
       if (rows.length > cap)
         Align(
           alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () =>
-                setState(() => _attnExpanded = !_attnExpanded),
-            icon: Icon(
-                _attnExpanded ? Icons.expand_less : Icons.expand_more),
-            label: Text(_attnExpanded
-                ? '收起'
-                : '展开其余 ${rows.length - cap} 项'),
+          child: TextButton(
+            onPressed: () => _push(AttentionListPage(
+              metrics: _metrics,
+              overdueFollowups: _overdueFollowups,
+              upcomingFollowups: _upcomingFollowups,
+              attentionAreas: [for (final a in _attention) a.area],
+            )),
+            child: Text('查看全部 ${rows.length} 项 ›'),
           ),
         ),
     ];
@@ -519,5 +518,65 @@ class _BellAction extends StatelessWidget {
           ),
         ),
     ]);
+  }
+}
+
+/// 首页「需要关注」的完整列表页（点「查看全部 N 项」进入）。
+/// 用与首页完全相同的行，只是不截断。数据由首页传入，不重新查库。
+class AttentionListPage extends StatelessWidget {
+  final List<HealthMetric> metrics;
+  final List<Reminder> overdueFollowups;
+  final List<Reminder> upcomingFollowups;
+  final List<BodyAreaHealthSummary> attentionAreas;
+
+  const AttentionListPage({
+    super.key,
+    required this.metrics,
+    required this.overdueFollowups,
+    required this.upcomingFollowups,
+    required this.attentionAreas,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[
+      for (final r in overdueFollowups)
+        _RecheckRow(
+          reminder: r,
+          onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RemindersPage())),
+        ),
+      for (final r in upcomingFollowups)
+        _RecheckRow(
+          reminder: r,
+          onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RemindersPage())),
+        ),
+      for (final a in attentionAreas)
+        _AttentionCard(
+          entry: _AttentionArea(area: a),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => BodySystemDetailPage(
+              area: a,
+              allMetrics: metrics,
+              isExample: false,
+            ),
+          )),
+        ),
+    ];
+    return Scaffold(
+      appBar: AppBar(title: const Text('需要关注')),
+      body: rows.isEmpty
+          ? const Center(
+              child: Text('当前没有需要关注的项目',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              itemCount: rows.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) => rows[i],
+            ),
+    );
   }
 }

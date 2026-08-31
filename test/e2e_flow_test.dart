@@ -70,7 +70,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('需要关注'), findsWidgets);
     expect(find.text('内分泌/代谢'), findsWidgets);
-    expect(find.textContaining('1 项异常'), findsWidgets);
+    expect(find.textContaining('1 项指标异常'), findsWidgets);
   });
 
   testWidgets('指标历史显示确认状态和来源报告，并可点回报告详情', (tester) async {

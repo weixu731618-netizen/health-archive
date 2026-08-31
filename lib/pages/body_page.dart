@@ -51,14 +51,24 @@ extension on _AreaState {
 class _AreaRow {
   final BodyAreaHealthSummary area;
   final _AreaState state;
-  const _AreaRow(this.area, this.state);
+
+  /// 该部位当前未完成的复查 / 随访任务数（§3：显示「N 项待复查」而非统一「等待复查」）。
+  final int followUpCount;
+
+  const _AreaRow(this.area, this.state, {this.followUpCount = 0});
+
+  int get abnormalCount => area.abnormalCount;
 }
+
+/// §4：顶部三个统计既是数字也是筛选器。null = 不筛选（显示全部部位）。
+enum _StatFilter { hasRecord, attention, noRecord }
 
 class _BodyPageState extends State<BodyPage> {
   List<HealthMetric> _real = [];
   List<_AreaRow> _rows = const [];
   bool _loading = true;
   String? _error;
+  _StatFilter? _statFilter;
 
   @override
   void initState() {
@@ -85,12 +95,14 @@ class _BodyPageState extends State<BodyPage> {
       final reminders = await repo.getActiveReminders();
       final diseases = await repo.getChronicDiseases();
 
-      // 有未完成复查 / 随访提醒的部位
-      final followUpAreas = <String>{};
+      // 每个部位当前有几个未完成的复查 / 随访任务。
+      final followUpCountByArea = <String, int>{};
       for (final r in reminders) {
         if ((r.kind == 'recheck' || r.kind == 'followup') &&
             r.completedAt == null) {
-          followUpAreas.addAll(_areasForReminder(r));
+          for (final area in _areasForReminder(r)) {
+            followUpCountByArea.update(area, (v) => v + 1, ifAbsent: () => 1);
+          }
         }
       }
       // 关联到已确认慢性病的部位
@@ -107,9 +119,10 @@ class _BodyPageState extends State<BodyPage> {
             a,
             _stateFor(
               a,
-              followUp: followUpAreas.contains(a.name),
+              followUp: (followUpCountByArea[a.name] ?? 0) > 0,
               longTerm: longTermAreas.contains(a.name),
             ),
+            followUpCount: followUpCountByArea[a.name] ?? 0,
           ),
       ];
 
@@ -150,6 +163,18 @@ class _BodyPageState extends State<BodyPage> {
           r.state == _AreaState.followUp || r.state == _AreaState.attention)
       .toList();
 
+  /// §4：某行属于哪个统计桶（与 [_OverviewCard] 的计数口径一致）。
+  static _StatFilter _bucketOf(_AreaState s) => switch (s) {
+        _AreaState.followUp || _AreaState.attention => _StatFilter.attention,
+        _AreaState.longTerm || _AreaState.hasRecord => _StatFilter.hasRecord,
+        _AreaState.noRecord => _StatFilter.noRecord,
+      };
+
+  /// 「身体记录」列表：按顶部选中的统计筛选（未选则全部）。
+  List<_AreaRow> get _recordRows => _statFilter == null
+      ? _rows
+      : _rows.where((r) => _bucketOf(r.state) == _statFilter).toList();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -181,7 +206,12 @@ class _BodyPageState extends State<BodyPage> {
                     : ListView(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                         children: [
-                          _OverviewCard(rows: _rows),
+                          _OverviewCard(
+                            rows: _rows,
+                            selected: _statFilter,
+                            onSelect: (f) => setState(() =>
+                                _statFilter = _statFilter == f ? null : f),
+                          ),
                           if (_attentionRows.isNotEmpty) ...[
                             const SizedBox(height: 18),
                             const SectionTitle(title: '需要关注'),
@@ -195,15 +225,40 @@ class _BodyPageState extends State<BodyPage> {
                             ],
                           ],
                           const SizedBox(height: 18),
-                          const SectionTitle(title: '身体记录'),
-                          const SizedBox(height: 8),
-                          for (final r in _rows) ...[
-                            _AreaListRow(
-                              row: r,
-                              onTap: () => _openAreaDetail(r.area),
-                            ),
-                            const SizedBox(height: 8),
-                          ],
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const SectionTitle(title: '身体记录'),
+                              if (_statFilter != null)
+                                TextButton(
+                                  onPressed: () =>
+                                      setState(() => _statFilter = null),
+                                  style: TextButton.styleFrom(
+                                      visualDensity: VisualDensity.compact),
+                                  child: const Text('清除筛选',
+                                      style: TextStyle(fontSize: 13)),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          if (_recordRows.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Text('没有符合当前筛选的部位',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary)),
+                            )
+                          else
+                            for (int i = 0; i < _recordRows.length; i++) ...[
+                              if (i > 0)
+                                const Divider(height: 1, thickness: 0.5),
+                              _AreaListRow(
+                                row: _recordRows[i],
+                                onTap: () =>
+                                    _openAreaDetail(_recordRows[i].area),
+                              ),
+                            ],
                         ],
                       ),
       ),
@@ -269,9 +324,28 @@ String? _areaForDailyType(String t) {
 }
 
 /// 身体记录概览：有近期记录 / 需要关注 / 暂无记录 三个计数（不用百分比）。
+/// §3：一个部位的状态用一句话表达。
+/// 有真实复查任务 → 「N 项待复查」；只是指标异常 → 「N 项指标异常」；否则用状态词。
+/// 「异常 ≠ 等待复查」——两者分开。
+({String text, Color color}) _areaStatusLine(_AreaRow row) {
+  if (row.followUpCount > 0) {
+    return (text: '${row.followUpCount} 项待复查', color: AppColors.warning);
+  }
+  if (row.state == _AreaState.attention && row.abnormalCount > 0) {
+    return (text: '${row.abnormalCount} 项指标异常', color: AppColors.warning);
+  }
+  return (text: row.state.label, color: row.state.color);
+}
+
 class _OverviewCard extends StatelessWidget {
   final List<_AreaRow> rows;
-  const _OverviewCard({required this.rows});
+  final _StatFilter? selected;
+  final ValueChanged<_StatFilter> onSelect;
+  const _OverviewCard({
+    required this.rows,
+    required this.selected,
+    required this.onSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -292,15 +366,30 @@ class _OverviewCard extends StatelessWidget {
     }
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
             _OverviewStat(
-                n: hasRecord, label: '有近期记录', color: AppColors.normal),
+              n: hasRecord,
+              label: '有近期记录',
+              color: AppColors.normal,
+              selected: selected == _StatFilter.hasRecord,
+              onTap: () => onSelect(_StatFilter.hasRecord),
+            ),
             _OverviewStat(
-                n: attention, label: '需要关注', color: AppColors.warning),
+              n: attention,
+              label: '需要关注',
+              color: AppColors.warning,
+              selected: selected == _StatFilter.attention,
+              onTap: () => onSelect(_StatFilter.attention),
+            ),
             _OverviewStat(
-                n: noRecord, label: '暂无记录', color: AppColors.insufficient),
+              n: noRecord,
+              label: '暂无记录',
+              color: AppColors.insufficient,
+              selected: selected == _StatFilter.noRecord,
+              onTap: () => onSelect(_StatFilter.noRecord),
+            ),
           ],
         ),
       ),
@@ -312,26 +401,50 @@ class _OverviewStat extends StatelessWidget {
   final int n;
   final String label;
   final Color color;
-  const _OverviewStat(
-      {required this.n, required this.label, required this.color});
+  final bool selected;
+  final VoidCallback onTap;
+  const _OverviewStat({
+    required this.n,
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Column(children: [
-        Text('$n',
-            style: TextStyle(
-                fontSize: 24, fontWeight: FontWeight.w700, color: color)),
-        const SizedBox(height: 4),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 12, color: AppColors.textSecondary)),
-      ]),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? color.withValues(alpha: 0.10)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(children: [
+            Text('$n',
+                style: TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.w700, color: color)),
+            const SizedBox(height: 4),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: selected ? color : AppColors.textSecondary,
+                    fontWeight:
+                        selected ? FontWeight.w600 : FontWeight.w400)),
+          ]),
+        ),
+      ),
     );
   }
 }
 
-/// 「需要关注」里的一张部位卡片："肝脏 · 1项异常" / "甲状腺 · 等待复查"。
+/// 「需要关注」里的一张部位卡片："肝胆 · 1 项指标异常" / "甲状腺 · 2 项待复查"。
 class _AttentionAreaCard extends StatelessWidget {
   final _AreaRow row;
   final VoidCallback onTap;
@@ -339,22 +452,14 @@ class _AttentionAreaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final a = row.area;
-    final String detail;
-    if (row.state == _AreaState.followUp) {
-      detail = '等待复查';
-    } else if (a.abnormalCount > 0) {
-      detail = '${a.abnormalCount} 项异常';
-    } else {
-      detail = '需关注';
-    }
+    final line = _areaStatusLine(row);
     return Card(
       child: ListTile(
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         leading: Icon(Icons.circle, size: 12, color: row.state.color),
-        title: Text(a.name, style: const TextStyle(fontSize: 15)),
-        subtitle: Text(detail,
+        title: Text(row.area.name, style: const TextStyle(fontSize: 15)),
+        subtitle: Text(line.text,
             style: const TextStyle(
                 fontSize: 12, color: AppColors.textSecondary)),
         trailing:
@@ -365,7 +470,8 @@ class _AttentionAreaCard extends StatelessWidget {
   }
 }
 
-/// 「身体记录」里的一行：部位名 ……… 状态词。
+/// 「身体记录」里的一行：部位名 ……… 状态词。§6：比「需要关注」卡片更紧凑，
+/// 去掉卡片外壳，单行、矮，行间用细分隔线。
 class _AreaListRow extends StatelessWidget {
   final _AreaRow row;
   final VoidCallback onTap;
@@ -373,22 +479,25 @@ class _AreaListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        dense: true,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: Text(row.area.name, style: const TextStyle(fontSize: 15)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
+    final line = _areaStatusLine(row);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        child: Row(
           children: [
-            Text(row.state.label,
-                style: TextStyle(fontSize: 13, color: row.state.color)),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            Expanded(
+              child: Text(row.area.name,
+                  style: const TextStyle(
+                      fontSize: 14, color: AppColors.textPrimary)),
+            ),
+            Text(line.text,
+                style: TextStyle(fontSize: 13, color: line.color)),
+            const SizedBox(width: 2),
+            const Icon(Icons.chevron_right,
+                size: 18, color: AppColors.textSecondary),
           ],
         ),
-        onTap: onTap,
       ),
     );
   }
@@ -917,6 +1026,11 @@ class _RecheckCard extends StatelessWidget {
     if (r != null && r.dueDate != null) {
       final overdue = r.dueDate!.isBefore(DateTime(
           DateTime.now().year, DateTime.now().month, DateTime.now().day));
+      // §1：这条复查如果来自某个长期关注（慢性病），在详情里说明关联，
+      // 但不把病名放进标题。
+      final condName = r.conditionCode == null
+          ? null
+          : findChronicCondition(r.conditionCode)?.name;
       return Card(
         child: ListTile(
           shape:
@@ -925,11 +1039,25 @@ class _RecheckCard extends StatelessWidget {
               color: AppColors.primary),
           title: Text(overdue ? '复查已逾期' : '下次复查',
               style: const TextStyle(fontSize: 15)),
-          subtitle: Text(
-            '${formatDate(r.dueDate!)} · ${recheckSourceLabel(r.sourceType)}',
-            style: TextStyle(
-                fontSize: 12,
-                color: overdue ? AppColors.warning : AppColors.textSecondary),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${formatDate(r.dueDate!)} · ${recheckSourceLabel(r.sourceType)}',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: overdue
+                        ? AppColors.warning
+                        : AppColors.textSecondary),
+              ),
+              if (condName != null && condName.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text('关联长期关注：$condName',
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary)),
+                ),
+            ],
           ),
           trailing: const Text('修改',
               style: TextStyle(fontSize: 13, color: AppColors.primary)),
