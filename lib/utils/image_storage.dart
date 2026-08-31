@@ -86,6 +86,40 @@ Future<PickedReportImage> pickLabReportImage() async {
   );
 }
 
+/// 从系统**相册**选一张报告图片（截图 / 已拍好的报告照）。
+/// 走 image_picker，直接进「照片」，而不是像 [pickLabReportImage] 那样进「文件」App
+/// ——「文件」里看不到相册照片，是用户反馈「选不到相册」的原因。
+/// 相册里没有 PDF，所以这条路只处理图片；要选 PDF 用 [pickLabReportImage]。
+Future<PickedReportImage> pickReportImageFromGallery() async {
+  final picked = await ImagePicker().pickImage(
+    source: ImageSource.gallery,
+    maxWidth: 4096,
+    maxHeight: 4096,
+    imageQuality: 92,
+  );
+  if (picked == null) {
+    throw StateError('未选择图片');
+  }
+  final bytes = await picked.readAsBytes();
+  if (bytes.isEmpty) {
+    throw StateError('无法读取该图片');
+  }
+  final ext =
+      p.extension(picked.name).isEmpty ? '.jpg' : p.extension(picked.name);
+  String? savedPath;
+  try {
+    savedPath = await saveReportImageLocally(bytes, ext);
+  } catch (_) {
+    savedPath = null;
+  }
+  return PickedReportImage(
+    bytes: bytes,
+    fileName: picked.name,
+    path: savedPath,
+    mimeType: 'image/jpeg',
+  );
+}
+
 /// 拍照获取化验单图片（V0.4B）。
 /// 仅移动端（Android/iOS）调用相机；Web/桌面调用会抛出一个明确提示的异常。
 /// 拍照得到的图片会与「上传」一样落盘（返回 [PickedReportImage]），随后进入同一识别流程。

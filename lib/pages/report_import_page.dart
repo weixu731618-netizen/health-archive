@@ -22,10 +22,13 @@ class _ReportImportPageState extends State<ReportImportPage> {
   PickedReportImage? _image;
   String? _error;
 
-  Future<void> _pickImage() async {
+  Future<void> _pickFromGallery() => _pick(pickReportImageFromGallery);
+  Future<void> _pickFromFile() => _pick(pickLabReportImage);
+
+  Future<void> _pick(Future<PickedReportImage> Function() picker) async {
     setState(() => _error = null);
     try {
-      final picked = await pickLabReportImage();
+      final picked = await picker();
       if (mounted) setState(() => _image = picked);
     } catch (e) {
       if (mounted) {
@@ -77,14 +80,25 @@ class _ReportImportPageState extends State<ReportImportPage> {
                         const Icon(Icons.image_outlined,
                             size: 56, color: AppColors.textSecondary),
                         const SizedBox(height: 8),
-                        const Text('尚未选择文件',
+                        const Text('从相册选截图，或从文件选 PDF',
                             style: TextStyle(
                                 fontSize: 14, color: AppColors.textSecondary)),
                         const SizedBox(height: 12),
-                        FilledButton.tonalIcon(
-                          onPressed: _pickImage,
-                          icon: const Icon(Icons.add_photo_alternate_outlined),
-                          label: const Text('选择报告图片 / PDF'),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            FilledButton.tonalIcon(
+                              onPressed: _pickFromGallery,
+                              icon: const Icon(Icons.photo_library_outlined),
+                              label: const Text('相册'),
+                            ),
+                            const SizedBox(width: 10),
+                            OutlinedButton.icon(
+                              onPressed: _pickFromFile,
+                              icon: const Icon(Icons.folder_open_outlined),
+                              label: const Text('PDF / 文件'),
+                            ),
+                          ],
                         ),
                       ],
                     )
@@ -111,10 +125,13 @@ class _ReportImportPageState extends State<ReportImportPage> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             TextButton(
-                              onPressed: _pickImage,
-                              child: const Text('重新选择'),
+                              onPressed: _pickFromGallery,
+                              child: const Text('相册'),
                             ),
-                            const SizedBox(width: 8),
+                            TextButton(
+                              onPressed: _pickFromFile,
+                              child: const Text('PDF / 文件'),
+                            ),
                             TextButton(
                               onPressed: () => setState(() => _image = null),
                               child: const Text('移除'),

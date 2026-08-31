@@ -67,6 +67,7 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
   }
 
   Future<void> _pickFromCamera() => _pick(captureLabReportImage);
+  Future<void> _pickFromGallery() => _pick(pickReportImageFromGallery);
   Future<void> _pickFromFile() => _pick(pickLabReportImage);
 
   Future<void> _pick(Future<PickedReportImage> Function() picker) async {
@@ -212,23 +213,29 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
                         const Icon(Icons.image_outlined,
                             size: 56, color: AppColors.textSecondary),
                         const SizedBox(height: 8),
-                        const Text('尚未选择图片',
+                        const Text('拍照，或从相册选截图 / 从文件选 PDF',
                             style: TextStyle(
                                 fontSize: 14, color: AppColors.textSecondary)),
                         const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.center,
                           children: [
                             FilledButton.tonalIcon(
                               onPressed: _pickFromCamera,
                               icon: const Icon(Icons.photo_camera_outlined),
                               label: const Text('拍照'),
                             ),
-                            const SizedBox(width: 12),
+                            OutlinedButton.icon(
+                              onPressed: _pickFromGallery,
+                              icon: const Icon(Icons.photo_library_outlined),
+                              label: const Text('相册'),
+                            ),
                             OutlinedButton.icon(
                               onPressed: _pickFromFile,
-                              icon: const Icon(Icons.add_photo_alternate_outlined),
-                              label: const Text('选图片 / PDF'),
+                              icon: const Icon(Icons.folder_open_outlined),
+                              label: const Text('PDF / 文件'),
                             ),
                           ],
                         ),
@@ -246,14 +253,18 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Wrap(
+                          alignment: WrapAlignment.center,
                           children: [
                             TextButton(
-                                onPressed: _pickFromCamera, child: const Text('重新拍照')),
-                            const SizedBox(width: 8),
+                                onPressed: _pickFromCamera,
+                                child: const Text('重新拍照')),
                             TextButton(
-                                onPressed: _pickFromFile, child: const Text('重新选择')),
+                                onPressed: _pickFromGallery,
+                                child: const Text('相册')),
+                            TextButton(
+                                onPressed: _pickFromFile,
+                                child: const Text('PDF / 文件')),
                           ],
                         ),
                       ],
