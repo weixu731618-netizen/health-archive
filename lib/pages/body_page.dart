@@ -16,6 +16,7 @@ import 'metric_history_page.dart';
 import 'reminders_page.dart';
 import 'report_capture_page.dart';
 import 'report_detail_page.dart';
+import 'report_import_page.dart';
 
 /// 「身体」tab = 器官导航：各部位最近有什么记录、哪里需要关注、哪里暂无资料。
 /// 纯读档案聚合，不做慢病管理，不做体检计划，不打健康评分。
@@ -175,6 +176,7 @@ class _BodyPageState extends State<BodyPage> {
                 : !_hasAnyRecord
                     ? _BodyEmptyState(
                         onCapture: () => _push(const ReportCapturePage()),
+                        onImport: () => _push(const ReportImportPage()),
                       )
                     : ListView(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
@@ -394,7 +396,8 @@ class _AreaListRow extends StatelessWidget {
 
 class _BodyEmptyState extends StatelessWidget {
   final VoidCallback onCapture;
-  const _BodyEmptyState({required this.onCapture});
+  final VoidCallback onImport;
+  const _BodyEmptyState({required this.onCapture, required this.onImport});
 
   @override
   Widget build(BuildContext context) {
@@ -411,16 +414,24 @@ class _BodyEmptyState extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary)),
         const SizedBox(height: 8),
-        const Text('上传报告后，系统会自动整理到对应身体部位。',
+        const Text('上传报告后，系统会自动整理到对应身体部位。\n以前的检查资料也可以从相册或文件导入。',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
         const SizedBox(height: 20),
-        Center(
-          child: FilledButton.icon(
-            onPressed: onCapture,
-            icon: const Icon(Icons.photo_camera_outlined, size: 18),
-            label: const Text('拍报告'),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            FilledButton.icon(
+              onPressed: onCapture,
+              icon: const Icon(Icons.photo_camera_outlined, size: 18),
+              label: const Text('拍报告'),
+            ),
+            const SizedBox(width: 10),
+            TextButton(
+              onPressed: onImport,
+              child: const Text('导入以前的资料'),
+            ),
+          ],
         ),
       ],
     );

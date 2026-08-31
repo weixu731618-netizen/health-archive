@@ -295,9 +295,11 @@ StructuredMedicalReport structuredReportFromBackendJson(
     }
   }
 
+  final parsedDate = _parseDate(body['reportDate']);
   return StructuredMedicalReport(
     hospitalName: (body['hospitalName'] ?? '').toString(),
-    reportDate: _parseDate(body['reportDate']) ?? DateTime.now(),
+    reportDate: parsedDate ?? DateTime.now(),
+    dateFromOcr: parsedDate != null,
     reportType: (body['reportType'] ?? '').toString(),
     patientName: (body['patientName'] ?? '').toString(),
     metrics: metrics,

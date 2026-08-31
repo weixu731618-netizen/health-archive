@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../models/body_area_health.dart';
 import '../models/report_models.dart';
+import '../services/analytics.dart';
 import '../utils/format.dart';
 import '../utils/report_image_save.dart';
 import '../widgets/metric_selector.dart';
 import 'followup_match.dart';
+import 'report_result_page.dart';
 
 /// 报告识别结果确认页：医院/日期/类型可改，指标可编辑、可取消勾选、低置信度提示。
 class ReportReviewPage extends StatefulWidget {
@@ -245,9 +247,18 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
             coreBodyAreaOrder.contains(widget.initialArea))
           widget.initialArea!,
       };
+      final savedLines = <SavedMetricLine>[];
       for (final m in _report.metrics) {
         if (!m.isSelected) continue;
         areas.add(bodyAreaForSystem(m.bodySystem));
+        savedLines.add(SavedMetricLine(
+          metricId: m.matchedMetricId ?? 'UNKNOWN',
+          name: m.canonicalName,
+          status: m.status,
+          value: m.numericValue ?? m.value,
+          unit: m.unit,
+          bodySystem: m.bodySystem,
+        ));
         await repo.insertMetric(
           metricId: m.matchedMetricId ?? 'UNKNOWN',
           metricName: m.canonicalName,
@@ -280,10 +291,9 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
         await repo.setReportOrgans(reportId, areas);
       }
       _saved = true;
+      AnalyticsEvents.ocrCompleted(
+          metricCount: savedLines.length, ok: true);
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('保存成功')));
       // 03（§17）：可能是某条待复查的结果 → 弹非破坏性关联确认。
       await offerFollowUpLink(
         context,
@@ -291,7 +301,30 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
         reportDate: _report.reportDate,
       );
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      // §11–§12 / §30：不再直接 pop 回列表，而是进「报告整理结果页」。
+      // §25：仅在有多个家庭档案时，结果页显示「已保存到：X」。
+      String? profileName;
+      if (await repo.countPersonProfiles() > 1) {
+        profileName = (await repo.getPersonProfile(repo.activeProfileId))
+            ?.displayName;
+      }
+      if ((await repo.getAllReports()).length == 2) {
+        AnalyticsEvents.secondReportUploaded();
+      }
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(MaterialPageRoute(
+        builder: (_) => ReportResultPage(
+          reportId: reportId,
+          reportType: _report.reportType,
+          reportDate: _report.reportDate,
+          hospitalName: _report.hospitalName,
+          metrics: savedLines,
+          areas: areas,
+          rawText: _report.rawText,
+          dateFromOcr: _report.dateFromOcr,
+          savedProfileName: profileName,
+        ),
+      ));
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);

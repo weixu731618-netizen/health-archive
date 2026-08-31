@@ -106,6 +106,10 @@ class StructuredMedicalReport {
   final String rawText; // 原始识别文本（全文，不进日志）
   final String? sourceImagePath; // 原始图片路径（可空，Web 无落盘）
 
+  /// 检查日期是否来自识别结果。false 表示后端没给出、当前用的是上传当天的日期，
+  /// 结果页会提示用户确认（§21）。
+  final bool dateFromOcr;
+
   StructuredMedicalReport({
     this.hospitalName = '',
     DateTime? reportDate,
@@ -114,7 +118,9 @@ class StructuredMedicalReport {
     List<RecognizedMetric>? metrics,
     this.rawText = '',
     this.sourceImagePath,
+    bool? dateFromOcr,
   }) : reportDate = reportDate ?? DateTime.now(),
+       dateFromOcr = dateFromOcr ?? (reportDate != null),
        metrics = metrics ?? [];
 }
 

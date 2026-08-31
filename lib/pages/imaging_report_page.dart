@@ -4,6 +4,7 @@ import '../main.dart';
 import '../models/body_area_health.dart';
 import '../models/report_followup.dart';
 import '../utils/image_storage.dart';
+import '../widgets/privacy_note.dart';
 import 'followup_match.dart';
 
 /// 图文类报告 / 病历的可选类型。这类是"图片 + 文字"，没有可提取的数字指标，
@@ -201,6 +202,7 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
           ),
+          const PrivacyNote(),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),

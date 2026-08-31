@@ -598,6 +598,11 @@ class HealthRepository {
       (_db.update(_db.medicalReports)..where((t) => t.id.equals(reportId)))
           .write(MedicalReportsCompanion(tags: Value(normalizeTags(tags))));
 
+  /// 用户在结果页 / 详情页确认或修改检查日期（§21）。
+  Future<void> updateReportDate(int reportId, DateTime date) =>
+      (_db.update(_db.medicalReports)..where((t) => t.id.equals(reportId)))
+          .write(MedicalReportsCompanion(reportDate: Value(date)));
+
   /// 当前档案下所有报告用过的标签（去重，按使用频次降序）。
   Future<List<String>> getDistinctReportTags() async {
     final reports = await getAllReports();

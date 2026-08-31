@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../utils/image_storage.dart';
+import '../widgets/privacy_note.dart';
 import 'manual_metric_entry_page.dart';
 import 'report_recognition_flow.dart';
 
@@ -65,6 +66,7 @@ class _ReportImportPageState extends State<ReportImportPage> {
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
           ),
+          const PrivacyNote(),
           // 图片预览区域
           Card(
             child: Padding(

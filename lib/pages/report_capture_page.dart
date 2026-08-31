@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../utils/image_storage.dart';
+import '../widgets/privacy_note.dart';
 import 'report_recognition_flow.dart';
 
 /// 拍摄检查报告页（V0.4B）。
@@ -69,6 +70,7 @@ class _ReportCapturePageState extends State<ReportCapturePage> {
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
           ),
+          const PrivacyNote(),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),

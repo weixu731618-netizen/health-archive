@@ -223,6 +223,14 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                       ]),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8, left: 4),
+                        child: Text(
+                          '以前的报告、相册截图、PDF 也能导入',
+                          style: TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ),
 
                       // 2. 需要关注 —— 有内容才显示；超过 3 行折叠
                       if (showAttention) ...[
@@ -239,6 +247,7 @@ class _HomePageState extends State<HomePage> {
                       if (_recent.isEmpty)
                         _EmptyRecent(
                           onTap: () => _push(const ReportCapturePage()),
+                          onImport: () => _push(const ReportImportPage()),
                         )
                       else
                         for (final r in _recent)
@@ -286,7 +295,7 @@ class _PrimaryAddCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: AppColors.primary)),
             const SizedBox(height: 4),
-            Text('拍照识别并保存健康资料',
+            Text('识别指标、异常和对应身体部位',
                 style: TextStyle(
                     fontSize: 12,
                     color: AppColors.primary.withValues(alpha: .8))),
@@ -436,7 +445,8 @@ class _RecentTile extends StatelessWidget {
 
 class _EmptyRecent extends StatelessWidget {
   final VoidCallback onTap;
-  const _EmptyRecent({required this.onTap});
+  final VoidCallback onImport;
+  const _EmptyRecent({required this.onTap, required this.onImport});
 
   @override
   Widget build(BuildContext context) {
@@ -446,23 +456,29 @@ class _EmptyRecent extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('还没有健康记录',
+            const Text('建立你的第一条健康记录',
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary)),
             const SizedBox(height: 6),
-            const Text('拍一份报告，开始建立你的健康档案。',
+            const Text('可以拍摄新报告，也可以从相册或文件导入以前的检查资料。',
                 style: TextStyle(
                     fontSize: 13, color: AppColors.textSecondary)),
             const SizedBox(height: 14),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: FilledButton.icon(
-                onPressed: onTap,
-                icon: const Icon(Icons.photo_camera_outlined, size: 18),
-                label: const Text('拍报告'),
-              ),
+            Row(
+              children: [
+                FilledButton.icon(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                  label: const Text('拍报告'),
+                ),
+                const SizedBox(width: 10),
+                TextButton(
+                  onPressed: onImport,
+                  child: const Text('导入以前的资料'),
+                ),
+              ],
             ),
           ],
         ),
