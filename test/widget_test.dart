@@ -23,9 +23,9 @@ void main() {
 
     expect(find.text('首页'), findsWidgets);
     expect(find.byIcon(Icons.notifications_none), findsOneWidget);
-    // 三个导入入口：拍检查资料（第一优先级）+ 导入报告 + 添加医学影像
-    expect(find.text('拍检查资料'), findsOneWidget);
-    expect(find.text('导入报告'), findsOneWidget);
+    // 三个导入入口：拍报告（第一优先级）+ 导入截图或 PDF + 添加医学影像
+    expect(find.text('拍报告'), findsOneWidget);
+    expect(find.text('导入截图或 PDF'), findsOneWidget);
     expect(find.text('添加医学影像'), findsOneWidget);
     // 「最近」空状态只有说明，不再有重复的操作按钮
     expect(find.text('还没有健康记录'), findsOneWidget);
@@ -78,7 +78,7 @@ void main() {
     // 空状态：一句话 + 单个「添加健康资料」按钮，不铺器官清单、不出现「风险 / 未检查」。
     expect(find.text('还没有身体健康记录'), findsOneWidget);
     expect(find.text('添加健康资料'), findsOneWidget);
-    expect(find.text('身体记录'), findsNothing);
+    expect(find.text('身体图谱'), findsNothing);
     expect(find.textContaining('风险'), findsNothing);
     expect(find.textContaining('未检查'), findsNothing);
   });

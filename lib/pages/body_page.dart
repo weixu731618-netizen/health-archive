@@ -203,7 +203,7 @@ class _BodyPageState extends State<BodyPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const SectionTitle(title: '身体记录'),
+                              const SectionTitle(title: '身体图谱'),
                               if (_statFilter != null)
                                 TextButton(
                                   onPressed: () =>

@@ -122,7 +122,7 @@ class _HomePageState extends State<HomePage> {
       .push(MaterialPageRoute(builder: (_) => page))
       .then((_) => _load());
 
-  /// 需要关注：按「已到期复查 → 即将到期复查 → 当前明确异常」排序。
+  /// 待跟进：按「已到期复查 → 即将到期复查 → 当前明确异常」排序。
   /// 长期关注（慢性病）不在首页列，放到部位详情页。
   /// 首页最多显示前 3 项，超过时给一行「查看全部 N 项 ›」进完整列表页。
   List<Widget> _attentionWidgets() => [
@@ -209,7 +209,7 @@ class _HomePageState extends State<HomePage> {
                         Expanded(
                           child: _BigButton(
                             icon: Icons.image_outlined,
-                            label: '导入报告',
+                            label: '导入截图或 PDF',
                             onTap: () => _push(const ReportImportPage()),
                           ),
                         ),
@@ -226,7 +226,7 @@ class _HomePageState extends State<HomePage> {
                       // 2. 需要关注 —— 有内容才显示；超过 3 行折叠
                       if (showAttention) ...[
                         const SizedBox(height: 22),
-                        const SectionTitle(title: '需要关注'),
+                        const SectionTitle(title: '待跟进'),
                         const SizedBox(height: 8),
                         ..._buildAttentionRows(),
                       ],
@@ -277,13 +277,13 @@ class _PrimaryAddCard extends StatelessWidget {
             const Icon(Icons.photo_camera_outlined,
                 size: 30, color: AppColors.primary),
             const SizedBox(height: 10),
-            const Text('拍检查资料',
+            const Text('拍报告',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: AppColors.primary)),
             const SizedBox(height: 4),
-            Text('现场拍摄纸质检查报告',
+            Text('对着纸质报告拍照',
                 style: TextStyle(
                     fontSize: 12,
                     color: AppColors.primary.withValues(alpha: .8))),
@@ -548,7 +548,7 @@ class AttentionListPage extends StatelessWidget {
         ),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('需要关注')),
+      appBar: AppBar(title: const Text('待跟进')),
       body: rows.isEmpty
           ? const Center(
               child: Text('当前没有需要关注的项目',
