@@ -23,13 +23,12 @@ void main() {
 
     expect(find.text('首页'), findsWidgets);
     expect(find.byIcon(Icons.notifications_none), findsOneWidget);
-    // 拍报告为第一优先级 + 两个次级入口
-    // （空数据时「最近」空状态里也有一个「拍报告」按钮，故 findsWidgets）
-    expect(find.text('拍报告'), findsWidgets);
-    expect(find.text('相册 / 文件'), findsOneWidget);
-    expect(find.text('添加影像'), findsOneWidget);
-    // 首页顶部不再有「徐先生 档案」头 / 「添加健康资料」分区标题
-    expect(find.text('添加健康资料'), findsNothing);
+    // 三个导入入口：拍检查资料（第一优先级）+ 导入报告 + 添加医学影像
+    expect(find.text('拍检查资料'), findsOneWidget);
+    expect(find.text('导入报告'), findsOneWidget);
+    expect(find.text('添加医学影像'), findsOneWidget);
+    // 「最近」空状态只有说明，不再有重复的操作按钮
+    expect(find.text('还没有健康记录'), findsOneWidget);
     expect(find.text('本人档案'), findsNothing);
     expect(find.text('最近'), findsOneWidget);
     // 「健康档案完成度」「该做的」已从首页移除
@@ -76,9 +75,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 空状态：一句话 + 拍报告，不出现器官清单、不出现「风险 / 未检查」字样。
+    // 空状态：一句话 + 单个「添加健康资料」按钮，不铺器官清单、不出现「风险 / 未检查」。
     expect(find.text('还没有身体健康记录'), findsOneWidget);
-    expect(find.text('拍报告'), findsOneWidget);
+    expect(find.text('添加健康资料'), findsOneWidget);
     expect(find.text('身体记录'), findsNothing);
     expect(find.textContaining('风险'), findsNothing);
     expect(find.textContaining('未检查'), findsNothing);
@@ -96,7 +95,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('还没有健康资料'), findsOneWidget);
+    expect(find.text('还没有健康记录'), findsOneWidget);
+    expect(find.text('添加第一条记录'), findsOneWidget);
     expect(find.text('生化检查'), findsNothing);
     expect(find.text('深圳某医院'), findsNothing);
     expect(find.text('ALT'), findsNothing);

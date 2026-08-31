@@ -12,9 +12,7 @@ import 'add_page.dart';
 import 'daily_health_entry_page.dart';
 import 'daily_history_page.dart';
 import 'manual_metric_entry_page.dart';
-import 'report_capture_page.dart';
 import 'report_detail_page.dart';
-import 'report_import_page.dart';
 
 /// 记录页在切 Tab 时会整页重建（为了每次进来都加载最新数据），
 /// 用这两个模块级变量把「类型 / 器官」筛选的选择留住，切走再回来还是原来选的那个。
@@ -280,34 +278,23 @@ class _RecordsPageState extends State<RecordsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            '还没有健康资料\n可以拍摄新报告，也可以把以前保存在相册或文件里的医疗资料导入进来。',
+                            '还没有健康记录',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            '检查报告、影像资料和手动记录都会保存在这里。',
                             style: TextStyle(
                                 fontSize: 14,
                                 color: AppColors.textSecondary),
                           ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              FilledButton.icon(
-                                onPressed: () => Navigator.of(context)
-                                    .push(MaterialPageRoute(
-                                        builder: (_) =>
-                                            const ReportCapturePage()))
-                                    .then((_) => _load()),
-                                icon: const Icon(Icons.photo_camera_outlined,
-                                    size: 18),
-                                label: const Text('拍报告'),
-                              ),
-                              const SizedBox(width: 10),
-                              TextButton(
-                                onPressed: () => Navigator.of(context)
-                                    .push(MaterialPageRoute(
-                                        builder: (_) =>
-                                            const ReportImportPage()))
-                                    .then((_) => _load()),
-                                child: const Text('导入以前的资料'),
-                              ),
-                            ],
+                          const SizedBox(height: 14),
+                          FilledButton(
+                            onPressed: _openAddMenu,
+                            child: const Text('添加第一条记录'),
                           ),
                         ],
                       ),

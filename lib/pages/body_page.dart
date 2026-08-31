@@ -14,9 +14,7 @@ import '../widgets/section_title.dart';
 import 'add_page.dart';
 import 'metric_history_page.dart';
 import 'reminders_page.dart';
-import 'report_capture_page.dart';
 import 'report_detail_page.dart';
-import 'report_import_page.dart';
 
 /// 「身体」tab = 器官导航：各部位最近有什么记录、哪里需要关注、哪里暂无资料。
 /// 纯读档案聚合，不做慢病管理，不做体检计划，不打健康评分。
@@ -200,8 +198,10 @@ class _BodyPageState extends State<BodyPage> {
                   ])
                 : !_hasAnyRecord
                     ? _BodyEmptyState(
-                        onCapture: () => _push(const ReportCapturePage()),
-                        onImport: () => _push(const ReportImportPage()),
+                        onAdd: () async {
+                          await showAddDataSheet(context);
+                          if (mounted) _load();
+                        },
                       )
                     : ListView(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
@@ -265,9 +265,6 @@ class _BodyPageState extends State<BodyPage> {
     );
   }
 
-  Future<void> _push(Widget page) => Navigator.of(context)
-      .push(MaterialPageRoute(builder: (_) => page))
-      .then((_) => _load());
 
   void _openAreaDetail(BodyAreaHealthSummary area) {
     Navigator.of(context)
@@ -504,9 +501,8 @@ class _AreaListRow extends StatelessWidget {
 }
 
 class _BodyEmptyState extends StatelessWidget {
-  final VoidCallback onCapture;
-  final VoidCallback onImport;
-  const _BodyEmptyState({required this.onCapture, required this.onImport});
+  final VoidCallback onAdd;
+  const _BodyEmptyState({required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -523,24 +519,15 @@ class _BodyEmptyState extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary)),
         const SizedBox(height: 8),
-        const Text('上传报告后，系统会自动整理到对应身体部位。\n以前的检查资料也可以从相册或文件导入。',
+        const Text('添加检查资料后，指标会自动归入对应身体部位，并逐步形成你的身体健康档案。',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
         const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            FilledButton.icon(
-              onPressed: onCapture,
-              icon: const Icon(Icons.photo_camera_outlined, size: 18),
-              label: const Text('拍报告'),
-            ),
-            const SizedBox(width: 10),
-            TextButton(
-              onPressed: onImport,
-              child: const Text('导入以前的资料'),
-            ),
-          ],
+        Center(
+          child: FilledButton(
+            onPressed: onAdd,
+            child: const Text('添加健康资料'),
+          ),
         ),
       ],
     );

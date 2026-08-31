@@ -209,7 +209,7 @@ class _HomePageState extends State<HomePage> {
                         Expanded(
                           child: _BigButton(
                             icon: Icons.image_outlined,
-                            label: '相册 / 文件',
+                            label: '导入报告',
                             onTap: () => _push(const ReportImportPage()),
                           ),
                         ),
@@ -217,19 +217,11 @@ class _HomePageState extends State<HomePage> {
                         Expanded(
                           child: _BigButton(
                             icon: Icons.medical_information_outlined,
-                            label: '添加影像',
+                            label: '添加医学影像',
                             onTap: () => _push(const ImagingReportPage()),
                           ),
                         ),
                       ]),
-                      const Padding(
-                        padding: EdgeInsets.only(top: 8, left: 4),
-                        child: Text(
-                          '以前的报告、相册截图、PDF 也能导入',
-                          style: TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary),
-                        ),
-                      ),
 
                       // 2. 需要关注 —— 有内容才显示；超过 3 行折叠
                       if (showAttention) ...[
@@ -244,10 +236,7 @@ class _HomePageState extends State<HomePage> {
                       const SectionTitle(title: '最近'),
                       const SizedBox(height: 8),
                       if (_recent.isEmpty)
-                        _EmptyRecent(
-                          onTap: () => _push(const ReportCapturePage()),
-                          onImport: () => _push(const ReportImportPage()),
-                        )
+                        const _EmptyRecent()
                       else
                         for (final r in _recent)
                           _RecentTile(
@@ -288,13 +277,13 @@ class _PrimaryAddCard extends StatelessWidget {
             const Icon(Icons.photo_camera_outlined,
                 size: 30, color: AppColors.primary),
             const SizedBox(height: 10),
-            const Text('拍报告',
+            const Text('拍检查资料',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: AppColors.primary)),
             const SizedBox(height: 4),
-            Text('识别指标、异常和对应身体部位',
+            Text('现场拍摄纸质检查报告',
                 style: TextStyle(
                     fontSize: 12,
                     color: AppColors.primary.withValues(alpha: .8))),
@@ -442,43 +431,27 @@ class _RecentTile extends StatelessWidget {
   }
 }
 
+/// 首页「最近」空状态：只说明，不放操作按钮（上传入口在页面顶部）。
 class _EmptyRecent extends StatelessWidget {
-  final VoidCallback onTap;
-  final VoidCallback onImport;
-  const _EmptyRecent({required this.onTap, required this.onImport});
+  const _EmptyRecent();
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return const Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+        padding: EdgeInsets.fromLTRB(16, 20, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('建立你的第一条健康记录',
+            Text('还没有健康记录',
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary)),
-            const SizedBox(height: 6),
-            const Text('可以拍摄新报告，也可以从相册或文件导入以前的检查资料。',
+            SizedBox(height: 6),
+            Text('添加第一份资料后，这里会显示最近的检查和健康变化。',
                 style: TextStyle(
                     fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                FilledButton.icon(
-                  onPressed: onTap,
-                  icon: const Icon(Icons.photo_camera_outlined, size: 18),
-                  label: const Text('拍报告'),
-                ),
-                const SizedBox(width: 10),
-                TextButton(
-                  onPressed: onImport,
-                  child: const Text('导入以前的资料'),
-                ),
-              ],
-            ),
           ],
         ),
       ),
