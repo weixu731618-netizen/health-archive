@@ -367,14 +367,21 @@ class _RecheckRow extends StatelessWidget {
     final today = DateTime(
         DateTime.now().year, DateTime.now().month, DateTime.now().day);
     final dueDay = DateTime(due.year, due.month, due.day);
+    // 系统按慢病模板自动排的复查（kind='followup'）是估算，给 21 天宽限期：
+    // 过了到期日、但还在宽限期内，只灰字提示「复查时间已到」，不上橙色「已到期」。
+    // 用户自己设的复查（kind='recheck'）没有宽限，到点即提示。
+    final graceDays = reminder.kind == 'followup' ? 21 : 0;
     final overdue = dueDay.isBefore(today);
+    final pastGrace =
+        today.isAfter(dueDay.add(Duration(days: graceDays)));
     final days = dueDay.difference(today).inDays;
-    // 只有「已到期 / 就在今天」这种确定要现在处理的才上橙色；
-    // 「还有 N 天」是普通信息，走灰色，不抢注意力。
-    final urgent = overdue || days == 0;
+    // 只有「确定要现在处理」的才上橙色。
+    final urgent = pastGrace || (graceDays == 0 && days == 0);
     final String sub;
-    if (overdue) {
+    if (pastGrace) {
       sub = '复查已到期';
+    } else if (overdue) {
+      sub = '复查时间已到';
     } else if (days == 0) {
       sub = '复查就在今天';
     } else {

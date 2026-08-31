@@ -81,8 +81,11 @@ List<PlannedFollowUp> planFollowUps({
         if (lastCompletedByKey[key] case final d?) d,
         if (disease.foundDate case final d?) d,
       ];
+      // 锚点取不到时（新记的病、没填确诊日期、也没有任何相关记录）：
+      // 从「今天」起算，第一次随访排到 今天 + 间隔，不要一记病就「已到期」。
+      // 只有真的过了一个间隔还没查，才会到期。
       final anchor = anchors.isEmpty
-          ? ts.subtract(item.interval)
+          ? ts
           : anchors.reduce((a, b) => a.isAfter(b) ? a : b);
       final due = anchor.add(item.interval);
 

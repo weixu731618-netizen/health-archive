@@ -73,7 +73,7 @@ void main() {
       expect(hba1c.title, contains('糖化血红蛋白'));
     });
 
-    test('完全没有记录 → 现在就该查（dueDate ≈ now）', () {
+    test('完全没有记录、也没确诊日期 → 从今天起排，第一次到期在一个间隔之后', () {
       final planned = planFollowUps(
         chronicDiseases: [_disease('type2_diabetes')],
         metrics: const [],
@@ -81,7 +81,8 @@ void main() {
         now: _now,
       );
       final hba1c = planned.firstWhere((p) => p.itemKey == 'hba1c');
-      expect(hba1c.dueDate, _now); // (now - interval) + interval
+      // 锚点取不到时用「今天」，不再是「今天 - 间隔」——不会一记病就已到期。
+      expect(hba1c.dueDate.isAfter(_now), isTrue);
     });
 
     test('上次已复查时间比记录更近 → 用它当锚点', () {

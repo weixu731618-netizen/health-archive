@@ -36,14 +36,6 @@ extension on _AreaState {
         _AreaState.hasRecord => '近期有记录',
         _AreaState.noRecord => '暂无记录',
       };
-
-  Color get color => switch (this) {
-        _AreaState.followUp => AppColors.warning,
-        _AreaState.attention => AppColors.warning,
-        _AreaState.longTerm => AppColors.primary,
-        _AreaState.hasRecord => AppColors.normal,
-        _AreaState.noRecord => AppColors.insufficient,
-      };
 }
 
 class _AreaRow {
@@ -156,11 +148,6 @@ class _BodyPageState extends State<BodyPage> {
 
   bool get _hasAnyRecord => _rows.any((r) => r.area.metrics.isNotEmpty);
 
-  List<_AreaRow> get _attentionRows => _rows
-      .where((r) =>
-          r.state == _AreaState.followUp || r.state == _AreaState.attention)
-      .toList();
-
   /// §4：某行属于哪个统计桶（与 [_OverviewCard] 的计数口径一致）。
   static _StatFilter _bucketOf(_AreaState s) => switch (s) {
         _AreaState.followUp || _AreaState.attention => _StatFilter.attention,
@@ -212,18 +199,6 @@ class _BodyPageState extends State<BodyPage> {
                             onSelect: (f) => setState(() =>
                                 _statFilter = _statFilter == f ? null : f),
                           ),
-                          if (_attentionRows.isNotEmpty) ...[
-                            const SizedBox(height: 18),
-                            const SectionTitle(title: '需要关注'),
-                            const SizedBox(height: 8),
-                            for (final r in _attentionRows) ...[
-                              _AttentionAreaCard(
-                                row: r,
-                                onTap: () => _openAreaDetail(r.area),
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                          ],
                           const SizedBox(height: 18),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -447,32 +422,6 @@ class _OverviewStat extends StatelessWidget {
   }
 }
 
-/// 「需要关注」里的一张部位卡片："肝胆 · 1 项指标异常" / "甲状腺 · 2 项待复查"。
-class _AttentionAreaCard extends StatelessWidget {
-  final _AreaRow row;
-  final VoidCallback onTap;
-  const _AttentionAreaCard({required this.row, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final line = _areaStatusLine(row);
-    return Card(
-      child: ListTile(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: Icon(Icons.circle,
-            size: 12, color: line.dot ?? row.state.color),
-        title: Text(row.area.name, style: const TextStyle(fontSize: 15)),
-        subtitle: Text(line.text,
-            style: const TextStyle(
-                fontSize: 12, color: AppColors.textSecondary)),
-        trailing:
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-        onTap: onTap,
-      ),
-    );
-  }
-}
 
 /// 「身体记录」里的一行：部位名 ……… 状态词。§6：比「需要关注」卡片更紧凑，
 /// 去掉卡片外壳，单行、矮，行间用细分隔线。
@@ -1033,8 +982,12 @@ class _RecheckCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = reminder;
     if (r != null && r.dueDate != null) {
-      final overdue = r.dueDate!.isBefore(DateTime(
-          DateTime.now().year, DateTime.now().month, DateTime.now().day));
+      final today = DateTime(
+          DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      // 系统自动排的随访给 21 天宽限期，过了到期日但还在宽限期内不算「已逾期」。
+      final graceDays = r.kind == 'followup' ? 21 : 0;
+      final pastGrace = today
+          .isAfter(r.dueDate!.add(Duration(days: graceDays)));
       // §1：这条复查如果来自某个长期关注（慢性病），在详情里说明关联，
       // 但不把病名放进标题。
       final condName = r.conditionCode == null
@@ -1046,7 +999,7 @@ class _RecheckCard extends StatelessWidget {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           leading: const Icon(Icons.event_available_outlined,
               color: AppColors.primary),
-          title: Text(overdue ? '复查已逾期' : '下次复查',
+          title: Text(pastGrace ? '复查已逾期' : '下次复查',
               style: const TextStyle(fontSize: 15)),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1055,7 +1008,7 @@ class _RecheckCard extends StatelessWidget {
                 '${formatDate(r.dueDate!)} · ${recheckSourceLabel(r.sourceType)}',
                 style: TextStyle(
                     fontSize: 12,
-                    color: overdue
+                    color: pastGrace
                         ? AppColors.warning
                         : AppColors.textSecondary),
               ),
