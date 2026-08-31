@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/app_database.dart';
 import 'data/health_repository.dart';
+import 'dev/sample_data_seeder.dart';
 import 'pages/body_page.dart';
 import 'pages/home_page.dart';
 import 'pages/records_page.dart';
@@ -122,6 +123,15 @@ Future<void> main() async {
       }
     } catch (_) {
       // 读取失败就用默认「本人」
+    }
+    // 仅在 `--dart-define=SEED_ENABLED=true` 编译，且当前档案还没有任何报告时，
+    // 首次启动写入一套演示数据。正式包（不带该 define）永远不会触发。
+    if (const bool.fromEnvironment('SEED_ENABLED')) {
+      try {
+        if ((await appRepository!.getAllReports()).isEmpty) {
+          await SampleDataSeeder.run(appRepository!);
+        }
+      } catch (_) {}
     }
   } catch (e, st) {
     debugPrint('AppDatabase init failed: $e\n$st');
