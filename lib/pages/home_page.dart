@@ -337,7 +337,7 @@ class _AttentionCard extends StatelessWidget {
     final isAbnormal = area.status == '异常';
     final dotColor = isAbnormal ? AppColors.abnormal : AppColors.warning;
     final count = area.abnormalCount;
-    final countText = count > 0 ? '$count 项异常' : '需关注';
+    final countText = count > 0 ? '$count 项指标异常' : '需要关注';
 
     return Card(
       child: ListTile(
@@ -369,6 +369,9 @@ class _RecheckRow extends StatelessWidget {
     final dueDay = DateTime(due.year, due.month, due.day);
     final overdue = dueDay.isBefore(today);
     final days = dueDay.difference(today).inDays;
+    // 只有「已到期 / 就在今天」这种确定要现在处理的才上橙色；
+    // 「还有 N 天」是普通信息，走灰色，不抢注意力。
+    final urgent = overdue || days == 0;
     final String sub;
     if (overdue) {
       sub = '复查已到期';
@@ -383,13 +386,13 @@ class _RecheckRow extends StatelessWidget {
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         leading: Icon(Icons.event_outlined,
-            color: overdue ? AppColors.warning : AppColors.textSecondary),
+            color: urgent ? AppColors.warning : AppColors.textSecondary),
         title: Text(reminder.title, style: const TextStyle(fontSize: 14)),
         subtitle: Text(
           sub,
           style: TextStyle(
               fontSize: 12,
-              color: overdue ? AppColors.warning : AppColors.textSecondary),
+              color: urgent ? AppColors.warning : AppColors.textSecondary),
         ),
         trailing:
             const Icon(Icons.chevron_right, color: AppColors.textSecondary),

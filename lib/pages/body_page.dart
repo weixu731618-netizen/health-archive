@@ -324,14 +324,20 @@ String? _areaForDailyType(String t) {
 /// §3：一个部位的状态用一句话表达。
 /// 有真实复查任务 → 「N 项待复查」；只是指标异常 → 「N 项指标异常」；否则用状态词。
 /// 「异常 ≠ 等待复查」——两者分开。
-({String text, Color color}) _areaStatusLine(_AreaRow row) {
+///
+/// 颜色：文字一律走灰色（由调用方渲染），分类信号交给左侧小圆点 [dot]。
+/// 只有真正需要现在处理的（已到期复查）才在别处用橙色，普通异常 / 待复查不抢注意力。
+({String text, Color? dot}) _areaStatusLine(_AreaRow row) {
   if (row.followUpCount > 0) {
-    return (text: '${row.followUpCount} 项待复查', color: AppColors.warning);
+    return (text: '${row.followUpCount} 项待复查', dot: AppColors.warning);
   }
   if (row.state == _AreaState.attention && row.abnormalCount > 0) {
-    return (text: '${row.abnormalCount} 项指标异常', color: AppColors.warning);
+    return (
+      text: '${row.abnormalCount} 项指标异常',
+      dot: row.area.status == '异常' ? AppColors.abnormal : AppColors.warning,
+    );
   }
-  return (text: row.state.label, color: row.state.color);
+  return (text: row.state.label, dot: null);
 }
 
 class _OverviewCard extends StatelessWidget {
@@ -454,7 +460,8 @@ class _AttentionAreaCard extends StatelessWidget {
       child: ListTile(
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: Icon(Icons.circle, size: 12, color: row.state.color),
+        leading: Icon(Icons.circle,
+            size: 12, color: line.dot ?? row.state.color),
         title: Text(row.area.name, style: const TextStyle(fontSize: 15)),
         subtitle: Text(line.text,
             style: const TextStyle(
@@ -483,13 +490,28 @@ class _AreaListRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 11),
         child: Row(
           children: [
+            // 定宽的圆点位：有分类信号才画点，名字始终对齐。
+            SizedBox(
+              width: 14,
+              child: line.dot == null
+                  ? null
+                  : Center(
+                      child: Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                            color: line.dot, shape: BoxShape.circle),
+                      ),
+                    ),
+            ),
             Expanded(
               child: Text(row.area.name,
                   style: const TextStyle(
                       fontSize: 14, color: AppColors.textPrimary)),
             ),
             Text(line.text,
-                style: TextStyle(fontSize: 13, color: line.color)),
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary)),
             const SizedBox(width: 2),
             const Icon(Icons.chevron_right,
                 size: 18, color: AppColors.textSecondary),
