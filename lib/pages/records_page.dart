@@ -957,9 +957,21 @@ class _FilterSheetState extends State<_FilterSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('筛选',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Text('筛选',
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 32),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('取消', style: TextStyle(fontSize: 15)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
               const Text('器官',
                   style:
                       TextStyle(fontSize: 13, color: AppColors.textSecondary)),
