@@ -216,10 +216,17 @@ async def report_recognize(
 
     begin = time.time()
     force_deepseek = (prefer or "").strip().lower() == "deepseek"
+    # 分段计时（毫秒），便于定位「慢在哪一步」。0 = 该步未执行。
+    t_med_ms = t_ocr_ms = t_llm_ms = 0
 
     # —— 第一优先：百度「医疗检验报告单识别」，是化验单就直接结构化，跳过 DeepSeek ——
     try:
-        med = None if force_deepseek else recognize_lab_report(image_bytes)
+        if force_deepseek:
+            med = None
+        else:
+            _t = time.time()
+            med = recognize_lab_report(image_bytes)
+            t_med_ms = int((time.time() - _t) * 1000)
     except BaiduOcrError as e:
         raise HTTPException(502, detail=e.message)
     if med is not None:
@@ -232,8 +239,8 @@ async def report_recognize(
         if mapped_metrics:
             duration_ms = int((time.time() - begin) * 1000)
             logger.info(
-                "MedicalReportOCR success | items: %d | duration: %d ms",
-                len(mapped_metrics), duration_ms,
+                "MedicalReportOCR success | items: %d | med: %d ms | total: %d ms",
+                len(mapped_metrics), t_med_ms, duration_ms,
             )
             return JSONResponse(
                 status_code=200,
@@ -255,7 +262,9 @@ async def report_recognize(
 
     # —— 回退：百度通用 OCR + DeepSeek ——
     try:
+        _t = time.time()
         words = recognize_image(image_bytes)
+        t_ocr_ms = int((time.time() - _t) * 1000)
     except BaiduOcrError as e:
         raise HTTPException(502, detail=e.message)
 
@@ -264,7 +273,9 @@ async def report_recognize(
 
     # 交给 DeepSeek 结构化（只发文字+坐标，不把图片字节发给模型）
     try:
+        _t = time.time()
         structured = parse_ocr_result(words)
+        t_llm_ms = int((time.time() - _t) * 1000)
     except DeepSeekParseError as e:
         raise HTTPException(502, detail=e.message)
 
@@ -285,11 +296,14 @@ async def report_recognize(
     )
 
     duration_ms = int((time.time() - begin) * 1000)
-    # 只记录计数与耗时，不记录健康内容（rawText 不进日志）
+    # 只记录计数与耗时，不记录健康内容（rawText 不进日志）。
+    # med: 专用模型这次也试过但没用上时的耗时；ocr/llm: 通用OCR、DeepSeek 各自耗时。
     logger.info(
-        "OCR+LLM success | OCR lines: %d | metrics: %d | imagingType: %s | isMedical: %s | %d ms",
+        "OCR+LLM success | lines: %d | metrics: %d | imagingType: %s | isMedical: %s "
+        "| med: %d ms | ocr: %d ms | llm: %d ms | total: %d ms",
         len(words), len(metrics), structured.get("imagingType"),
-        structured.get("isMedical"), duration_ms,
+        structured.get("isMedical"),
+        t_med_ms, t_ocr_ms, t_llm_ms, duration_ms,
     )
 
     return JSONResponse(
