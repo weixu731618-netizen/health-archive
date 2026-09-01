@@ -1,7 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/health_ui.dart';
+import '../widgets/ios_tap.dart';
 import '../models/chronic_condition_dictionary.dart';
 import '../utils/format.dart';
 
@@ -96,20 +99,24 @@ class _ConditionPageState extends State<ConditionPage> {
 
   Future<void> _addOther() async {
     final ctrl = TextEditingController();
-    final name = await showDialog<String>(
+    final name = await showCupertinoDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: const Text('添加其他疾病'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: '疾病名称'),
-          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            controller: ctrl,
+            autofocus: true,
+            placeholder: '疾病名称',
+            onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+          ),
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-          TextButton(
+          CupertinoDialogAction(
+              isDefaultAction: true,
               onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
               child: const Text('添加')),
         ],
@@ -150,42 +157,24 @@ class _ConditionPageState extends State<ConditionPage> {
                         fontSize: 13, color: AppColors.textSecondary),
                   ),
                 ),
-                Card(
+                HealthCard(
+                  padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),
                   child: Column(
                     children: [
-                      for (var i = 0; i < defs.length; i++) ...[
-                        if (i > 0)
-                          const Divider(height: 1, indent: 16, endIndent: 16),
-                        CheckboxListTile(
-                          value: _rowFor(defs[i].code) != null,
-                          onChanged: _busy
+                      for (final def in defs)
+                        _CheckRow(
+                          label: def.name,
+                          checked: _rowFor(def.code) != null,
+                          onTap: _busy
                               ? null
-                              : (v) => _toggle(defs[i], v ?? false),
-                          title: Text(defs[i].name,
-                              style: const TextStyle(fontSize: 15)),
-                          controlAffinity: ListTileControlAffinity.leading,
-                          dense: true,
+                              : () => _toggle(
+                                  def, _rowFor(def.code) == null),
                         ),
-                      ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    const Text('其他疾病',
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary)),
-                    const Spacer(),
-                    TextButton.icon(
-                      onPressed: _addOther,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('添加'),
-                    ),
-                  ],
-                ),
+                HealthSectionHeader('其他疾病',
+                    actionLabel: '添加', onAction: _addOther),
                 if (others.isEmpty)
                   const Padding(
                     padding: EdgeInsets.only(left: 4, bottom: 8),
@@ -194,29 +183,64 @@ class _ConditionPageState extends State<ConditionPage> {
                             fontSize: 12, color: AppColors.textSecondary)),
                   )
                 else
-                  for (final d in others)
-                    Card(
-                      child: ListTile(
-                        dense: true,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        title:
-                            Text(d.name, style: const TextStyle(fontSize: 15)),
-                        subtitle: d.foundDate == null
-                            ? null
-                            : Text('发现于 ${formatDate(d.foundDate!)}',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline,
-                              color: AppColors.abnormal),
-                          onPressed: () => _removeOther(d),
-                        ),
-                      ),
+                  HealthCard(
+                    padding: const EdgeInsets.fromLTRB(18, 4, 8, 4),
+                    child: Column(
+                      children: [
+                        for (final d in others)
+                          HealthRow(
+                            title: d.name,
+                            subtitle: d.foundDate == null
+                                ? null
+                                : '发现于 ${formatDate(d.foundDate!)}',
+                            trailing: CupertinoButton(
+                              padding: const EdgeInsets.all(6),
+                              minimumSize: const Size(0, 0),
+                              onPressed: () => _removeOther(d),
+                              child: const Icon(CupertinoIcons.delete,
+                                  size: 20, color: AppColors.abnormal),
+                            ),
+                          ),
+                      ],
                     ),
+                  ),
               ],
             ),
+    );
+  }
+}
+
+/// Health 风的勾选行：左侧圆圈勾，右侧无 chevron，整行可点。
+class _CheckRow extends StatelessWidget {
+  final String label;
+  final bool checked;
+  final VoidCallback? onTap;
+  const _CheckRow({required this.label, required this.checked, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return IosTap(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        child: Row(
+          children: [
+            Icon(
+              checked
+                  ? CupertinoIcons.checkmark_circle_fill
+                  : CupertinoIcons.circle,
+              size: 22,
+              color: checked ? AppColors.primary : AppColors.insufficient,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(label,
+                  style: const TextStyle(
+                      fontSize: 16, color: AppColors.textPrimary)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

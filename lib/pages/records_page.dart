@@ -8,6 +8,7 @@ import '../models/body_area_health.dart';
 import '../models/metric_source.dart';
 import '../models/report_models.dart' show kUnlinkedReportType;
 import '../utils/format.dart';
+import '../widgets/health_ui.dart';
 import '../widgets/ios_tap.dart';
 import '../widgets/profile_switcher.dart';
 import '../utils/records_filter.dart';
@@ -174,7 +175,7 @@ class _RecordsPageState extends State<RecordsPage> {
           const ProfileSwitcher(),
         ],
       ),
-      body: RefreshIndicator(
+      body: RefreshIndicator.adaptive(
         onRefresh: _load,
         child: ListView(
           // 底部多留一点空间，避免最后一项被悬浮的"添加"按钮挡住。
@@ -312,18 +313,19 @@ class _RecordsPageState extends State<RecordsPage> {
             else
               for (final block in _groupByMonth(_timeline)) ...[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 8, 0, 2),
+                  padding: const EdgeInsets.fromLTRB(4, 20, 0, 8),
                   child: Text(
                     block.month,
                     style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                        color: AppColors.textPrimary),
                   ),
                 ),
-                CupertinoListSection.insetGrouped(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  children: [
+                HealthCard(
+                  padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+                  child: Column(children: [
                     for (final item in block.items)
                       if (item.report != null)
                         _ReportRow(
@@ -338,7 +340,7 @@ class _RecordsPageState extends State<RecordsPage> {
                           entry: item.entry!,
                           onTap: () => _openReal(context, item.entry!),
                         ),
-                  ],
+                  ]),
                 ),
               ],
           ],
@@ -704,12 +706,10 @@ class _ReportRow extends StatelessWidget {
     final hospital =
         report.hospitalName.isEmpty ? '医院未知' : report.hospitalName;
     return GestureDetector(
-      onLongPress: onEditTags, // 长按仍可改标签（左滑操作留到下一轮）
-      child: CupertinoListTile.notched(
-        title: Text(_summaryLine,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text('$hospital · ${formatDateShort(report.reportDate)}'),
-        trailing: const CupertinoListTileChevron(),
+      onLongPress: onEditTags, // 长按仍可改标签
+      child: HealthRow(
+        title: _summaryLine,
+        subtitle: '$hospital · ${formatDateShort(report.reportDate)}',
         onTap: onTap,
       ),
     );
@@ -725,19 +725,17 @@ class _RealRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sub =
-        '${entry.subtitle} · ${formatDateShort(entry.measuredAt)}';
-    return CupertinoListTile.notched(
-      title: Text(entry.title,
-          style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(sub),
-      additionalInfo: entry.status.isEmpty
+    final sub = '${entry.subtitle} · ${formatDateShort(entry.measuredAt)}';
+    return HealthRow(
+      title: entry.title,
+      subtitle: sub,
+      trailing: entry.status.isEmpty
           ? null
           : Text(entry.status,
               style: TextStyle(
+                  fontSize: 13,
                   color: _statusColor(entry.status),
-                  fontWeight: FontWeight.w500)),
-      trailing: const CupertinoListTileChevron(),
+                  fontWeight: FontWeight.w600)),
       onTap: onTap,
     );
   }
@@ -796,12 +794,16 @@ class _FilterSheetState extends State<_FilterSheet> {
   }
 
   Future<void> _pickCustomRange() async {
+    FocusScope.of(context).unfocus();
     final now = DateTime.now();
-    final picked = await showDateRangePicker(
+    final maxDate = DateTime(now.year, now.month, now.day);
+    final picked = await showCupertinoModalPopup<DateTimeRange>(
       context: context,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(now.year, now.month, now.day),
-      initialDateRange: _range,
+      builder: (_) => _DateRangeSheet(
+        start: _range?.start ?? DateTime(now.year, now.month - 1, now.day),
+        end: _range?.end ?? maxDate,
+        maxDate: maxDate,
+      ),
     );
     if (picked != null) {
       setState(() {
@@ -971,6 +973,100 @@ class _FilterSheetState extends State<_FilterSheet> {
   }
 }
 
+/// iOS 风格的「起 / 止」日期区间选择器：顶部分段切「开始 / 结束」，下面一个滚轮。
+/// 取代 Material 的整屏 `showDateRangePicker`。
+class _DateRangeSheet extends StatefulWidget {
+  final DateTime start;
+  final DateTime end;
+  final DateTime maxDate;
+  const _DateRangeSheet({
+    required this.start,
+    required this.end,
+    required this.maxDate,
+  });
+
+  @override
+  State<_DateRangeSheet> createState() => _DateRangeSheetState();
+}
+
+class _DateRangeSheetState extends State<_DateRangeSheet> {
+  late DateTime _start = _dateOnly(widget.start);
+  late DateTime _end = _dateOnly(widget.end);
+  bool _editingEnd = false;
+
+  static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  @override
+  Widget build(BuildContext context) {
+    final active = _editingEnd ? _end : _start;
+    return Container(
+      height: 340,
+      color: CupertinoColors.systemBackground.resolveFrom(context),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CupertinoButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('取消'),
+                ),
+                CupertinoButton(
+                  onPressed: () => Navigator.of(context).pop(
+                    DateTimeRange(
+                      start: _start,
+                      end: _end.isBefore(_start) ? _start : _end,
+                    ),
+                  ),
+                  child: const Text('完成',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: CupertinoSlidingSegmentedControl<bool>(
+                groupValue: _editingEnd,
+                onValueChanged: (v) => setState(() => _editingEnd = v ?? false),
+                children: {
+                  false: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text('开始  ${formatDate(_start)}'),
+                  ),
+                  true: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text('结束  ${formatDate(_end)}'),
+                  ),
+                },
+              ),
+            ),
+            Expanded(
+              child: CupertinoDatePicker(
+                key: ValueKey(_editingEnd),
+                mode: CupertinoDatePickerMode.date,
+                initialDateTime: active,
+                minimumDate: _editingEnd ? _start : DateTime(2000),
+                maximumDate: widget.maxDate,
+                onDateTimeChanged: (d) => setState(() {
+                  final v = _dateOnly(d);
+                  if (_editingEnd) {
+                    _end = v;
+                  } else {
+                    _start = v;
+                    if (_end.isBefore(_start)) _end = _start;
+                  }
+                }),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// B3：给一份报告编辑标签。
 class _TagEditSheet extends StatefulWidget {
   final List<String> current;
@@ -1033,47 +1129,62 @@ class _TagEditSheetState extends State<_TagEditSheet> {
               else
                 Wrap(
                   spacing: 8,
-                  runSpacing: 4,
+                  runSpacing: 8,
                   children: [
                     for (final t in _tags)
-                      InputChip(
-                        label: Text(t),
-                        onDeleted: () => setState(() => _tags.remove(t)),
+                      GestureDetector(
+                        onTap: () => setState(() => _tags.remove(t)),
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(t,
+                                  style: const TextStyle(
+                                      fontSize: 13, color: AppColors.primary)),
+                              const SizedBox(width: 4),
+                              const Icon(CupertinoIcons.xmark_circle_fill,
+                                  size: 15, color: AppColors.primary),
+                            ],
+                          ),
+                        ),
                       ),
                   ],
                 ),
               const SizedBox(height: 12),
-              TextField(
+              CupertinoTextField(
                 controller: _ctrl,
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: '新建标签',
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: () => _add(_ctrl.text),
-                  ),
-                ),
+                placeholder: '新建标签',
                 onSubmitted: _add,
+                suffix: CupertinoButton(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 36),
+                  onPressed: () => _add(_ctrl.text),
+                  child: const Icon(CupertinoIcons.add, size: 20),
+                ),
               ),
               if (suggestions.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
-                  runSpacing: 4,
+                  runSpacing: 8,
                   children: [
                     for (final s in suggestions.take(12))
-                      ActionChip(
-                        label: Text(s),
-                        onPressed: () => _add(s),
+                      _TypePill(
+                        label: s,
+                        selected: false,
+                        onTap: () => _add(s),
                       ),
                   ],
                 ),
               ],
               const SizedBox(height: 16),
-              FilledButton(
+              CupertinoButton.filled(
                 onPressed: () => Navigator.of(context).pop(_tags),
-                style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14)),
                 child: const Text('保存', style: TextStyle(fontSize: 16)),
               ),
             ],

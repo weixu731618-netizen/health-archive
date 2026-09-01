@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
@@ -33,20 +33,21 @@ Future<bool> offerFollowUpLink(
   );
   if (match == null || !context.mounted) return false;
 
-  final ok = await showDialog<bool>(
+  final ok = await showCupertinoDialog<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) => CupertinoAlertDialog(
       title: const Text('关联为这次复查？'),
       content: Text(
         '这份报告可能就是「${match.title}」的复查结果。'
         '关联后，这条待复查会标记为已完成，并进入历史对比。',
       ),
       actions: [
-        TextButton(
+        CupertinoDialogAction(
           onPressed: () => Navigator.pop(ctx, false),
           child: const Text('不是'),
         ),
-        FilledButton(
+        CupertinoDialogAction(
+          isDefaultAction: true,
           onPressed: () => Navigator.pop(ctx, true),
           child: const Text('关联'),
         ),

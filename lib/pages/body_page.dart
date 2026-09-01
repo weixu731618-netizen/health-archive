@@ -8,10 +8,10 @@ import '../models/chronic_condition_dictionary.dart';
 import '../models/metric_dictionary.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
+import '../widgets/health_ui.dart';
 import '../widgets/ios_tap.dart';
 import '../widgets/normal_items_toggle.dart';
 import '../widgets/profile_switcher.dart';
-import '../widgets/section_title.dart';
 import 'add_page.dart';
 import 'metric_history_page.dart';
 import 'reminders_page.dart';
@@ -179,7 +179,7 @@ class _BodyPageState extends State<BodyPage> {
           const ProfileSwitcher(),
         ],
       ),
-      body: RefreshIndicator(
+      body: RefreshIndicator.adaptive(
         onRefresh: _load,
         child: _loading
             ? const Center(child: Padding(
@@ -203,7 +203,7 @@ class _BodyPageState extends State<BodyPage> {
                         },
                       )
                     : ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
                         children: [
                           _OverviewCard(
                             rows: _rows,
@@ -211,42 +211,35 @@ class _BodyPageState extends State<BodyPage> {
                             onSelect: (f) => setState(() =>
                                 _statFilter = _statFilter == f ? null : f),
                           ),
-                          const SizedBox(height: 18),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const SectionTitle(title: '身体图谱'),
-                              if (_statFilter != null)
-                                CupertinoButton(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8),
-                                  minimumSize: const Size(0, 32),
-                                  onPressed: () =>
-                                      setState(() => _statFilter = null),
-                                  child: const Text('清除筛选',
-                                      style: TextStyle(fontSize: 13)),
-                                ),
-                            ],
+                          HealthSectionHeader(
+                            '身体图谱',
+                            actionLabel:
+                                _statFilter != null ? '清除筛选' : null,
+                            onAction: _statFilter != null
+                                ? () => setState(() => _statFilter = null)
+                                : null,
                           ),
-                          const SizedBox(height: 4),
                           if (_recordRows.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16),
+                            const HealthCard(
                               child: Text('没有符合当前筛选的部位',
                                   style: TextStyle(
                                       fontSize: 13,
                                       color: AppColors.textSecondary)),
                             )
                           else
-                            for (int i = 0; i < _recordRows.length; i++) ...[
-                              if (i > 0)
-                                const Divider(height: 1, thickness: 0.5),
-                              _AreaListRow(
-                                row: _recordRows[i],
-                                onTap: () =>
-                                    _openAreaDetail(_recordRows[i].area),
+                            HealthCard(
+                              padding:
+                                  const EdgeInsets.fromLTRB(18, 6, 18, 6),
+                              child: Column(
+                                children: [
+                                  for (final r in _recordRows)
+                                    _AreaListRow(
+                                      row: r,
+                                      onTap: () => _openAreaDetail(r.area),
+                                    ),
+                                ],
                               ),
-                            ],
+                            ),
                         ],
                       ),
       ),
@@ -355,34 +348,31 @@ class _OverviewCard extends StatelessWidget {
           noRecord++;
       }
     }
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            _OverviewStat(
-              n: hasRecord,
-              label: '有近期记录',
-              color: AppColors.normal,
-              selected: selected == _StatFilter.hasRecord,
-              onTap: () => onSelect(_StatFilter.hasRecord),
-            ),
-            _OverviewStat(
-              n: attention,
-              label: '需要关注',
-              color: AppColors.warning,
-              selected: selected == _StatFilter.attention,
-              onTap: () => onSelect(_StatFilter.attention),
-            ),
-            _OverviewStat(
-              n: noRecord,
-              label: '暂无记录',
-              color: AppColors.insufficient,
-              selected: selected == _StatFilter.noRecord,
-              onTap: () => onSelect(_StatFilter.noRecord),
-            ),
-          ],
-        ),
+    return HealthCard(
+      child: Row(
+        children: [
+          _OverviewStat(
+            n: hasRecord,
+            label: '有近期记录',
+            color: AppColors.normal,
+            selected: selected == _StatFilter.hasRecord,
+            onTap: () => onSelect(_StatFilter.hasRecord),
+          ),
+          _OverviewStat(
+            n: attention,
+            label: '需要关注',
+            color: AppColors.warning,
+            selected: selected == _StatFilter.attention,
+            onTap: () => onSelect(_StatFilter.attention),
+          ),
+          _OverviewStat(
+            n: noRecord,
+            label: '暂无记录',
+            color: AppColors.insufficient,
+            selected: selected == _StatFilter.noRecord,
+            onTap: () => onSelect(_StatFilter.noRecord),
+          ),
+        ],
       ),
     );
   }
@@ -409,8 +399,7 @@ class _OverviewStat extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: selected
                 ? color.withValues(alpha: 0.10)
@@ -420,11 +409,14 @@ class _OverviewStat extends StatelessWidget {
           child: Column(children: [
             Text('$n',
                 style: TextStyle(
-                    fontSize: 24, fontWeight: FontWeight.w700, color: color)),
-            const SizedBox(height: 4),
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: color)),
+            const SizedBox(height: 3),
             Text(label,
                 style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 12.5,
                     color: selected ? color : AppColors.textSecondary,
                     fontWeight:
                         selected ? FontWeight.w600 : FontWeight.w400)),
@@ -435,9 +427,7 @@ class _OverviewStat extends StatelessWidget {
   }
 }
 
-
-/// 「身体记录」里的一行：部位名 ……… 状态词。§6：比「需要关注」卡片更紧凑，
-/// 去掉卡片外壳，单行、矮，行间用细分隔线。
+/// 「身体图谱」里的一行：色点 + 部位名 + 状态词，无 chevron、无发丝线。
 class _AreaListRow extends StatelessWidget {
   final _AreaRow row;
   final VoidCallback onTap;
@@ -446,40 +436,16 @@ class _AreaListRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final line = _areaStatusLine(row);
-    return IosTap(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        child: Row(
-          children: [
-            // 定宽的圆点位：有分类信号才画点，名字始终对齐。
-            SizedBox(
-              width: 14,
-              child: line.dot == null
-                  ? null
-                  : Center(
-                      child: Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                            color: line.dot, shape: BoxShape.circle),
-                      ),
-                    ),
-            ),
-            Expanded(
-              child: Text(row.area.name,
-                  style: const TextStyle(
-                      fontSize: 14, color: AppColors.textPrimary)),
-            ),
-            Text(line.text,
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(width: 4),
-            const Icon(CupertinoIcons.chevron_forward,
-                size: 15, color: AppColors.textSecondary),
-          ],
-        ),
+    return HealthRow(
+      leading: SizedBox(
+        width: 10,
+        child: line.dot == null ? null : Center(child: Dot(line.dot!, size: 8)),
       ),
+      title: row.area.name,
+      trailing: Text(line.text,
+          style: const TextStyle(
+              fontSize: 13, color: AppColors.textSecondary)),
+      onTap: onTap,
     );
   }
 }
@@ -675,7 +641,7 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
                 ),
               ],
       ),
-      body: RefreshIndicator(
+      body: RefreshIndicator.adaptive(
         onRefresh: _reload,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
@@ -689,10 +655,10 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
                   _recheck == null ? _setRecheckForArea : () => _openRecheck(key),
             ),
             if (!widget.isExample && _longTerm.isNotEmpty) ...[
-              const SectionTitle(title: '长期关注'),
+              const HealthSectionHeader('长期关注'),
               _LongTermCard(names: _longTerm),
             ],
-            const SectionTitle(title: '需关注问题'),
+            const HealthSectionHeader('需关注问题'),
             if (_area.metrics.isEmpty)
               const _EmptyDataCard()
             else if (widget.isExample)
@@ -717,7 +683,7 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
                 ],
               ],
             ],
-            const SectionTitle(title: '历史趋势'),
+            const HealthSectionHeader('历史趋势'),
             if (key == null)
               const _EmptyDataCard(message: '暂无足够数据形成趋势')
             else
@@ -726,7 +692,7 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
                 onTap:
                     widget.isExample ? null : () => _openHistoryByEvidence(key),
               ),
-            const SectionTitle(title: '历史报告'),
+            const HealthSectionHeader('历史报告'),
             if (widget.isExample)
               const _SourceNoteCard(text: '示例数据来自本地演示内容。导入报告或手动录入后，将展示实际来源。')
             else if (_metricsByReport.isEmpty && _extraOnlyReportIds.isEmpty)
@@ -782,13 +748,18 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
           ),
         ));
       }
-      out.add(CupertinoListSection.insetGrouped(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        children: [
-          for (final m in items)
-            _RealMetricRow(
-                metric: m, onTap: () => _openHistoryByEvidence(m)),
-        ],
+      out.add(Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: HealthCard(
+          padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+          child: Column(
+            children: [
+              for (final m in items)
+                _RealMetricRow(
+                    metric: m, onTap: () => _openHistoryByEvidence(m)),
+            ],
+          ),
+        ),
       ));
     });
     return out;
@@ -916,37 +887,35 @@ class _SummaryCard extends StatelessWidget {
             ),
           );
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    area.name,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
+    return HealthCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  area.name,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.4,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-                if (recheckPill != null) recheckPill,
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '$attention · 最近来源 $latest',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
               ),
+              if (recheckPill != null) recheckPill,
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '$attention · 最近来源 $latest',
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -963,19 +932,11 @@ class _RealMetricRow extends StatelessWidget {
     final hasRange = metric.referenceMin != null && metric.referenceMax != null;
     final dateText =
         metric.measuredAt == null ? '' : ' · ${formatDate(metric.measuredAt!)}';
-    return CupertinoListTile.notched(
-      title: Text(
-        metric.name,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-      ),
-      subtitle: Text(
-        '${metric.valueText}'
-        '${hasRange ? ' · 参考 ${_fmt(metric.referenceMin!)}–${_fmt(metric.referenceMax!)}' : ''}'
-        '$dateText',
-      ),
+    return HealthRow(
+      title: metric.name,
+      subtitle: '${metric.valueText}'
+          '${hasRange ? ' · 参考 ${_fmt(metric.referenceMin!)}–${_fmt(metric.referenceMax!)}' : ''}'
+          '$dateText',
       trailing: StatusChip(
         text: metric.status,
         color: valueStatusColor(metric.status),
@@ -1056,13 +1017,10 @@ class _LongTermCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          names.join('、'),
-          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-        ),
+    return HealthCard(
+      child: Text(
+        names.join('、'),
+        style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
       ),
     );
   }
@@ -1075,15 +1033,10 @@ class _EmptyDataCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(
+    return HealthCard(child: Text(
           message,
           style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
-        ),
-      ),
-    );
+        ),);
   }
 }
 
@@ -1094,15 +1047,10 @@ class _SourceNoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(
+    return HealthCard(child: Text(
           text,
           style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
-        ),
-      ),
-    );
+        ),);
   }
 }
 
@@ -1111,13 +1059,10 @@ class _DisclaimerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Text(
-          '当前状态由已记录数据和参考范围整理得出，用于提示、趋势展示和来源追溯，不等同于医学诊断。',
-          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-        ),
+    return const HealthCard(
+      child: Text(
+        '当前状态由已记录数据和参考范围整理得出，用于提示、趋势展示和来源追溯，不等同于医学诊断。',
+        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
       ),
     );
   }

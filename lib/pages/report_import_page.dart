@@ -1,6 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/ios_button.dart';
 import '../models/body_area_health.dart';
 import '../utils/image_storage.dart';
 import '../widgets/current_profile_badge.dart';
@@ -105,17 +107,13 @@ class _ReportImportPageState extends State<ReportImportPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            FilledButton.tonalIcon(
-                              onPressed: _pickFromGallery,
-                              icon: const Icon(Icons.photo_library_outlined),
-                              label: const Text('相册'),
-                            ),
+                            IosButton.tinted('相册',
+                                icon: CupertinoIcons.photo_on_rectangle,
+                                onPressed: _pickFromGallery),
                             const SizedBox(width: 10),
-                            OutlinedButton.icon(
-                              onPressed: _pickFromFile,
-                              icon: const Icon(Icons.folder_open_outlined),
-                              label: const Text('PDF / 文件'),
-                            ),
+                            IosButton.tinted('PDF / 文件',
+                                icon: CupertinoIcons.folder,
+                                onPressed: _pickFromFile),
                           ],
                         ),
                       ],
@@ -144,19 +142,13 @@ class _ReportImportPageState extends State<ReportImportPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            FilledButton.tonalIcon(
-                              onPressed: _pickFromGallery,
-                              icon:
-                                  const Icon(Icons.photo_library_outlined),
-                              label: const Text('相册'),
-                            ),
+                            IosButton.tinted('相册',
+                                icon: CupertinoIcons.photo_on_rectangle,
+                                onPressed: _pickFromGallery),
                             const SizedBox(width: 10),
-                            OutlinedButton.icon(
-                              onPressed: _pickFromFile,
-                              icon:
-                                  const Icon(Icons.folder_open_outlined),
-                              label: const Text('PDF / 文件'),
-                            ),
+                            IosButton.tinted('PDF / 文件',
+                                icon: CupertinoIcons.folder,
+                                onPressed: _pickFromFile),
                           ],
                         ),
                       ],
@@ -169,11 +161,10 @@ class _ReportImportPageState extends State<ReportImportPage> {
             ErrorNote(message: _error!),
           ],
           const SizedBox(height: 20),
-          FilledButton(
+          IosButton.filled(
+            '识别报告',
             onPressed: _image == null || _recognizing ? null : _recognize,
-            style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48)),
-            child: const Text('识别报告', style: TextStyle(fontSize: 16)),
+            expand: true,
           ),
         ],
       ),

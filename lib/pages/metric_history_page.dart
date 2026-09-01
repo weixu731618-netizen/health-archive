@@ -1,4 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
@@ -6,6 +7,7 @@ import '../main.dart';
 import '../models/report_followup.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
+import '../widgets/health_ui.dart';
 import 'manual_metric_entry_page.dart';
 import 'report_detail_page.dart';
 
@@ -76,54 +78,56 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('历史记录')),
-      body: RefreshIndicator(
+      body: RefreshIndicator.adaptive(
         onRefresh: () async {
           await _load();
         },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
           children: [
             // 顶部：指标名 + 当前值
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            HealthCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.metricName,
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _latest == null
+                        ? '暂无记录'
+                        : '${_latest!.value} ${_latest!.unit}',
+                    style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.6,
+                        color: AppColors.textPrimary),
+                  ),
+                  if (_latest != null) ...[
+                    const SizedBox(height: 6),
                     Text(
-                      widget.metricName,
+                      '最新：${formatDateCn(_latest!.measuredAt)}',
                       style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary),
+                          fontSize: 13, color: AppColors.textSecondary),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _latest == null
-                          ? '暂无记录'
-                          : '${_latest!.value} ${_latest!.unit}',
-                      style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary),
-                    ),
-                    if (_latest != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        '最新：${formatDateCn(_latest!.measuredAt)}',
-                        style: const TextStyle(
-                            fontSize: 13, color: AppColors.textSecondary),
-                      ),
-                    ],
                   ],
-                ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
             // 复查提醒统一在「身体页 → 对应系统」顶部设置，这里不再重复。
-            if (!_loading && _error == null) _buildChart(),
+            if (!_loading && _error == null && _records.length >= 2)
+              HealthCard(child: _buildChart()),
             if (_loading)
-              const Center(child: CircularProgressIndicator())
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              )
             else if (_error != null)
               Padding(
                 padding: const EdgeInsets.all(24),
@@ -142,14 +146,30 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
                           fontSize: 14, color: AppColors.textSecondary)),
                 ),
               )
-            else
-              for (var i = 0; i < _records.length; i++) ...[
-                _historyCard(
-                  _records[i],
-                  i + 1 < _records.length ? _records[i + 1] : null,
+            else ...[
+              const HealthSectionHeader('全部记录'),
+              HealthCard(
+                padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),
+                child: Column(
+                  children: [
+                    for (var i = 0; i < _records.length; i++)
+                      HealthRow(
+                        title:
+                            '${fmtLocal(_records[i].value)} ${_records[i].unit}',
+                        subtitle: _historySubtitle(
+                          _records[i],
+                          i + 1 < _records.length ? _records[i + 1] : null,
+                        ),
+                        trailing: _records[i].reportId == null
+                            ? null
+                            : const Icon(CupertinoIcons.doc_text,
+                                size: 18, color: AppColors.textSecondary),
+                        onTap: () => _openRecord(_records[i]),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-              ],
+              ),
+            ],
           ],
         ),
       ),
@@ -178,101 +198,99 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
     final maxY = hi + pad;
     final labelStep = (points.length / 5).ceil().clamp(1, 1000);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 20, 20, 12),
-        child: SizedBox(
-          height: 200,
-          child: LineChart(
-            LineChartData(
-              minX: 0,
-              maxX: (points.length - 1).toDouble(),
-              minY: minY,
-              maxY: maxY,
-              gridData: const FlGridData(show: true, drawVerticalLine: false),
-              borderData: FlBorderData(show: false),
-              titlesData: FlTitlesData(
-                topTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                leftTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: true, reservedSize: 40),
-                ),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 26,
-                    getTitlesWidget: (value, meta) {
-                      final i = value.round();
-                      if (i < 0 || i >= points.length) {
-                        return const SizedBox.shrink();
-                      }
-                      if (i % labelStep != 0 && i != points.length - 1) {
-                        return const SizedBox.shrink();
-                      }
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          formatDateShort(points[i].measuredAt),
-                          style: const TextStyle(
-                              fontSize: 10, color: AppColors.textSecondary),
-                        ),
-                      );
-                    },
-                  ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 4, 8, 0),
+      child: SizedBox(
+        height: 200,
+        child: LineChart(
+          LineChartData(
+            minX: 0,
+            maxX: (points.length - 1).toDouble(),
+            minY: minY,
+            maxY: maxY,
+            gridData: const FlGridData(show: true, drawVerticalLine: false),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              topTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              leftTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: true, reservedSize: 40),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 26,
+                  getTitlesWidget: (value, meta) {
+                    final i = value.round();
+                    if (i < 0 || i >= points.length) {
+                      return const SizedBox.shrink();
+                    }
+                    if (i % labelStep != 0 && i != points.length - 1) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        formatDateShort(points[i].measuredAt),
+                        style: const TextStyle(
+                            fontSize: 10, color: AppColors.textSecondary),
+                      ),
+                    );
+                  },
                 ),
               ),
-              extraLinesData: !hasRange
-                  ? const ExtraLinesData()
-                  : ExtraLinesData(horizontalLines: [
-                      HorizontalLine(
-                        y: refMin,
-                        color: AppColors.textSecondary,
-                        strokeWidth: 1,
-                        dashArray: const [4, 4],
-                      ),
-                      HorizontalLine(
-                        y: refMax,
-                        color: AppColors.textSecondary,
-                        strokeWidth: 1,
-                        dashArray: const [4, 4],
-                      ),
-                    ]),
-              lineTouchData: LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipItems: (spots) => [
-                    for (final s in spots)
-                      LineTooltipItem(
-                        '${fmtLocal(points[s.x.toInt()].value)} ${widget.unit}\n'
-                        '${formatDate(points[s.x.toInt()].measuredAt)}',
-                        const TextStyle(color: Colors.white, fontSize: 12),
-                      ),
-                  ],
-                ),
-              ),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: [
-                    for (var i = 0; i < points.length; i++)
-                      FlSpot(i.toDouble(), points[i].value),
-                  ],
-                  isCurved: false,
-                  color: AppColors.primary,
-                  barWidth: 2,
-                  dotData: FlDotData(
-                    show: true,
-                    getDotPainter: (spot, percent, bar, index) =>
-                        FlDotCirclePainter(
-                      radius: 4,
-                      color: valueStatusColor(points[index].status),
-                      strokeColor: Colors.white,
-                      strokeWidth: 1,
-                    ),
-                  ),
-                ),
-              ],
             ),
+            extraLinesData: !hasRange
+                ? const ExtraLinesData()
+                : ExtraLinesData(horizontalLines: [
+                    HorizontalLine(
+                      y: refMin,
+                      color: AppColors.textSecondary,
+                      strokeWidth: 1,
+                      dashArray: const [4, 4],
+                    ),
+                    HorizontalLine(
+                      y: refMax,
+                      color: AppColors.textSecondary,
+                      strokeWidth: 1,
+                      dashArray: const [4, 4],
+                    ),
+                  ]),
+            lineTouchData: LineTouchData(
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipItems: (spots) => [
+                  for (final s in spots)
+                    LineTooltipItem(
+                      '${fmtLocal(points[s.x.toInt()].value)} ${widget.unit}\n'
+                      '${formatDate(points[s.x.toInt()].measuredAt)}',
+                      const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                ],
+              ),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: [
+                  for (var i = 0; i < points.length; i++)
+                    FlSpot(i.toDouble(), points[i].value),
+                ],
+                isCurved: false,
+                color: AppColors.primary,
+                barWidth: 2,
+                dotData: FlDotData(
+                  show: true,
+                  getDotPainter: (spot, percent, bar, index) =>
+                      FlDotCirclePainter(
+                    radius: 4,
+                    color: valueStatusColor(points[index].status),
+                    strokeColor: Colors.white,
+                    strokeWidth: 1,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -282,24 +300,26 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
   Future<void> _editRecord(HealthMetric m) async {
     final repo = appRepository;
     if (repo == null) return;
-    final bool? result = await showDialog<bool>(
+    final bool? result = await showCupertinoModalPopup<bool>(
       context: context,
-      builder: (ctx) => SimpleDialog(
+      builder: (ctx) => CupertinoActionSheet(
         title: const Text('操作'),
-        children: [
-          SimpleDialogOption(
+        actions: [
+          CupertinoActionSheetAction(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('编辑'),
           ),
-          SimpleDialogOption(
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('删除'),
           ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, null),
-            child: const Text('取消'),
-          ),
         ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('取消'),
+        ),
       ),
     );
     if (result == null) return;
@@ -313,16 +333,17 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
       if (!mounted) return;
     } else {
       // 删除（二次确认）
-      final confirm = await showDialog<bool>(
+      final confirm = await showCupertinoDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => CupertinoAlertDialog(
           title: const Text('确定删除这条健康记录吗？'),
           actions: [
-            TextButton(
+            CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('取消'),
             ),
-            TextButton(
+            CupertinoDialogAction(
+              isDestructiveAction: true,
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('删除'),
             ),
@@ -353,37 +374,13 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
     await _editRecord(m);
   }
 
-  Widget _historyCard(HealthMetric r, HealthMetric? prev) {
-    return Card(
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          '${fmtLocal(r.value)} ${r.unit}',
-          style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
-        ),
-        subtitle: Text(
-          _historySubtitle(r, prev),
-          style:
-              const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-        ),
-        trailing: r.reportId == null
-            ? null
-            : const Icon(Icons.receipt_long_outlined,
-                color: AppColors.textSecondary),
-        onTap: () => _openRecord(r),
-        onLongPress: () => _editRecord(r),
-      ),
-    );
-  }
-
   String _historySubtitle(HealthMetric r, [HealthMetric? prev]) {
     final parts = <String>[
       formatDate(r.measuredAt),
       r.status,
     ];
-    final delta = prev == null
-        ? null
-        : metricDeltaLine(r.value, prev.value, r.unit);
+    final delta =
+        prev == null ? null : metricDeltaLine(r.value, prev.value, r.unit);
     if (delta != null) parts.add(delta);
     if (r.referenceRangeRaw != null && r.referenceRangeRaw!.isNotEmpty) {
       parts.add('参考 ${r.referenceRangeRaw}');

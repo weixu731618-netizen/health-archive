@@ -1,7 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/health_ui.dart';
 import '../utils/format.dart';
 
 /// 通知中心（§2-15）：首页铃铛进入。
@@ -53,57 +55,66 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
         title: const Text('通知'),
         actions: [
           if (hasUnread)
-            TextButton(
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               onPressed: () async {
                 await appRepository?.markAllNotificationsRead();
                 _load();
               },
-              child: const Text('全部已读'),
+              child: const Text('全部已读', style: TextStyle(fontSize: 15)),
             ),
           if (_notifications.isNotEmpty)
             IconButton(
               tooltip: '全部清除',
-              icon: const Icon(Icons.delete_sweep_outlined),
+              icon: const Icon(CupertinoIcons.trash),
               onPressed: _clearAll,
             ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
+          : RefreshIndicator.adaptive(
               onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                children: [
-                  if (_notifications.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 24),
-                      child: Center(
-                        child: Text(
-                          '还没有通知记录',
-                          style: TextStyle(
-                              fontSize: 13, color: AppColors.textSecondary),
+              child: _notifications.isEmpty
+                  ? ListView(children: const [
+                      Padding(
+                        padding: EdgeInsets.only(top: 48),
+                        child: Center(
+                          child: Text('还没有通知记录',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary)),
                         ),
                       ),
+                    ])
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                      children: [
+                        HealthCard(
+                          padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+                          child: Column(children: [
+                            for (final n in _notifications)
+                              _notificationTile(n),
+                          ]),
+                        ),
+                      ],
                     ),
-                  for (final n in _notifications) _notificationTile(n),
-                ],
-              ),
             ),
     );
   }
 
   Future<void> _clearAll() async {
-    final ok = await showDialog<bool>(
+    final ok = await showCupertinoDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: const Text('清除全部通知记录？'),
         content: const Text('只清这份通知列表，不影响你设置的提醒计划。'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('取消')),
-          TextButton(
+          CupertinoDialogAction(
+              isDestructiveAction: true,
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('清除')),
         ],
@@ -121,42 +132,32 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20, bottom: 8),
-        child: const Icon(Icons.delete_outline, color: AppColors.abnormal),
+        padding: const EdgeInsets.only(right: 12),
+        child: const Icon(CupertinoIcons.delete, color: AppColors.abnormal),
       ),
       onDismissed: (_) async {
         await appRepository?.deleteNotification(n.id);
         setState(() => _notifications.removeWhere((x) => x.id == n.id));
       },
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: ListTile(
-          dense: true,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          leading: Icon(
-            n.category == 'medication'
-                ? Icons.medication_outlined
-                : Icons.event_available_outlined,
-            color: unread ? AppColors.primary : AppColors.textSecondary,
-          ),
-          title: Text(n.title,
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: unread ? FontWeight.w600 : FontWeight.w400)),
-          subtitle: Text(
+      child: HealthRow(
+        leading: Icon(
+          n.category == 'medication'
+              ? CupertinoIcons.capsule
+              : CupertinoIcons.calendar,
+          size: 20,
+          color: unread ? AppColors.primary : AppColors.textSecondary,
+        ),
+        title: n.title,
+        subtitle:
             '${formatDateCn(n.scheduledFor)} ${formatTime(n.scheduledFor)}'
             '${n.deliveredAt == null ? ' · 待提醒' : ''}',
-            style:
-                const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-          ),
-          onTap: () async {
-            if (unread) {
-              await appRepository?.markNotificationRead(n.id);
-              _load();
-            }
-          },
-        ),
+        trailing: unread ? const Dot(AppColors.primary, size: 8) : null,
+        onTap: () async {
+          if (unread) {
+            await appRepository?.markNotificationRead(n.id);
+            _load();
+          }
+        },
       ),
     );
   }

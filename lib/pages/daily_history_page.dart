@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
+import '../widgets/health_ui.dart';
 import '../main.dart';
 import '../utils/format.dart';
 import 'daily_health_entry_page.dart';
@@ -94,47 +95,44 @@ class _DailyHistoryPageState extends State<DailyHistoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('$_title · 历史')),
-      body: RefreshIndicator(
+      body: RefreshIndicator.adaptive(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _title,
+            HealthCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_title,
                       style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(height: 8),
+                          color: AppColors.textSecondary)),
+                  const SizedBox(height: 6),
+                  Text(
+                    _latest == null ? '暂无记录' : _valueText(_latest!),
+                    style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.6,
+                        color: AppColors.textPrimary),
+                  ),
+                  if (_latest != null) ...[
+                    const SizedBox(height: 6),
                     Text(
-                      _latest == null ? '暂无记录' : _valueText(_latest!),
+                      '最新：${formatDateCn(_latest!.measuredAt)}'
+                      '${(_latest!.context ?? '').isEmpty ? '' : ' · ${_latest!.context}'}',
                       style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary),
+                          fontSize: 13, color: AppColors.textSecondary),
                     ),
-                    if (_latest != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        '最新：${formatDateCn(_latest!.measuredAt)}'
-                        '${(_latest!.context ?? '').isEmpty ? '' : ' · ${_latest!.context}'}',
-                        style: const TextStyle(
-                            fontSize: 13, color: AppColors.textSecondary),
-                      ),
-                    ],
                   ],
-                ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
-            if (!_loading && _error == null) _buildChart(),
+            if (!_loading && _error == null && _records.length >= 2)
+              HealthCard(child: _buildChart()),
             if (_loading)
               const Padding(
                 padding: EdgeInsets.all(24),
@@ -158,30 +156,24 @@ class _DailyHistoryPageState extends State<DailyHistoryPage> {
                           fontSize: 14, color: AppColors.textSecondary)),
                 ),
               )
-            else
-              for (final r in _records) ...[
-                Card(
-                  child: ListTile(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    title: Text(
-                      _valueText(r),
-                      style: const TextStyle(
-                          fontSize: 16, color: AppColors.textPrimary),
-                    ),
-                    subtitle: Text(
-                      '${formatDate(r.measuredAt)}'
-                      '${(r.context ?? '').isEmpty ? '' : ' · ${r.context}'}'
-                      '${(r.notes ?? '').isEmpty ? '' : ' · ${r.notes}'}',
-                      style: const TextStyle(
-                          fontSize: 13, color: AppColors.textSecondary),
-                    ),
-                    onTap: () => _edit(r),
-                    onLongPress: () => _confirmDelete(r),
-                  ),
+            else ...[
+              const HealthSectionHeader('全部记录'),
+              HealthCard(
+                padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),
+                child: Column(
+                  children: [
+                    for (final r in _records)
+                      HealthRow(
+                        title: _valueText(r),
+                        subtitle: '${formatDate(r.measuredAt)}'
+                            '${(r.context ?? '').isEmpty ? '' : ' · ${r.context}'}'
+                            '${(r.notes ?? '').isEmpty ? '' : ' · ${r.notes}'}',
+                        onTap: () => _edit(r),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-              ],
+              ),
+            ],
           ],
         ),
       ),
@@ -228,10 +220,9 @@ class _DailyHistoryPageState extends State<DailyHistoryPage> {
         ),
     ];
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 20, 20, 12),
-        child: Column(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 4, 8, 0),
+      child: Column(
           children: [
             if (_isBp)
               const Padding(
@@ -307,7 +298,6 @@ class _DailyHistoryPageState extends State<DailyHistoryPage> {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -318,32 +308,6 @@ class _DailyHistoryPageState extends State<DailyHistoryPage> {
     if (ok == true && mounted) _load();
   }
 
-  Future<void> _confirmDelete(DailyHealthRecord r) async {
-    final repo = appRepository;
-    if (repo == null) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('确定删除这条记录吗？'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('删除')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    await repo.deleteDaily(r.id);
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('已删除')));
-      _load();
-    }
-  }
 }
 
 String _fmt(double v) {

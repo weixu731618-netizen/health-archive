@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' as drift;
 
@@ -6,6 +7,8 @@ import '../data/health_repository.dart';
 import '../main.dart';
 import '../models/metric_dictionary.dart';
 import '../utils/format.dart';
+import '../widgets/health_ui.dart';
+import '../widgets/ios_button.dart';
 import '../widgets/metric_selector.dart';
 
 /// 手工录入（新增 / 编辑）一条检查指标。
@@ -83,29 +86,53 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 4, bottom: 8),
-                    child: Text(
-                      '手动添加化验或检查指标',
-                      style: TextStyle(
-                          fontSize: 14, color: AppColors.textSecondary),
+                  HealthCard(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: HealthFieldRow(
+                      label: '指标',
+                      onTap: _isEditing ? _pickMetricBlocked : _pickMetric,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _definition == null
+                                    ? '请选择'
+                                    : _definition!.metricName,
+                                textAlign: TextAlign.right,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    color: _definition == null
+                                        ? AppColors.textSecondary
+                                        : AppColors.textPrimary),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(CupertinoIcons.chevron_forward,
+                                size: 15, color: AppColors.textSecondary),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  // 选择指标（编辑模式禁止更换指标类型，避免数据错乱）
-                  _SelectionTile(
-                    label: '指标',
-                    value: _definition == null
-                        ? '请选择'
-                        : '${_definition!.metricName}  （${_definition!.bodySystem} · ${_definition!.unit}）',
-                    onTap: _isEditing ? _pickMetricBlocked : _pickMetric,
                   ),
                   if (!_isEditing)
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
+                      child: CupertinoButton(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        minimumSize: const Size(0, 40),
                         onPressed: _createCustomMetric,
-                        icon: const Icon(Icons.add_circle_outline),
-                        label: const Text('字典里没有，新增自定义指标'),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(CupertinoIcons.add_circled, size: 18),
+                            SizedBox(width: 6),
+                            Text('字典里没有，新增自定义指标'),
+                          ],
+                        ),
                       ),
                     ),
                   const SizedBox(height: 16),
@@ -152,35 +179,38 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  // 检查日期
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.calendar_today,
-                        color: AppColors.textSecondary),
-                    title: const Text('检查日期',
-                        style: TextStyle(
-                            fontSize: 15, color: AppColors.textPrimary)),
-                    trailing: Text(
-                      formatDate(_date),
-                      style: const TextStyle(
-                          fontSize: 15, color: AppColors.textPrimary),
+                  HealthCard(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: HealthFieldRow(
+                      label: '检查日期',
+                      onTap: _pickDate,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(formatDate(_date),
+                                style: const TextStyle(
+                                    fontSize: 15,
+                                    color: AppColors.textPrimary)),
+                            const SizedBox(width: 4),
+                            const Icon(CupertinoIcons.chevron_forward,
+                                size: 15, color: AppColors.textSecondary),
+                          ],
+                        ),
+                      ),
                     ),
-                    onTap: _pickDate,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 12),
                   TextFormField(
                     controller: _notesCtrl,
                     maxLines: 2,
                     decoration: _input('备注（选填）', '补充说明，可留空'),
                   ),
                   const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _saving ? null : () => _save(context),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text('保存记录', style: TextStyle(fontSize: 16)),
-                  ),
+                  IosButton.filled('保存记录',
+                      onPressed: _saving ? null : () => _save(context),
+                      expand: true),
                 ],
               ),
             ),
@@ -193,7 +223,14 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      filled: true,
+      fillColor: const Color(0xFFF1F3F5),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
     );
   }
 
@@ -238,11 +275,7 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime(2015),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+    final picked = await pickCupertinoDate(context, initial: _date, minimumDate: DateTime(2015), maximumDate: DateTime.now().add(const Duration(days: 1)),
     );
     if (picked != null) setState(() => _date = picked);
   }
@@ -322,10 +355,10 @@ class _CustomMetricDialog extends StatefulWidget {
 }
 
 class _CustomMetricDialogState extends State<_CustomMetricDialog> {
-  final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _unitCtrl = TextEditingController();
   final _systemCtrl = TextEditingController(text: '其他');
+  String? _error;
 
   @override
   void dispose() {
@@ -335,96 +368,58 @@ class _CustomMetricDialogState extends State<_CustomMetricDialog> {
     super.dispose();
   }
 
+  void _submit() {
+    if (_nameCtrl.text.trim().isEmpty) {
+      setState(() => _error = '请输入指标名称');
+      return;
+    }
+    if (_systemCtrl.text.trim().isEmpty) {
+      setState(() => _error = '请输入分类');
+      return;
+    }
+    Navigator.pop(
+      context,
+      MetricDefinition(
+        metricId: 'CUSTOM_${DateTime.now().microsecondsSinceEpoch}',
+        metricName: _nameCtrl.text.trim(),
+        unit: _unitCtrl.text.trim(),
+        bodySystem: _systemCtrl.text.trim(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    return CupertinoAlertDialog(
       title: const Text('新增自定义指标'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(
-                labelText: '指标名称',
-                hintText: '例如 C反应蛋白',
-              ),
-              validator: (v) => (v ?? '').trim().isEmpty ? '请输入指标名称' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _unitCtrl,
-              decoration: const InputDecoration(
-                labelText: '单位',
-                hintText: '例如 mg/L，可留空',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _systemCtrl,
-              decoration: const InputDecoration(
-                labelText: '分类',
-                hintText: '例如 炎症、肾脏、其他',
-              ),
-              validator: (v) => (v ?? '').trim().isEmpty ? '请输入分类' : null,
-            ),
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 10),
+          CupertinoTextField(controller: _nameCtrl, placeholder: '指标名称（如 C反应蛋白）'),
+          const SizedBox(height: 8),
+          CupertinoTextField(controller: _unitCtrl, placeholder: '单位（如 mg/L，可留空）'),
+          const SizedBox(height: 8),
+          CupertinoTextField(controller: _systemCtrl, placeholder: '分类（如 炎症、肾脏、其他）'),
+          if (_error != null) ...[
+            const SizedBox(height: 6),
+            Text(_error!,
+                style: const TextStyle(
+                    fontSize: 12, color: CupertinoColors.destructiveRed)),
           ],
-        ),
+        ],
       ),
       actions: [
-        TextButton(
+        CupertinoDialogAction(
           onPressed: () => Navigator.pop(context),
           child: const Text('取消'),
         ),
-        FilledButton(
-          onPressed: () {
-            if (!_formKey.currentState!.validate()) return;
-            Navigator.pop(
-              context,
-              MetricDefinition(
-                metricId: 'CUSTOM_${DateTime.now().microsecondsSinceEpoch}',
-                metricName: _nameCtrl.text.trim(),
-                unit: _unitCtrl.text.trim(),
-                bodySystem: _systemCtrl.text.trim(),
-              ),
-            );
-          },
+        CupertinoDialogAction(
+          isDefaultAction: true,
+          onPressed: _submit,
           child: const Text('添加'),
         ),
       ],
-    );
-  }
-}
-
-class _SelectionTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final VoidCallback onTap;
-
-  const _SelectionTile({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          label,
-          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-        ),
-        subtitle: Text(
-          value,
-          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-        ),
-        trailing:
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-        onTap: onTap,
-      ),
     );
   }
 }

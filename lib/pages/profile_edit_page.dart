@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -123,10 +124,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
             ),
           ),
           const SizedBox(height: 24),
-          FilledButton(
+          CupertinoButton.filled(
             onPressed: _save,
-            style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14)),
             child: const Text('保存', style: TextStyle(fontSize: 16)),
           ),
         ],

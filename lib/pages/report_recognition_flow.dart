@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/ios_button.dart';
 import '../models/report_models.dart';
 import '../services/analytics.dart';
 import '../services/report_ocr_service.dart';
@@ -355,16 +357,13 @@ class _RecognizingPageState extends State<_RecognizingPage> {
                     ),
                     const SizedBox(height: 20),
                     if (_canRetry) ...[
-                      FilledButton.icon(
-                        onPressed: _run,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('重新识别'),
-                      ),
+                      IosButton.filled('重新识别',
+                          icon: CupertinoIcons.refresh, onPressed: _run),
                       const SizedBox(height: 8),
                     ],
-                    TextButton(
+                    IosButton.plain(
+                      '手动补充信息',
                       onPressed: _goManual,
-                      child: const Text('手动补充信息'),
                     ),
                   ],
                 ),
@@ -429,20 +428,16 @@ class _ClassifyView extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 20),
-        FilledButton.icon(
-          onPressed: onPickImaging,
-          icon: const Icon(Icons.medical_information_outlined),
-          label: const Text('选一个类型，存为影像/病历'),
-        ),
+        IosButton.filled('选一个类型，存为影像/病历',
+            icon: CupertinoIcons.doc_text, onPressed: onPickImaging, expand: true),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: onSaveUnlinked,
-          icon: const Icon(Icons.inventory_2_outlined),
-          label: const Text('存为「未关联记录」（原图 + 文字）'),
-        ),
+        IosButton.tinted('存为「未关联记录」（原图 + 文字）',
+            icon: CupertinoIcons.archivebox,
+            onPressed: onSaveUnlinked,
+            expand: true),
         const SizedBox(height: 8),
-        TextButton(onPressed: onAsLab, child: const Text('这是化验单 · 转手动录入')),
-        TextButton(onPressed: onDiscard, child: const Text('丢弃')),
+        IosButton.plain('这是化验单 · 转手动录入', onPressed: onAsLab),
+        IosButton.plain('丢弃', onPressed: onDiscard, destructive: true),
       ],
     );
   }

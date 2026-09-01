@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -311,22 +312,26 @@ class _MainShellState extends State<MainShell> {
           child: _buildPage(_index),
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+      bottomNavigationBar: CupertinoTabBar(
+        currentIndex: _index,
+        onTap: (value) => setState(() => _index = value),
+        activeColor: AppColors.primary,
+        inactiveColor: AppColors.textSecondary,
+        backgroundColor: Colors.white,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.house),
+            activeIcon: Icon(CupertinoIcons.house_fill),
             label: '首页',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.accessibility_new),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.heart),
+            activeIcon: Icon(CupertinoIcons.heart_fill),
             label: '身体',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.doc_text),
+            activeIcon: Icon(CupertinoIcons.doc_text_fill),
             label: '记录',
           ),
         ],

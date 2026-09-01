@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../dev/sample_data_seeder.dart';
 import '../main.dart';
+import '../widgets/health_ui.dart';
 import '../utils/report_image_save.dart';
 
 /// 编译期开关：`--dart-define=SEED_ENABLED=true` 时，即使是 release 包也显示
@@ -88,14 +89,19 @@ class _PrivacyPageState extends State<PrivacyPage> {
 
   Future<void> _restoreFromFile() async {
     if (_busy) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showCupertinoDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: const Text('从备份文件恢复'),
         content: const Text('选择一个之前导出的健康档案备份（.zip），将覆盖当前设备上的全部健康数据，是否继续？'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('选择文件')),
+          CupertinoDialogAction(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          CupertinoDialogAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('选择文件')),
         ],
       ),
     );
@@ -144,17 +150,18 @@ class _PrivacyPageState extends State<PrivacyPage> {
       _toast('数据库未就绪');
       return;
     }
-    final ok = await showDialog<bool>(
+    final ok = await showCupertinoDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: const Text('填充示例数据'),
         content: const Text(
             '这会先清空当前本机全部健康数据，再写入一套演示用的报告 / 指标 / 日常记录 / 疾病史 / 用药。仅用于开发自查，确定继续？'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('取消')),
-          TextButton(
+          CupertinoDialogAction(
+              isDestructiveAction: true,
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('继续')),
         ],
@@ -204,63 +211,50 @@ class _PrivacyPageState extends State<PrivacyPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('数据与隐私')),
       body: ListView(
-        padding: const EdgeInsets.only(top: 8, bottom: 28),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
         children: [
-          CupertinoListSection.insetGrouped(
-            header: const Text('备份（推荐）'),
-            footer: const Text(
-              '「完整备份并分享」把全部数据和报告原图打包成一个文件（可设密码），'
-              '通过分享面板存到微信 / 网盘等自选渠道，不需要自己部署服务器。'
-              '「从备份文件恢复」会覆盖当前设备上的全部健康数据。',
-            ),
-            children: [
-              _row(
-                icon: CupertinoIcons.archivebox,
-                title: '完整备份并分享',
-                onTap: _busy ? null : _exportAndShare,
-              ),
-              _row(
-                icon: CupertinoIcons.arrow_counterclockwise,
-                title: '从备份文件恢复',
-                danger: true,
-                onTap: _busy ? null : _restoreFromFile,
-              ),
-            ],
+          const HealthSectionHeader('备份',
+              padding: EdgeInsets.fromLTRB(4, 4, 4, 10)),
+          _actionCard(
+            icon: CupertinoIcons.archivebox,
+            title: '完整备份并分享',
+            subtitle: '打包全部数据 + 报告原图（可设密码），存到微信 / 网盘等；不需要自己部署服务器',
+            onTap: _busy ? null : _exportAndShare,
           ),
-          CupertinoListSection.insetGrouped(
-            header: const Text('其它'),
-            footer: const Text(
-              '纯文本导出为 JSON，含指标 / 日常记录 / 报告 / 疾病史 / 用药，不含报告原图。'
-              '删除操作无法恢复。',
-            ),
-            children: [
-              _row(
-                icon: CupertinoIcons.square_arrow_up,
-                title: '导出健康数据（纯文本）',
-                onTap: _busy ? null : _export,
-              ),
-              _row(
-                icon: CupertinoIcons.delete,
-                title: '删除全部健康数据',
-                danger: true,
-                onTap: _busy ? null : _deleteAll,
-              ),
-            ],
+          const SizedBox(height: 12),
+          _actionCard(
+            icon: CupertinoIcons.arrow_counterclockwise,
+            title: '从备份文件恢复',
+            subtitle: '选一个之前导出的备份文件，会覆盖当前设备上的全部健康数据',
+            danger: true,
+            onTap: _busy ? null : _restoreFromFile,
           ),
-          if (kDebugMode || _kSeedEnabled)
-            CupertinoListSection.insetGrouped(
-              header: const Text('调试（仅开发版可见）'),
-              footer: const Text('清空当前数据并写入一套演示用的报告 / 指标 / 日常记录 / 疾病史 / 用药，方便逐页自查。'),
-              children: [
-                _row(
-                  icon: CupertinoIcons.lab_flask,
-                  title: '填充示例数据',
-                  onTap: _busy ? null : _seedSampleData,
-                ),
-              ],
+          const HealthSectionHeader('其它'),
+          _actionCard(
+            icon: CupertinoIcons.square_arrow_up,
+            title: '导出健康数据（纯文本）',
+            subtitle: 'JSON，含指标 / 日常记录 / 报告 / 疾病史 / 用药，不含报告原图',
+            onTap: _busy ? null : _export,
+          ),
+          const SizedBox(height: 12),
+          _actionCard(
+            icon: CupertinoIcons.delete,
+            title: '删除全部健康数据',
+            subtitle: '删除本机全部报告 / 指标 / 记录 / 疾病史 / 用药 / 原图，无法恢复',
+            danger: true,
+            onTap: _busy ? null : _deleteAll,
+          ),
+          if (kDebugMode || _kSeedEnabled) ...[
+            const HealthSectionHeader('调试（仅开发版可见）'),
+            _actionCard(
+              icon: CupertinoIcons.lab_flask,
+              title: '填充示例数据',
+              subtitle: '清空当前数据并写入一套演示用的报告 / 指标 / 日常记录 / 疾病史 / 用药',
+              onTap: _busy ? null : _seedSampleData,
             ),
+          ],
           const Padding(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, 4),
+            padding: EdgeInsets.fromLTRB(4, 20, 4, 4),
             child: Text(
               '关于识别：你在「上传报告 / 拍摄检查报告」中选择的图片，仅用于识别其中的检查指标。'
               '负责识别的 OCR/DeepSeek 服务运行在你的 FastAPI 后端，识别后 App 会先让你在确认页逐项核对，'
@@ -273,19 +267,51 @@ class _PrivacyPageState extends State<PrivacyPage> {
     );
   }
 
-  Widget _row({
+  Widget _actionCard({
     required IconData icon,
     required String title,
+    required String subtitle,
     VoidCallback? onTap,
     bool danger = false,
   }) {
     final tint = danger ? AppColors.abnormal : AppColors.primary;
-    return CupertinoListTile.notched(
-      leading: Icon(icon, color: onTap == null ? AppColors.insufficient : tint),
-      title: Text(title,
-          style: TextStyle(color: danger ? AppColors.abnormal : null)),
-      trailing: const CupertinoListTileChevron(),
+    return HealthCard(
       onTap: onTap,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: tint.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon,
+                size: 22,
+                color: onTap == null ? AppColors.insufficient : tint),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: danger
+                            ? AppColors.abnormal
+                            : AppColors.textPrimary)),
+                const SizedBox(height: 3),
+                Text(subtitle,
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -319,49 +345,57 @@ class _SetPasswordDialogState extends State<_SetPasswordDialog> {
   @override
   Widget build(BuildContext context) {
     final showMismatch = _hasInput && _confirmCtrl.text.isNotEmpty && !_matches;
-    return AlertDialog(
+    return CupertinoAlertDialog(
       title: const Text('给备份文件设置密码？'),
       content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const SizedBox(height: 8),
           const Text('设置密码后，这份备份文件即使被别人拿到也打不开；恢复时需要输入相同密码。不设置则文件不加密。'),
           const SizedBox(height: 12),
-          TextField(
+          CupertinoTextField(
             controller: _ctrl,
             obscureText: _obscure,
             onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: '设置密码（可留空）',
-              suffixIcon: IconButton(
-                icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                onPressed: () => setState(() => _obscure = !_obscure),
-              ),
+            placeholder: '设置密码（可留空）',
+            suffix: CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 32),
+              onPressed: () => setState(() => _obscure = !_obscure),
+              child: Icon(
+                  _obscure ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                  size: 18),
             ),
           ),
           const SizedBox(height: 8),
-          TextField(
+          CupertinoTextField(
             controller: _confirmCtrl,
             obscureText: _obscure,
             onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: '再次输入密码确认',
-              errorText: showMismatch ? '两次密码不一致' : null,
-            ),
+            placeholder: '再次输入密码确认',
           ),
+          if (showMismatch) ...[
+            const SizedBox(height: 6),
+            const Text('两次密码不一致',
+                style: TextStyle(
+                    fontSize: 12, color: CupertinoColors.destructiveRed)),
+          ],
         ],
       ),
       actions: [
-        TextButton(
+        CupertinoDialogAction(
           onPressed: () => Navigator.pop(context, null),
           child: const Text('取消'),
         ),
-        TextButton(
+        CupertinoDialogAction(
           onPressed: () => Navigator.pop(context, ''),
           child: const Text('跳过（不加密）'),
         ),
-        FilledButton(
-          onPressed: _canConfirm ? () => Navigator.pop(context, _ctrl.text.trim()) : null,
+        CupertinoDialogAction(
+          isDefaultAction: true,
+          onPressed: _canConfirm
+              ? () => Navigator.pop(context, _ctrl.text.trim())
+              : null,
           child: const Text('设置密码并继续'),
         ),
       ],
@@ -389,33 +423,40 @@ class _EnterPasswordDialogState extends State<_EnterPasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    return CupertinoAlertDialog(
       title: const Text('这份备份文件已加密'),
       content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const SizedBox(height: 8),
           const Text('请输入导出时设置的密码。'),
           const SizedBox(height: 12),
-          TextField(
+          CupertinoTextField(
             controller: _ctrl,
             obscureText: _obscure,
             autofocus: true,
-            decoration: InputDecoration(
-              hintText: '密码',
-              suffixIcon: IconButton(
-                icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                onPressed: () => setState(() => _obscure = !_obscure),
-              ),
+            placeholder: '密码',
+            suffix: CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 32),
+              onPressed: () => setState(() => _obscure = !_obscure),
+              child: Icon(
+                  _obscure ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                  size: 18),
             ),
             onChanged: (_) => setState(() {}),
           ),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, null), child: const Text('取消')),
-        FilledButton(
-          onPressed: _ctrl.text.isEmpty ? null : () => Navigator.pop(context, _ctrl.text),
+        CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('取消')),
+        CupertinoDialogAction(
+          isDefaultAction: true,
+          onPressed: _ctrl.text.isEmpty
+              ? null
+              : () => Navigator.pop(context, _ctrl.text),
           child: const Text('确认'),
         ),
       ],
@@ -442,27 +483,30 @@ class _DeleteAllDialogState extends State<DeleteAllDialog> {
   @override
   Widget build(BuildContext context) {
     final can = _ctrl.text.trim() == '删除';
-    return AlertDialog(
+    return CupertinoAlertDialog(
       title: const Text('删除全部健康数据'),
       content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const SizedBox(height: 8),
           const Text(
               '此操作将删除本机保存的检查报告、健康指标、日常记录、疾病史和用药记录，且无法恢复。'),
           const SizedBox(height: 8),
           const Text('输入「删除」以确认。'),
           const SizedBox(height: 12),
-          TextField(
+          CupertinoTextField(
             controller: _ctrl,
-            decoration: const InputDecoration(hintText: '删除'),
+            placeholder: '删除',
             onChanged: (_) => setState(() {}),
           ),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
-        TextButton(
+        CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消')),
+        CupertinoDialogAction(
+          isDestructiveAction: true,
           onPressed: can ? () => Navigator.pop(context, true) : null,
           child: const Text('删除'),
         ),

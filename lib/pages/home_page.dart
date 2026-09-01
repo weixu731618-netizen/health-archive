@@ -7,9 +7,8 @@ import '../main.dart';
 import '../models/backup_nudge.dart';
 import '../models/body_area_health.dart';
 import '../utils/format.dart';
-import '../widgets/ios_tap.dart';
+import '../widgets/health_ui.dart';
 import '../widgets/profile_switcher.dart';
-import '../widgets/section_title.dart';
 import 'body_page.dart';
 import 'notification_center_page.dart';
 import 'privacy_page.dart';
@@ -207,27 +206,23 @@ class _HomePageState extends State<HomePage> {
           ),
       ];
 
+  int get _attentionTotal =>
+      _overdueFollowups.length + _upcomingFollowups.length + _attention.length;
+
+  void _openAttentionList() => _push(AttentionListPage(
+        metrics: _metrics,
+        overdueFollowups: _overdueFollowups,
+        upcomingFollowups: _upcomingFollowups,
+        attentionAreas: [for (final a in _attention) a.area],
+      ));
+
   Widget _attentionSection() {
     final tiles = _attentionTiles();
     const cap = 3;
     final shown = tiles.length > cap ? tiles.sublist(0, cap) : tiles;
-    return CupertinoListSection.insetGrouped(
-      margin: const EdgeInsets.only(top: 8, bottom: 4),
-      children: [
-        ...shown,
-        if (tiles.length > cap)
-          CupertinoListTile.notched(
-            title: Text('查看全部 ${tiles.length} 项',
-                style: const TextStyle(color: AppColors.primary)),
-            trailing: const CupertinoListTileChevron(),
-            onTap: () => _push(AttentionListPage(
-              metrics: _metrics,
-              overdueFollowups: _overdueFollowups,
-              upcomingFollowups: _upcomingFollowups,
-              attentionAreas: [for (final a in _attention) a.area],
-            )),
-          ),
-      ],
+    return HealthCard(
+      padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+      child: Column(children: shown),
     );
   }
 
@@ -251,7 +246,7 @@ class _HomePageState extends State<HomePage> {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _kContentMaxWidth),
-          child: RefreshIndicator(
+          child: RefreshIndicator.adaptive(
             onRefresh: _load,
             child: _loading
                 ? ListView(children: const [
@@ -259,13 +254,13 @@ class _HomePageState extends State<HomePage> {
                     Center(child: CircularProgressIndicator()),
                   ])
                 : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
                     children: [
                       // 拍报告为第一优先级
                       _PrimaryAddCard(
                         onTap: () => _push(const ReportCapturePage()),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       // 上传统一入口：化验单、影像、病历、处方都走这里，识别后
                       // 自动分流（有指标→逐项核对；没指标→图文报告）。
                       _BigButton(
@@ -276,7 +271,7 @@ class _HomePageState extends State<HomePage> {
 
                       // 换机不丢数据：新装机提示可从旧机备份恢复
                       if (_dbEmpty && !_restoreHintDismissed) ...[
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         _RestoreHintCard(
                           onTap: () => _push(const PrivacyPage()),
                           onDismiss: _dismissRestoreHint,
@@ -285,34 +280,43 @@ class _HomePageState extends State<HomePage> {
 
                       // 攒够报告且上次备份后又有新报告：提示导出本地备份
                       if (!_dbEmpty && _showBackupNudge) ...[
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         _BackupNudgeCard(
                           onTap: () => _push(const PrivacyPage()),
                           onDismiss: _dismissBackupNudge,
                         ),
                       ],
 
-                      // 2. 需要关注 —— 有内容才显示；超过 3 行折叠
+                      // 2. 待跟进 —— 有内容才显示；超过 3 行折叠
                       if (showAttention) ...[
-                        const SectionTitle(title: '待跟进'),
+                        HealthSectionHeader(
+                          '待跟进',
+                          actionLabel: _attentionTotal > 3
+                              ? '全部 $_attentionTotal 项'
+                              : null,
+                          onAction:
+                              _attentionTotal > 3 ? _openAttentionList : null,
+                        ),
                         _attentionSection(),
                       ],
 
                       // 3. 最近
-                      const SectionTitle(title: '最近'),
+                      const HealthSectionHeader('最近'),
                       if (_recent.isEmpty)
                         const _EmptyRecent()
                       else
-                        CupertinoListSection.insetGrouped(
-                          margin: const EdgeInsets.only(top: 8, bottom: 4),
-                          children: [
-                            for (final r in _recent)
-                              _RecentTile(
-                                report: r,
-                                onTap: () =>
-                                    _push(ReportDetailPage(reportId: r.id)),
-                              ),
-                          ],
+                        HealthCard(
+                          padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+                          child: Column(
+                            children: [
+                              for (final r in _recent)
+                                _RecentTile(
+                                  report: r,
+                                  onTap: () =>
+                                      _push(ReportDetailPage(reportId: r.id)),
+                                ),
+                            ],
+                          ),
                         ),
                     ],
                   ),
@@ -328,6 +332,26 @@ class _AttentionArea {
   const _AttentionArea({required this.area});
 }
 
+/// 圆角方形图标块（primary 浅底 + primary 图标），Health / Fitness 卡片里的常见前缀。
+class _IconTile extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  const _IconTile(this.icon, {this.size = 46});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Icon(icon, size: size * 0.5, color: AppColors.primary),
+    );
+  }
+}
+
 /// 首页第一优先级入口：拍报告。
 class _PrimaryAddCard extends StatelessWidget {
   final VoidCallback onTap;
@@ -335,30 +359,31 @@ class _PrimaryAddCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IosTap(
+    return HealthCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: .08),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-        child: Column(children: [
-          const Icon(CupertinoIcons.camera,
-              size: 30, color: AppColors.primary),
-          const SizedBox(height: 10),
-          const Text('拍报告',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary)),
-          const SizedBox(height: 4),
-          Text('对着纸质报告拍照',
-              style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.primary.withValues(alpha: .8))),
-        ]),
+      padding: const EdgeInsets.all(16),
+      child: const Row(
+        children: [
+          _IconTile(CupertinoIcons.camera, size: 52),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('拍报告',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
+                        color: AppColors.textPrimary)),
+                SizedBox(height: 3),
+                Text('对着纸质报告拍照',
+                    style: TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -373,24 +398,21 @@ class _BigButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IosTap(
+    return HealthCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: .08),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        child: Column(children: [
-          Icon(icon, size: 24, color: AppColors.primary),
-          const SizedBox(height: 8),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary)),
-        ]),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          _IconTile(icon, size: 46),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary)),
+          ),
+        ],
       ),
     );
   }
@@ -417,49 +439,39 @@ class _HintCard extends StatelessWidget {
       key: ValueKey('home-hint-$title'),
       direction: DismissDirection.horizontal,
       onDismissed: (_) => onDismiss(),
-      child: IosTap(
+      child: HealthCard(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: .06),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: AppColors.primary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary)),
-                    const SizedBox(height: 3),
-                    Text(subtitle,
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.textSecondary)),
-                  ],
-                ),
+        padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+        child: Row(
+          children: [
+            _IconTile(icon, size: 40),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 13, color: AppColors.textSecondary)),
+                ],
               ),
-              const SizedBox(width: 8),
-              const Icon(CupertinoIcons.chevron_forward,
-                  size: 15, color: AppColors.textSecondary),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onDismiss,
-                child: const Padding(
-                  padding: EdgeInsets.all(6),
-                  child: Icon(CupertinoIcons.xmark,
-                      size: 14, color: AppColors.textSecondary),
-                ),
+            ),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onDismiss,
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(CupertinoIcons.xmark,
+                    size: 15, color: AppColors.textSecondary),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -509,11 +521,10 @@ class _AttentionCard extends StatelessWidget {
     final count = area.abnormalCount;
     final countText = count > 0 ? '$count 项指标异常' : '需要关注';
 
-    return CupertinoListTile.notched(
-      leading: Icon(CupertinoIcons.circle_fill, size: 12, color: dotColor),
-      title: Text(area.name),
-      subtitle: Text(countText),
-      trailing: const CupertinoListTileChevron(),
+    return HealthRow(
+      leading: Dot(dotColor),
+      title: area.name,
+      subtitle: countText,
       onTap: onTap,
     );
   }
@@ -550,16 +561,17 @@ class _RecheckRow extends StatelessWidget {
     } else {
       sub = '距离复查还有 $days 天';
     }
-    return CupertinoListTile.notched(
-      leading: Icon(CupertinoIcons.calendar,
-          color: urgent ? AppColors.warning : AppColors.textSecondary),
-      title: Text(reminder.title),
-      subtitle: Text(
-        sub,
-        style: TextStyle(
-            color: urgent ? AppColors.warning : AppColors.textSecondary),
-      ),
-      trailing: const CupertinoListTileChevron(),
+    return HealthRow(
+      leading: Dot(urgent ? AppColors.warning : AppColors.insufficient),
+      title: reminder.title,
+      subtitle: sub,
+      trailing: urgent
+          ? const Text('待处理',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.warning))
+          : null,
       onTap: onTap,
     );
   }
@@ -576,12 +588,11 @@ class _RecentTile extends StatelessWidget {
     final label = [r.hospitalName, r.reportType]
         .where((e) => e.trim().isNotEmpty)
         .join(' · ');
-    return CupertinoListTile.notched(
+    return HealthRow(
       leading: const Icon(CupertinoIcons.doc_text,
-          color: AppColors.textSecondary),
-      title: Text(label.isEmpty ? '报告' : label),
-      subtitle: Text(formatDate(r.reportDate)),
-      trailing: const CupertinoListTileChevron(),
+          size: 20, color: AppColors.textSecondary),
+      title: label.isEmpty ? '报告' : label,
+      subtitle: formatDate(r.reportDate),
       onTap: onTap,
     );
   }
@@ -593,23 +604,19 @@ class _EmptyRecent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 20, 16, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('还没有健康记录',
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary)),
-            SizedBox(height: 6),
-            Text('添加第一份资料后，这里会显示最近的检查和健康变化。',
-                style: TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary)),
-          ],
-        ),
+    return const HealthCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('还没有健康记录',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
+          SizedBox(height: 6),
+          Text('添加第一份资料后，这里会显示最近的检查和健康变化。',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        ],
       ),
     );
   }
@@ -701,9 +708,12 @@ class AttentionListPage extends StatelessWidget {
                   style: TextStyle(color: AppColors.textSecondary)),
             )
           : ListView(
-              padding: const EdgeInsets.only(top: 8, bottom: 24),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
-                CupertinoListSection.insetGrouped(children: rows),
+                HealthCard(
+                  padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+                  child: Column(children: rows),
+                ),
               ],
             ),
     );

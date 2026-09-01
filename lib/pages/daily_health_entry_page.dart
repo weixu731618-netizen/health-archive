@@ -1,9 +1,12 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' as drift;
 
 import '../data/app_database.dart';
 import '../main.dart';
 import '../utils/format.dart';
+import '../widgets/health_ui.dart';
+import '../widgets/ios_button.dart';
 
 enum DailyEntryType {
   weight('weight', '体重', Icons.monitor_weight_outlined, 'kg'),
@@ -29,15 +32,8 @@ class DailyHealthEntryPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('日常记录')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 4, bottom: 12),
-            child: Text(
-              '记录体重、腰围、血压、血糖和心率',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-            ),
-          ),
           for (final type in DailyEntryType.values) ...[
             _EntryCard(
               type: type,
@@ -63,38 +59,30 @@ class _EntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(type.icon, color: AppColors.primary, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  type.label,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-            ],
+    return HealthCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(type.icon, color: AppColors.primary, size: 24),
           ),
-        ),
+          const SizedBox(width: 14),
+          Text(
+            type.label,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -140,92 +128,86 @@ class _DailyEntryFormPageState extends State<DailyEntryFormPage> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
           children: [
-            _field(
-              label: _type.label == '血压' ? '收缩压' : _type.label,
-              unit: _type.defaultUnit,
-              controller: _value1Ctrl,
-            ),
-            if (_type == DailyEntryType.bloodPressure) ...[
-              const SizedBox(height: 12),
-              _field(
-                label: '舒张压',
-                unit: 'mmHg',
-                controller: _value2Ctrl,
-              ),
-              const SizedBox(height: 12),
-              _field(
-                label: '心率（选填）',
-                unit: 'bpm',
-                controller: _hrCtrl,
-              ),
-            ],
-            if (_type == DailyEntryType.bloodGlucose) ...[
-              const SizedBox(height: 12),
-              const Text(
-                '测量状态',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
+            HealthCard(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Column(
                 children: [
-                  for (final opt in _glucoseOptions)
-                    ChoiceChip(
-                      label: Text(opt),
-                      selected: _glucoseStatus == opt,
-                      onSelected: (_) => setState(() => _glucoseStatus = opt),
+                  _field(
+                    label: _type.label == '血压' ? '收缩压' : _type.label,
+                    unit: _type.defaultUnit,
+                    controller: _value1Ctrl,
+                  ),
+                  if (_type == DailyEntryType.bloodPressure) ...[
+                    _field(label: '舒张压', unit: 'mmHg', controller: _value2Ctrl),
+                    _field(
+                        label: '心率',
+                        unit: 'bpm',
+                        controller: _hrCtrl,
+                        optional: true),
+                  ],
+                  if (_type == DailyEntryType.bloodGlucose)
+                    HealthFieldRow(
+                      label: '测量状态',
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: ChoicePills(
+                          options: _glucoseOptions,
+                          value: _glucoseStatus,
+                          toggle: false,
+                          onChanged: (v) =>
+                              setState(() => _glucoseStatus = v ?? _glucoseStatus),
+                        ),
+                      ),
                     ),
+                  HealthFieldRow(
+                    label: '测量日期',
+                    onTap: _pickDate,
+                    child: _rowValue(formatDate(_date)),
+                  ),
+                  HealthFieldRow(
+                    label: '测量时间',
+                    onTap: _pickTime,
+                    child: _rowValue(
+                        '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}'),
+                  ),
+                  HealthFieldRow(
+                    label: '备注',
+                    child: CupertinoTextField.borderless(
+                      controller: _notesCtrl,
+                      placeholder: '选填',
+                      padding: EdgeInsets.zero,
+                      maxLines: 2,
+                    ),
+                  ),
                 ],
               ),
-            ],
-            const SizedBox(height: 16),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.calendar_today,
-                  color: AppColors.textSecondary),
-              title: const Text('测量日期',
-                  style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
-              trailing: Text(
-                formatDate(_date),
-                style:
-                    const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-              ),
-              onTap: _pickDate,
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading:
-                  const Icon(Icons.access_time, color: AppColors.textSecondary),
-              title: const Text('测量时间',
-                  style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
-              trailing: Text(
-                '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}',
-                style:
-                    const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-              ),
-              onTap: _pickTime,
-            ),
-            const SizedBox(height: 4),
-            TextFormField(
-              controller: _notesCtrl,
-              maxLines: 2,
-              decoration: _input('备注（选填）', '补充说明，可留空'),
             ),
             const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : () => _save(context),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: const Text('保存记录', style: TextStyle(fontSize: 16)),
-            ),
+            IosButton.filled('保存记录',
+                onPressed: _saving ? null : () => _save(context),
+                expand: true),
           ],
         ),
       ),
     );
   }
+
+  Widget _rowValue(String v) => Align(
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(v,
+                style: const TextStyle(
+                    fontSize: 15, color: AppColors.textPrimary)),
+            const SizedBox(width: 4),
+            const Icon(CupertinoIcons.chevron_forward,
+                size: 15, color: AppColors.textSecondary),
+          ],
+        ),
+      );
 
   DateTime _toDateTime(DateTime date, TimeOfDay t) {
     return DateTime(date.year, date.month, date.day, t.hour, t.minute);
@@ -235,51 +217,114 @@ class _DailyEntryFormPageState extends State<DailyEntryFormPage> {
     required String label,
     required String unit,
     required TextEditingController controller,
+    bool optional = false,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        labelText: '$label（$unit）',
-        hintText: '请输入数值',
-        suffixText: unit,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    return HealthFieldRow(
+      label: optional ? '$label（选填）' : label,
+      child: Row(
+        children: [
+          Expanded(
+            child: CupertinoTextField.borderless(
+              controller: controller,
+              placeholder: '数值',
+              padding: EdgeInsets.zero,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+            ),
+          ),
+          Text(unit,
+              style: const TextStyle(
+                  fontSize: 14, color: AppColors.textSecondary)),
+        ],
       ),
-      validator: (v) {
-        final d = double.tryParse((v ?? '').trim());
-        if (d == null) return '请输入有效数字';
-        if (d <= 0) return '请输入大于 0 的数值';
-        return null;
-      },
-    );
-  }
-
-  InputDecoration _input(String label, String hint) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime(2015),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+    FocusScope.of(context).unfocus();
+    final picked = await _wheel(
+      mode: CupertinoDatePickerMode.date,
+      initial: _date,
+      minimumDate: DateTime(2015),
+      maximumDate: DateTime.now().add(const Duration(days: 1)),
     );
     if (picked != null) setState(() => _date = picked);
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(context: context, initialTime: _time);
-    if (picked != null) setState(() => _time = picked);
+    FocusScope.of(context).unfocus();
+    final base = DateTime(2020, 1, 1, _time.hour, _time.minute);
+    final picked = await _wheel(
+      mode: CupertinoDatePickerMode.time,
+      initial: base,
+    );
+    if (picked != null) {
+      setState(() => _time = TimeOfDay(hour: picked.hour, minute: picked.minute));
+    }
+  }
+
+  Future<DateTime?> _wheel({
+    required CupertinoDatePickerMode mode,
+    required DateTime initial,
+    DateTime? minimumDate,
+    DateTime? maximumDate,
+  }) {
+    DateTime temp = initial;
+    return showCupertinoModalPopup<DateTime>(
+      context: context,
+      builder: (ctx) => Container(
+        height: 300,
+        color: CupertinoColors.systemBackground.resolveFrom(ctx),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CupertinoButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('取消')),
+                  CupertinoButton(
+                      onPressed: () => Navigator.pop(ctx, temp),
+                      child: const Text('完成',
+                          style: TextStyle(fontWeight: FontWeight.w600))),
+                ],
+              ),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: mode,
+                  initialDateTime: initial,
+                  minimumDate: minimumDate,
+                  maximumDate: maximumDate,
+                  onDateTimeChanged: (d) => temp = d,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _save(BuildContext context) async {
     if (_saving) return; // 防止重复提交
-    if (!_formKey.currentState!.validate()) return;
+    final v1 = double.tryParse(_value1Ctrl.text.trim());
+    if (v1 == null || v1 <= 0) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('请输入有效的数值')));
+      return;
+    }
+    if (_type == DailyEntryType.bloodPressure) {
+      final v2 = double.tryParse(_value2Ctrl.text.trim());
+      if (v2 == null || v2 <= 0) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('请输入有效的舒张压')));
+        return;
+      }
+    }
     setState(() => _saving = true);
     try {
       final repo = appRepository!;
@@ -466,10 +511,8 @@ class _DailyEditPageState extends State<DailyEditPage> {
               decoration: _input('备注（选填）', '补充说明，可留空'),
             ),
             const SizedBox(height: 24),
-            FilledButton(
+            CupertinoButton.filled(
               onPressed: _saving ? null : _save,
-              style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14)),
               child: const Text('保存', style: TextStyle(fontSize: 16)),
             ),
           ],
@@ -502,18 +545,26 @@ class _DailyEditPageState extends State<DailyEditPage> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime(2015),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+    final picked = await pickCupertinoDate(
+      context,
+      initial: _date,
+      minimumDate: DateTime(2015),
+      maximumDate: DateTime.now().add(const Duration(days: 1)),
     );
     if (picked != null) setState(() => _date = picked);
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(context: context, initialTime: _time);
-    if (picked != null) setState(() => _time = picked);
+    final now = DateTime.now();
+    final picked = await pickCupertinoDate(
+      context,
+      initial: DateTime(now.year, now.month, now.day, _time.hour, _time.minute),
+      mode: CupertinoDatePickerMode.time,
+    );
+    if (picked != null) {
+      setState(() =>
+          _time = TimeOfDay(hour: picked.hour, minute: picked.minute));
+    }
   }
 
   Future<void> _save() async {

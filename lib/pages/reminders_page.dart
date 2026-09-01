@@ -1,7 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/health_ui.dart';
+import '../widgets/ios_button.dart';
+import '../widgets/ios_tap.dart';
 import '../services/notification_service.dart';
 import '../utils/format.dart';
 import '../utils/reminder_schedule.dart';
@@ -117,28 +121,40 @@ class _RemindersPageState extends State<RemindersPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
               children: [
                 if (followups.isNotEmpty) ...[
-                  const _SectionLabel('随访计划（按病种自动排期）'),
-                  for (final r in followups) _reminderTile(r),
-                  const SizedBox(height: 16),
+                  const HealthSectionHeader('随访计划',
+                      padding: EdgeInsets.fromLTRB(4, 8, 4, 10)),
+                  HealthCard(
+                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+                    child: Column(
+                        children: [for (final r in followups) _reminderTile(r)]),
+                  ),
                 ],
-                const _SectionLabel('复查提醒'),
-                if (rechecks.isEmpty) const _EmptyHint('异常指标可在「指标历史」页设置复查提醒'),
-                for (final r in rechecks) _reminderTile(r),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _busy ? null : _addRecheck,
-                  icon: const Icon(Icons.add_alarm_outlined),
-                  label: const Text('新建复查提醒'),
-                  style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12)),
-                ),
-                const SizedBox(height: 16),
-                const _SectionLabel('服药提醒'),
-                if (meds.isEmpty) const _EmptyHint('在「用药记录」里编辑药品时可开启服药提醒'),
-                for (final r in meds) _reminderTile(r),
+                const HealthSectionHeader('复查提醒'),
+                if (rechecks.isEmpty)
+                  const _EmptyHint('异常指标可在「指标历史」页设置复查提醒')
+                else
+                  HealthCard(
+                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+                    child: Column(
+                        children: [for (final r in rechecks) _reminderTile(r)]),
+                  ),
+                const SizedBox(height: 12),
+                IosButton.tinted('新建复查提醒',
+                    icon: CupertinoIcons.alarm,
+                    onPressed: _busy ? null : _addRecheck,
+                    expand: true),
+                const HealthSectionHeader('服药提醒'),
+                if (meds.isEmpty)
+                  const _EmptyHint('在「用药记录」里编辑药品时可开启服药提醒')
+                else
+                  HealthCard(
+                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+                    child: Column(
+                        children: [for (final r in meds) _reminderTile(r)]),
+                  ),
               ],
             ),
     );
@@ -161,74 +177,49 @@ class _RemindersPageState extends State<RemindersPage> {
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24, bottom: 10),
-        child: const Icon(Icons.delete_outline, color: AppColors.abnormal),
+        padding: const EdgeInsets.only(right: 12),
+        child: const Icon(CupertinoIcons.delete, color: AppColors.abnormal),
       ),
-      confirmDismiss: (_) => showDialog<bool>(
+      confirmDismiss: (_) => showCupertinoDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => CupertinoAlertDialog(
           title: Text('移除提醒「${r.title}」？'),
           actions: [
-            TextButton(
+            CupertinoDialogAction(
                 onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('取消')),
-            TextButton(
+            CupertinoDialogAction(
+                isDestructiveAction: true,
                 onPressed: () => Navigator.pop(ctx, true),
                 child: const Text('移除')),
           ],
         ),
       ),
       onDismissed: (_) => _remove(r),
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 10),
-        child: ListTile(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          leading: isRecheck
-              ? IconButton(
-                  tooltip: done ? '撤销完成' : '标记已完成',
-                  icon: Icon(
-                    done ? Icons.check_circle : Icons.radio_button_unchecked,
-                    color: done ? AppColors.primary : AppColors.textSecondary,
-                  ),
-                  onPressed: _busy ? null : () => _toggleDone(r),
-                )
-              : null,
-          title: Text(
-            r.title,
-            style: TextStyle(
-              fontSize: 15,
-              decoration: done ? TextDecoration.lineThrough : null,
-              color: done ? AppColors.textSecondary : AppColors.textPrimary,
-            ),
-          ),
-          subtitle: Text(sub,
-              style: const TextStyle(
-                  fontSize: 13, color: AppColors.textSecondary)),
-          trailing: isRecheck
-              ? null
-              : Switch(
-                  value: r.enabled,
-                  onChanged: _busy ? null : (v) => _toggle(r, v),
+      child: HealthRow(
+        leading: isRecheck
+            ? IosTap(
+                onTap: _busy ? null : () => _toggleDone(r),
+                child: Icon(
+                  done
+                      ? CupertinoIcons.checkmark_circle_fill
+                      : CupertinoIcons.circle,
+                  size: 22,
+                  color: done ? AppColors.primary : AppColors.insufficient,
                 ),
-        ),
+              )
+            : null,
+        title: r.title,
+        subtitle: sub,
+        trailing: isRecheck
+            ? null
+            : CupertinoSwitch(
+                value: r.enabled,
+                onChanged: _busy ? null : (v) => _toggle(r, v),
+              ),
       ),
     );
   }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 4, bottom: 8),
-        child: Text(text,
-            style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary)),
-      );
 }
 
 class _EmptyHint extends StatelessWidget {
@@ -283,35 +274,36 @@ class _NewRecheckSheetState extends State<_NewRecheckSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('新建复查提醒',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              TextField(
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 14),
+              CupertinoTextField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: '提醒什么（如：复查甲功）'),
+                placeholder: '提醒什么（如：复查甲功）',
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               const Text('多久之后',
                   style:
                       TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: [
                   for (final e in _presets.entries)
-                    ChoiceChip(
-                      label: Text(e.key),
+                    ChoicePill(
+                      label: e.key,
                       selected: _days == e.value,
-                      onSelected: (_) => setState(() => _days = e.value),
+                      onTap: () => setState(() => _days = e.value),
                     ),
                 ],
               ),
-              const SizedBox(height: 12),
-              TextField(
+              const SizedBox(height: 14),
+              CupertinoTextField(
                 controller: _noteCtrl,
-                decoration: const InputDecoration(labelText: '备注（选填）'),
+                placeholder: '备注（选填）',
               ),
-              const SizedBox(height: 16),
-              FilledButton(
+              const SizedBox(height: 18),
+              CupertinoButton.filled(
                 onPressed: () {
                   final t = _titleCtrl.text.trim();
                   if (t.isEmpty) {
@@ -323,8 +315,6 @@ class _NewRecheckSheetState extends State<_NewRecheckSheet> {
                   Navigator.of(context)
                       .pop(_NewRecheckResult(t, _days, _noteCtrl.text.trim()));
                 },
-                style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14)),
                 child: const Text('保存', style: TextStyle(fontSize: 16)),
               ),
             ],

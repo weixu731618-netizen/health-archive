@@ -1,8 +1,11 @@
 import 'package:drift/drift.dart' as drift;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/health_ui.dart';
+import '../widgets/ios_button.dart';
 import '../services/notification_service.dart';
 import '../utils/format.dart';
 import '../utils/reminder_schedule.dart';
@@ -58,15 +61,16 @@ class _MedicationPageState extends State<MedicationPage> {
   }
 
   Future<void> _delete(Medication m) async {
-    final ok = await showDialog<bool>(
+    final ok = await showCupertinoDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: const Text('删除这条用药记录？'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('取消')),
-          TextButton(
+          CupertinoDialogAction(
+              isDestructiveAction: true,
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('删除')),
         ],
@@ -85,55 +89,82 @@ class _MedicationPageState extends State<MedicationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('用药记录')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _addOrEdit(),
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: const Text('用药记录'),
+        actions: [
+          IconButton(
+            tooltip: '新增',
+            icon: const Icon(CupertinoIcons.add),
+            onPressed: () => _addOrEdit(),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
               ? const Center(
-                  child: Text('暂无用药记录，点击右下角 + 添加',
+                  child: Text('暂无用药记录，点右上角 + 添加',
                       style: TextStyle(
                           fontSize: 14, color: AppColors.textSecondary)))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
-                  itemCount: _items.length,
-                  itemBuilder: (_, i) {
-                    final m = _items[i];
-                    final detail = [
-                      if (m.dosage != null)
-                        '${m.dosage}${m.dosageUnit ?? ''}'
-                      else if (m.dosageUnit != null)
-                        m.dosageUnit!,
-                      if ((m.usage ?? '').isNotEmpty) m.usage!,
-                      if (m.timesPerDay != null) '每日 ${m.timesPerDay ?? ''} 次',
-                      if (m.startDate != null) '起 ${formatDate(m.startDate!)}',
-                      if (m.endDate != null) '止 ${formatDate(m.endDate!)}',
-                    ].join(' · ');
-                    return Card(
-                      child: ListTile(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        title:
-                            Text(m.name, style: const TextStyle(fontSize: 15)),
-                        subtitle: Text(
-                          '${m.status}${detail.isEmpty ? '' : ' · $detail'}'
-                          '${(m.notes ?? '').isEmpty ? '' : ' · ${m.notes}'}',
-                          style: const TextStyle(
-                              fontSize: 13, color: AppColors.textSecondary),
-                        ),
-                        onTap: () => _addOrEdit(m),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline,
-                              color: AppColors.abnormal),
-                          onPressed: () => _delete(m),
-                        ),
-                      ),
-                    );
-                  },
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                  children: [
+                    for (final m in _items) ...[
+                      _medCard(m),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
                 ),
+    );
+  }
+
+  Widget _medCard(Medication m) {
+    final detail = [
+      if (m.dosage != null)
+        '${m.dosage}${m.dosageUnit ?? ''}'
+      else if (m.dosageUnit != null)
+        m.dosageUnit!,
+      if ((m.usage ?? '').isNotEmpty) m.usage!,
+      if (m.timesPerDay != null) '每日 ${m.timesPerDay ?? ''} 次',
+      if (m.startDate != null) '起 ${formatDate(m.startDate!)}',
+      if (m.endDate != null) '止 ${formatDate(m.endDate!)}',
+    ].join(' · ');
+    return HealthCard(
+      onTap: () => _addOrEdit(m),
+      padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.capsule,
+              size: 22, color: AppColors.primary),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(m.name,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary)),
+                const SizedBox(height: 2),
+                Text(
+                  '${m.status}${detail.isEmpty ? '' : ' · $detail'}'
+                  '${(m.notes ?? '').isEmpty ? '' : ' · ${m.notes}'}',
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          CupertinoButton(
+            padding: const EdgeInsets.all(8),
+            minimumSize: const Size(0, 0),
+            onPressed: () => _delete(m),
+            child: const Icon(CupertinoIcons.delete,
+                size: 20, color: AppColors.abnormal),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -208,11 +239,13 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
 
   Future<void> _editTime(int index) async {
     final parts = _remindTimes[index].split(':');
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(
-          hour: int.tryParse(parts[0]) ?? 9,
-          minute: int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0),
+    final now = DateTime.now();
+    final picked = await pickCupertinoDate(
+      context,
+      initial: DateTime(now.year, now.month, now.day,
+          int.tryParse(parts[0]) ?? 9,
+          int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0),
+      mode: CupertinoDatePickerMode.time,
     );
     if (picked == null) return;
     setState(() {
@@ -318,160 +351,186 @@ class _MedicationEditPageState extends State<_MedicationEditPage> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
           children: [
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: _input('药物名称'),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? '请输入药物名称' : null,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                    child: TextFormField(
-                        controller: _dosageCtrl, decoration: _input('剂量'))),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: TextFormField(
-                        controller: _unitCtrl, decoration: _input('单位'))),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: TextFormField(
-                        controller: _timesCtrl, decoration: _input('每日次数'))),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _usageCtrl,
-              decoration: _input('用法（选填）').copyWith(
-                hintText: '口服 / 外用 / 饭前 / 饭后 / 含服…',
-              ),
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.calendar_today,
-                  color: AppColors.textSecondary),
-              title: const Text('开始日期'),
-              trailing: Text(_start == null ? '未填' : formatDate(_start!),
-                  style: const TextStyle(
-                      fontSize: 15, color: AppColors.textPrimary)),
-              onTap: () async {
-                final p = await showDatePicker(
-                    context: context,
-                    initialDate: _start ?? DateTime.now(),
-                    firstDate: DateTime(1990),
-                    lastDate:
-                        DateTime.now().add(const Duration(days: 365 * 3)));
-                if (p != null) setState(() => _start = p);
-              },
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading:
-                  const Icon(Icons.event_busy, color: AppColors.textSecondary),
-              title: const Text('结束日期（选填）'),
-              trailing: Text(_end == null ? '未填' : formatDate(_end!),
-                  style: const TextStyle(
-                      fontSize: 15, color: AppColors.textPrimary)),
-              onTap: () async {
-                final p = await showDatePicker(
-                    context: context,
-                    initialDate: _end ?? _start ?? DateTime.now(),
-                    firstDate: DateTime(1990),
-                    lastDate:
-                        DateTime.now().add(const Duration(days: 365 * 3)));
-                if (p != null) setState(() => _end = p);
-              },
-            ),
-            TextFormField(
-                controller: _notesCtrl,
-                maxLines: 2,
-                decoration: _input('备注（选填）')),
-            const SizedBox(height: 12),
-            const Text('用药状态',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final o in _options)
-                  ChoiceChip(
-                    label: Text(o),
-                    selected: _status == o,
-                    onSelected: (_) => setState(() => _status = o),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Card(
-              margin: EdgeInsets.zero,
+            HealthCard(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
               child: Column(
                 children: [
-                  SwitchListTile(
-                    title: const Text('服药提醒'),
-                    subtitle: const Text('到点发系统通知提醒吃这个药',
-                        style: TextStyle(
-                            fontSize: 12, color: AppColors.textSecondary)),
-                    value: _remindEnabled,
-                    onChanged: (v) => setState(() {
-                      _remindEnabled = v;
-                      if (v) _ensureTimes();
-                    }),
-                  ),
-                  if (_remindEnabled)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          children: [
-                            for (var i = 0; i < _remindTimes.length; i++)
-                              InputChip(
-                                label: Text(_remindTimes[i]),
-                                onPressed: () => _editTime(i),
-                                onDeleted: _remindTimes.length <= 1
-                                    ? null
-                                    : () => setState(
-                                        () => _remindTimes.removeAt(i)),
-                              ),
-                            ActionChip(
-                              avatar: const Icon(Icons.add, size: 16),
-                              label: const Text('加时间'),
-                              onPressed: () => setState(() {
-                                _remindTimes = [..._remindTimes, '12:00'];
-                                _remindTimes =
-                                    parseDailyTimes(_remindTimes.join(','))
-                                        .map((t) => t.text)
-                                        .toList();
-                              }),
-                            ),
-                          ],
-                        ),
-                      ),
+                  HealthFieldRow(
+                    label: '药物名称',
+                    child: TextFormField(
+                      controller: _nameCtrl,
+                      decoration: _input('必填'),
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? '请输入药物名称' : null,
                     ),
+                  ),
+                  HealthFieldRow(
+                    label: '剂量',
+                    child: Row(children: [
+                      Expanded(
+                          child: TextFormField(
+                              controller: _dosageCtrl,
+                              decoration: _input('数值'))),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: TextFormField(
+                              controller: _unitCtrl, decoration: _input('单位'))),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: TextFormField(
+                              controller: _timesCtrl,
+                              decoration: _input('每日次数'))),
+                    ]),
+                  ),
+                  HealthFieldRow(
+                    label: '用法',
+                    child: TextFormField(
+                      controller: _usageCtrl,
+                      decoration: _input('口服 / 饭前 / 饭后…（选填）'),
+                    ),
+                  ),
+                  HealthFieldRow(
+                    label: '开始日期',
+                    onTap: () => _pickDate(true),
+                    child: _rowValue(
+                        _start == null ? '未填' : formatDate(_start!)),
+                  ),
+                  HealthFieldRow(
+                    label: '结束日期',
+                    onTap: () => _pickDate(false),
+                    child: _rowValue(_end == null ? '未填' : formatDate(_end!)),
+                  ),
+                  HealthFieldRow(
+                    label: '备注',
+                    child: TextFormField(
+                      controller: _notesCtrl,
+                      maxLines: 2,
+                      decoration: _input('选填'),
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: _save,
-              style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14)),
-              child: const Text('保存', style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 14),
+            const _MiniLabel('用药状态'),
+            ChoicePills(
+              options: _options,
+              value: _status,
+              toggle: false,
+              onChanged: (v) => setState(() => _status = v ?? _status),
             ),
+            const SizedBox(height: 14),
+            HealthCard(
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('服药提醒',
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary)),
+                            SizedBox(height: 2),
+                            Text('到点发系统通知提醒吃这个药',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      CupertinoSwitch(
+                        value: _remindEnabled,
+                        onChanged: (v) => setState(() {
+                          _remindEnabled = v;
+                          if (v) _ensureTimes();
+                        }),
+                      ),
+                    ],
+                  ),
+                  if (_remindEnabled) ...[
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (var i = 0; i < _remindTimes.length; i++)
+                            ChoicePill(
+                              label: _remindTimes[i],
+                              selected: true,
+                              onTap: () => _editTime(i),
+                            ),
+                          ChoicePill(
+                            label: '＋ 加时间',
+                            selected: false,
+                            onTap: () => setState(() {
+                              _remindTimes = parseDailyTimes(
+                                      [..._remindTimes, '12:00'].join(','))
+                                  .map((t) => t.text)
+                                  .toList();
+                            }),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            IosButton.filled('保存', onPressed: _save, expand: true),
           ],
         ),
       ),
     );
   }
 
-  InputDecoration _input(String label) => InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _rowValue(String v) => Align(
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(v,
+                style:
+                    const TextStyle(fontSize: 15, color: AppColors.textPrimary)),
+            const SizedBox(width: 4),
+            const Icon(CupertinoIcons.chevron_forward,
+                size: 15, color: AppColors.textSecondary),
+          ],
+        ),
+      );
+
+  Future<void> _pickDate(bool isStart) async {
+    FocusScope.of(context).unfocus();
+    final p = await pickCupertinoDate(context, initial: (isStart ? _start : (_end ?? _start)) ?? DateTime.now(), minimumDate: DateTime(1990), maximumDate: DateTime.now().add(const Duration(days: 365 * 3)),
+    );
+    if (p != null) setState(() => isStart ? _start = p : _end = p);
+  }
+
+  InputDecoration _input(String hint) => InputDecoration(
+        isCollapsed: true,
+        border: InputBorder.none,
+        hintText: hint,
+        hintStyle:
+            const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+      );
+}
+
+class _MiniLabel extends StatelessWidget {
+  final String text;
+  const _MiniLabel(this.text);
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 13, color: AppColors.textSecondary)),
       );
 }

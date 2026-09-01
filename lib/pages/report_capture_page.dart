@@ -1,7 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 
 import '../main.dart';
+import '../widgets/ios_button.dart';
 import '../models/body_area_health.dart';
 import '../utils/image_storage.dart';
 import '../widgets/current_profile_badge.dart';
@@ -109,14 +111,11 @@ class _ReportCapturePageState extends State<ReportCapturePage> {
                         style: TextStyle(
                             fontSize: 14, color: AppColors.textSecondary)),
                   ] else ...[
-                    const Icon(Icons.photo_camera_outlined,
+                    const Icon(CupertinoIcons.camera,
                         size: 56, color: AppColors.textSecondary),
                     const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: _capture,
-                      icon: const Icon(Icons.photo_camera),
-                      label: const Text('打开相机'),
-                    ),
+                    IosButton.filled('打开相机',
+                        icon: CupertinoIcons.camera, onPressed: _capture),
                   ],
                 ],
               ),

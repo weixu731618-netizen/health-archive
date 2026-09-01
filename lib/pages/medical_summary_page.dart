@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path/path.dart' as p;
@@ -112,7 +113,7 @@ class _MedicalSummaryPageState extends State<MedicalSummaryPage> {
           if (s != null && !s.isEmpty)
             IconButton(
               tooltip: '分享文字',
-              icon: const Icon(Icons.notes_outlined),
+              icon: const Icon(CupertinoIcons.text_alignleft),
               onPressed: _busy ? null : _shareText,
             ),
         ],
@@ -145,12 +146,19 @@ class _MedicalSummaryPageState extends State<MedicalSummaryPage> {
                     SafeArea(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                        child: FilledButton.icon(
-                          onPressed: _busy ? null : _exportImage,
-                          icon: const Icon(Icons.ios_share),
-                          label: Text(_busy ? '导出中…' : '导出为图片并分享'),
-                          style: FilledButton.styleFrom(
-                              minimumSize: const Size.fromHeight(48)),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: CupertinoButton.filled(
+                            onPressed: _busy ? null : _exportImage,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(CupertinoIcons.share, size: 18),
+                                const SizedBox(width: 6),
+                                Text(_busy ? '导出中…' : '导出为图片并分享'),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),

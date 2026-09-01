@@ -1,8 +1,11 @@
 import 'package:drift/drift.dart' as drift;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/health_ui.dart';
+import '../widgets/ios_button.dart';
 import '../utils/format.dart';
 
 /// 慢病升级 步骤5：过敏史页（独立字段，不再塞进疾病史备注）。
@@ -47,15 +50,16 @@ class _AllergyPageState extends State<AllergyPage> {
   }
 
   Future<void> _delete(Allergy a) async {
-    final ok = await showDialog<bool>(
+    final ok = await showCupertinoDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: Text('删除「${a.substance}」这条过敏记录？'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('取消')),
-          TextButton(
+          CupertinoDialogAction(
+              isDestructiveAction: true,
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('删除')),
         ],
@@ -69,58 +73,78 @@ class _AllergyPageState extends State<AllergyPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('过敏史')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _addOrEdit(),
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: const Text('过敏史'),
+        actions: [
+          IconButton(
+            tooltip: '新增',
+            icon: const Icon(CupertinoIcons.add),
+            onPressed: () => _addOrEdit(),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
               ? const Center(
-                  child: Text('暂无过敏史，点击右下角 + 添加',
+                  child: Text('暂无过敏史，点右上角 + 添加',
                       style: TextStyle(
                           fontSize: 14, color: AppColors.textSecondary)))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
-                  itemCount: _items.length,
-                  itemBuilder: (_, i) {
-                    final a = _items[i];
-                    final sub = <String>[
-                      a.category,
-                      if ((a.reaction ?? '').isNotEmpty) '表现：${a.reaction}',
-                      '严重度：${a.severity}',
-                      if (a.notedDate != null)
-                        '记录于 ${formatDate(a.notedDate!)}',
-                      if ((a.notes ?? '').isNotEmpty) a.notes!,
-                    ].join(' · ');
-                    return Card(
-                      child: ListTile(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        leading: Icon(
-                          Icons.warning_amber_outlined,
-                          color: a.severity == '重'
-                              ? AppColors.abnormal
-                              : AppColors.warning,
-                        ),
-                        title: Text(a.substance,
-                            style: const TextStyle(fontSize: 15)),
-                        subtitle: Text(sub,
-                            style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary)),
-                        onTap: () => _addOrEdit(a),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline,
-                              color: AppColors.abnormal),
-                          onPressed: () => _delete(a),
-                        ),
-                        isThreeLine: sub.length > 26,
-                      ),
-                    );
-                  },
+              : ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                  children: [
+                    for (final a in _items) ...[
+                      _allergyCard(a),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
                 ),
+    );
+  }
+
+  Widget _allergyCard(Allergy a) {
+    final sub = <String>[
+      a.category,
+      if ((a.reaction ?? '').isNotEmpty) '表现：${a.reaction}',
+      '严重度：${a.severity}',
+      if (a.notedDate != null) '记录于 ${formatDate(a.notedDate!)}',
+      if ((a.notes ?? '').isNotEmpty) a.notes!,
+    ].join(' · ');
+    return HealthCard(
+      onTap: () => _addOrEdit(a),
+      padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+      child: Row(
+        children: [
+          Icon(CupertinoIcons.exclamationmark_triangle,
+              size: 22,
+              color:
+                  a.severity == '重' ? AppColors.abnormal : AppColors.warning),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(a.substance,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary)),
+                const SizedBox(height: 2),
+                Text(sub,
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          CupertinoButton(
+            padding: const EdgeInsets.all(8),
+            minimumSize: const Size(0, 0),
+            onPressed: () => _delete(a),
+            child: const Icon(CupertinoIcons.delete,
+                size: 20, color: AppColors.abnormal),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -205,91 +229,108 @@ class _AllergyEditPageState extends State<_AllergyEditPage> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
           children: [
-            TextFormField(
-              controller: _substanceCtrl,
-              decoration: _input('过敏原（如：青霉素、海鲜、花粉）'),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? '请输入过敏原' : null,
-            ),
-            const SizedBox(height: 12),
-            const Text('类别',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final c in _categories)
-                  ChoiceChip(
-                    label: Text(c),
-                    selected: _category == c,
-                    onSelected: (_) => setState(() => _category = c),
+            HealthCard(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              child: Column(
+                children: [
+                  HealthFieldRow(
+                    label: '过敏原',
+                    child: TextFormField(
+                      controller: _substanceCtrl,
+                      decoration: _input('青霉素、海鲜、花粉…'),
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? '请输入过敏原' : null,
+                    ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _reactionCtrl,
-              decoration: _input('过敏表现（如：皮疹、呼吸困难）（选填）'),
-            ),
-            const SizedBox(height: 12),
-            const Text('严重程度',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final s in _severities)
-                  ChoiceChip(
-                    label: Text(s),
-                    selected: _severity == s,
-                    onSelected: (_) => setState(() => _severity = s),
+                  HealthFieldRow(
+                    label: '表现',
+                    child: TextFormField(
+                      controller: _reactionCtrl,
+                      decoration: _input('皮疹、呼吸困难…（选填）'),
+                    ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.calendar_today,
-                  color: AppColors.textSecondary),
-              title: const Text('记录日期（选填）'),
-              trailing: Text(
-                _notedDate == null ? '未填' : formatDate(_notedDate!),
-                style:
-                    const TextStyle(fontSize: 15, color: AppColors.textPrimary),
+                  HealthFieldRow(
+                    label: '记录日期',
+                    onTap: _pickDate,
+                    child: _rowValue(
+                        _notedDate == null ? '未填' : formatDate(_notedDate!)),
+                  ),
+                  HealthFieldRow(
+                    label: '备注',
+                    child: TextFormField(
+                      controller: _notesCtrl,
+                      maxLines: 2,
+                      decoration: _input('选填'),
+                    ),
+                  ),
+                ],
               ),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _notedDate ?? DateTime.now(),
-                  firstDate: DateTime(1980),
-                  lastDate: DateTime.now(),
-                );
-                if (picked != null) setState(() => _notedDate = picked);
-              },
             ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _notesCtrl,
-              maxLines: 2,
-              decoration: _input('备注（选填）'),
+            const SizedBox(height: 14),
+            const _MiniLabel('类别'),
+            ChoicePills(
+              options: _categories,
+              value: _category,
+              toggle: false,
+              onChanged: (v) => setState(() => _category = v ?? _category),
             ),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: _save,
-              style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14)),
-              child: const Text('保存', style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 14),
+            const _MiniLabel('严重程度'),
+            ChoicePills(
+              options: _severities,
+              value: _severity,
+              toggle: false,
+              onChanged: (v) => setState(() => _severity = v ?? _severity),
             ),
+            const SizedBox(height: 24),
+            IosButton.filled('保存', onPressed: _save, expand: true),
           ],
         ),
       ),
     );
   }
 
-  InputDecoration _input(String label) => InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _rowValue(String v) => Align(
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(v,
+                style:
+                    const TextStyle(fontSize: 15, color: AppColors.textPrimary)),
+            const SizedBox(width: 4),
+            const Icon(CupertinoIcons.chevron_forward,
+                size: 15, color: AppColors.textSecondary),
+          ],
+        ),
+      );
+
+  Future<void> _pickDate() async {
+    FocusScope.of(context).unfocus();
+    final picked = await pickCupertinoDate(context, initial: _notedDate ?? DateTime.now(), minimumDate: DateTime(1980), maximumDate: DateTime.now(),
+    );
+    if (picked != null) setState(() => _notedDate = picked);
+  }
+
+  InputDecoration _input(String hint) => InputDecoration(
+        isCollapsed: true,
+        border: InputBorder.none,
+        hintText: hint,
+        hintStyle:
+            const TextStyle(fontSize: 15, color: AppColors.textSecondary),
+      );
+}
+
+class _MiniLabel extends StatelessWidget {
+  final String text;
+  const _MiniLabel(this.text);
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 13, color: AppColors.textSecondary)),
       );
 }

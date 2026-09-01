@@ -1,8 +1,11 @@
 import 'dart:typed_data';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/health_ui.dart';
+import '../widgets/ios_button.dart';
 import '../models/body_area_health.dart';
 import '../models/report_models.dart';
 import '../services/analytics.dart';
@@ -124,11 +127,8 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
                         color: AppColors.textPrimary),
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: _viewOriginal,
-                  icon: const Icon(Icons.image_outlined, size: 18),
-                  label: const Text('查看原图'),
-                ),
+                IosButton.plain('查看原图',
+                    icon: CupertinoIcons.photo, onPressed: _viewOriginal),
               ],
             ),
           ),
@@ -158,29 +158,25 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
                         fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ),
-              FilledButton(
-                onPressed: _saving || _selectedCount == 0 ? null : _save,
-                style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48)),
-                child: _saving
-                    ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          ),
-                          SizedBox(width: 10),
-                          Text('正在保存…', style: TextStyle(fontSize: 16)),
-                        ],
-                      )
-                    : Text(
-                        '确认并保存（将保存 $_selectedCount 项指标）',
-                        style: const TextStyle(fontSize: 16),
-                      ),
+              SizedBox(
+                width: double.infinity,
+                child: CupertinoButton.filled(
+                  onPressed: _saving || _selectedCount == 0 ? null : _save,
+                  child: _saving
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CupertinoActivityIndicator(color: Colors.white),
+                            SizedBox(width: 10),
+                            Text('正在保存…', style: TextStyle(fontSize: 16)),
+                          ],
+                        )
+                      : Text(
+                          '确认并保存（将保存 $_selectedCount 项指标）',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                ),
               ),
             ],
           ),
@@ -192,15 +188,19 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
   Future<void> _editText(
       String label, String current, void Function(String) onSave) async {
     final ctrl = TextEditingController(text: current);
-    final result = await showDialog<String>(
+    final result = await showCupertinoDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: Text('修改$label'),
-        content: TextField(controller: ctrl, autofocus: true),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(controller: ctrl, autofocus: true),
+        ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-          TextButton(
+          CupertinoDialogAction(
+            isDefaultAction: true,
             onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
             child: const Text('确定'),
           ),
@@ -215,11 +215,11 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
 
   Future<void> _editDate() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _report.reportDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(now.year, now.month, now.day),
+    final picked = await pickCupertinoDate(
+      context,
+      initial: _report.reportDate,
+      minimumDate: DateTime(2000),
+      maximumDate: DateTime(now.year, now.month, now.day),
     );
     if (picked != null) {
       setState(() => _report.reportDate = picked);
@@ -666,7 +666,9 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
             if (m.matchedMetricId == null) ...[
               _smallLabel('匹配标准指标（当前未匹配）'),
               const SizedBox(height: 6),
-              OutlinedButton.icon(
+              IosButton.tinted(
+                '从标准指标中选择',
+                icon: CupertinoIcons.list_bullet,
                 onPressed: () async {
                   final def = await showMetricSelector(context);
                   if (def != null) {
@@ -681,8 +683,6 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
                     });
                   }
                 },
-                icon: const Icon(Icons.rule),
-                label: const Text('从标准指标中选择'),
               ),
               const SizedBox(height: 12),
             ],
@@ -713,12 +713,7 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
                   const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 16),
-            FilledButton(
-              onPressed: _apply,
-              style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48)),
-              child: const Text('应用修改'),
-            ),
+            IosButton.filled('应用修改', onPressed: _apply, expand: true),
           ],
         ),
       ),

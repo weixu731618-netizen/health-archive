@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../main.dart';
+import '../widgets/health_ui.dart';
 
 /// 云端备份 / 账号页（V0.5 匿名方案）。
 class CloudBackupPage extends StatefulWidget {
@@ -80,16 +82,17 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
   }
 
   Future<void> _doRestore() async {
-    final confirm = await showDialog<bool>(
+    final confirm = await showCupertinoDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: const Text('从云端恢复'),
         content: const Text('恢复云端数据可能覆盖当前设备中的健康档案，是否继续？'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('取消')),
-          TextButton(
+          CupertinoDialogAction(
+              isDestructiveAction: true,
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('恢复')),
         ],
@@ -108,17 +111,19 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
   }
 
   Future<bool> _confirm(String title, String content, String action) async {
-    final r = await showDialog<bool>(
+    final r = await showCupertinoDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: Text(title),
         content: Text(content),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('取消')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true), child: Text(action)),
+          CupertinoDialogAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(action)),
         ],
       ),
     );
@@ -170,11 +175,12 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
               children: [
-                _section('匿名档案'),
+                const HealthSectionHeader('匿名档案',
+                    padding: EdgeInsets.fromLTRB(4, 8, 4, 10)),
                 _stateTile(
-                  icon: Icons.person_outline,
+                  icon: CupertinoIcons.person,
                   title: '当前状态',
                   subtitle: !cloudBackupService.isConfigured
                       ? '未配置后端（离线模式，仅本地）'
@@ -184,14 +190,14 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                 ),
                 if (_lastBackup != null)
                   _stateTile(
-                    icon: Icons.schedule,
+                    icon: CupertinoIcons.clock,
                     title: '上次备份',
                     subtitle: _lastBackup!,
                   ),
-                _section('恢复码'),
+                const HealthSectionHeader('恢复码'),
                 if (_recovery != null) ...[
                   _stateTile(
-                    icon: Icons.vpn_key_outlined,
+                    icon: CupertinoIcons.lock,
                     title: '我的恢复码',
                     subtitle: _showRecovery ? _recovery! : '点击查看（用于换机/重装恢复）',
                     onTap: () => setState(() => _showRecovery = true),
@@ -208,31 +214,35 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                                   fontSize: 12, color: AppColors.warning),
                             ),
                           ),
-                          TextButton(
+                          CupertinoButton(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12),
+                              minimumSize: const Size(0, 32),
                               onPressed: _copyRecovery,
-                              child: const Text('复制')),
+                              child: const Text('复制',
+                                  style: TextStyle(fontSize: 13))),
                         ],
                       ),
                     ),
                 ],
-                _section('云端备份'),
+                const HealthSectionHeader('云端备份'),
                 _actionTile(
-                  icon: Icons.cloud_upload_outlined,
+                  icon: CupertinoIcons.cloud_upload,
                   title: '立即备份',
                   subtitle: '上传本地健康档案到云端',
                   onTap: _busy ? null : _doBackup,
                   enabled: _loggedIn,
                 ),
                 _actionTile(
-                  icon: Icons.cloud_download_outlined,
+                  icon: CupertinoIcons.cloud_download,
                   title: '从云端恢复',
                   subtitle: '下载云端备份覆盖本地（需确认）',
                   onTap: _busy ? null : _doRestore,
                   enabled: _loggedIn,
                 ),
-                _section('数据管理'),
+                const HealthSectionHeader('数据管理'),
                 _actionTile(
-                  icon: Icons.delete_outline,
+                  icon: CupertinoIcons.delete,
                   title: '删除云端备份',
                   subtitle: '删除云端数据与文件，保留账号',
                   danger: true,
@@ -240,7 +250,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                   enabled: _loggedIn,
                 ),
                 _actionTile(
-                  icon: Icons.delete_forever,
+                  icon: CupertinoIcons.delete_solid,
                   title: '彻底删除匿名档案',
                   subtitle: '删除云端数据、文件、账号与恢复码',
                   danger: true,
@@ -248,7 +258,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                   enabled: _loggedIn,
                 ),
                 _actionTile(
-                  icon: Icons.logout,
+                  icon: CupertinoIcons.square_arrow_left,
                   title: '退出登录',
                   subtitle: '清除本机身份（不删除云端）',
                   onTap: _busy ? null : _logout,
@@ -259,31 +269,23 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
     );
   }
 
-  Widget _section(String t) => Padding(
-        padding: const EdgeInsets.fromLTRB(0, 16, 0, 6),
-        child: Text(t,
-            style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600)),
-      );
-
   Widget _stateTile({
     required IconData icon,
     required String title,
     required String subtitle,
     VoidCallback? onTap,
   }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: HealthCard(
         onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: Icon(icon, color: AppColors.primary),
-        title: Text(title, style: const TextStyle(fontSize: 15)),
-        subtitle: Text(subtitle,
-            style:
-                const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: HealthRow(
+          leading:
+              Icon(icon, size: 20, color: AppColors.primary),
+          title: title,
+          subtitle: subtitle,
+        ),
       ),
     );
   }
@@ -296,22 +298,19 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
     bool danger = false,
     bool enabled = true,
   }) {
-    final color = danger ? AppColors.abnormal : AppColors.textPrimary;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        enabled: enabled,
-        onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading:
-            Icon(icon, color: danger ? AppColors.abnormal : AppColors.primary),
-        title: Text(title,
-            style: TextStyle(
-                fontSize: 15,
-                color: enabled ? color : AppColors.textSecondary)),
-        subtitle: Text(subtitle,
-            style:
-                const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+    final tint = danger ? AppColors.abnormal : AppColors.primary;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: HealthCard(
+        onTap: enabled ? onTap : null,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: HealthRow(
+          leading: Icon(icon,
+              size: 20,
+              color: enabled ? tint : AppColors.insufficient),
+          title: title,
+          subtitle: subtitle,
+        ),
       ),
     );
   }

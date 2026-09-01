@@ -1,8 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../models/app_metadata.dart';
 import '../services/report_ocr_service.dart';
+import '../widgets/health_ui.dart';
 
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
@@ -14,74 +16,62 @@ class AboutPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('关于健康档案')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
         children: [
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '健康档案',
+          const HealthCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('健康档案',
                     style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        color: AppColors.textPrimary)),
+                SizedBox(height: 8),
+                Text(
                     '版本 ${AppMetadata.versionName}+${AppMetadata.versionCode}',
                     style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    AppMetadata.buildLabel,
+                        fontSize: 14, color: AppColors.textSecondary)),
+                SizedBox(height: 4),
+                Text(AppMetadata.buildLabel,
                     style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
+                        fontSize: 13, color: AppColors.textSecondary)),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          const _StatusTile(
-            icon: Icons.folder_zip_outlined,
-            title: '本地备份恢复',
-            subtitle: '已启用：备份包包含本机健康数据和报告原图',
-            ok: true,
-          ),
-          _StatusTile(
-            icon: Icons.document_scanner_outlined,
-            title: '报告识别',
-            subtitle: recognitionStatus,
-            ok: RemoteOcrService.isConfigured,
-          ),
-          const _StatusTile(
-            icon: Icons.cloud_off_outlined,
-            title: '云端备份',
-            subtitle: '本轮暂不启用，避免影响本机测试',
-            ok: false,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            '说明',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
+          const HealthSectionHeader('功能状态'),
+          HealthCard(
+            padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),
+            child: Column(
+              children: [
+                const _StatusRow(
+                  icon: CupertinoIcons.archivebox,
+                  title: '本地备份恢复',
+                  subtitle: '已启用：备份包包含本机健康数据和报告原图',
+                  ok: true,
+                ),
+                _StatusRow(
+                  icon: CupertinoIcons.doc_text_viewfinder,
+                  title: '报告识别',
+                  subtitle: recognitionStatus,
+                  ok: RemoteOcrService.isConfigured,
+                ),
+                const _StatusRow(
+                  icon: CupertinoIcons.cloud,
+                  title: '云端备份',
+                  subtitle: '本轮暂不启用，避免影响本机测试',
+                  ok: false,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            '上传或拍摄报告必须连接你自己的识别后端。未配置后端时，App 不会再生成演示数据。',
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 20, 4, 4),
+            child: Text(
+              '上传或拍摄报告必须连接你自己的识别后端。未配置后端时，App 不会再生成演示数据。',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
           ),
         ],
       ),
@@ -89,13 +79,13 @@ class AboutPage extends StatelessWidget {
   }
 }
 
-class _StatusTile extends StatelessWidget {
+class _StatusRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final bool ok;
 
-  const _StatusTile({
+  const _StatusRow({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -104,20 +94,13 @@ class _StatusTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading:
-            Icon(icon, color: ok ? AppColors.primary : AppColors.textSecondary),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-        ),
-      ),
+    return HealthRow(
+      leading: Icon(icon,
+          size: 20,
+          color: ok ? AppColors.primary : AppColors.textSecondary),
+      title: title,
+      subtitle: subtitle,
+      trailing: Dot(ok ? AppColors.normal : AppColors.insufficient, size: 8),
     );
   }
 }

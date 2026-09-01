@@ -44,7 +44,7 @@ void main() {
 
     expect(find.text('首页'), findsWidgets);
 
-    final Finder navBar = find.byType(NavigationBar);
+    final Finder navBar = find.byType(CupertinoTabBar);
     for (final label in ['首页', '身体', '记录']) {
       expect(
         find.descendant(of: navBar, matching: find.text(label)),
@@ -69,7 +69,7 @@ void main() {
 
     await tester.tap(
       find.descendant(
-        of: find.byType(NavigationBar),
+        of: find.byType(CupertinoTabBar),
         matching: find.text('身体'),
       ),
     );
@@ -89,7 +89,7 @@ void main() {
 
     await tester.tap(
       find.descendant(
-        of: find.byType(NavigationBar),
+        of: find.byType(CupertinoTabBar),
         matching: find.text('记录'),
       ),
     );
@@ -108,7 +108,7 @@ void main() {
 
     // 进「记录」页
     await tester.tap(find.descendant(
-      of: find.byType(NavigationBar),
+      of: find.byType(CupertinoTabBar),
       matching: find.text('记录'),
     ));
     await tester.pumpAndSettle();

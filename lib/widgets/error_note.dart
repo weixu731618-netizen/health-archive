@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../main.dart';
 
@@ -31,7 +31,7 @@ class ErrorNote extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.error_outline,
+              const Icon(CupertinoIcons.exclamationmark_circle,
                   size: 20, color: AppColors.abnormal),
               const SizedBox(width: 8),
               Expanded(
@@ -45,7 +45,14 @@ class ErrorNote extends StatelessWidget {
             Row(
               children: [
                 for (final a in actions)
-                  TextButton(onPressed: a.onPressed, child: Text(a.label)),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    onPressed: a.onPressed,
+                    child: Text(a.label,
+                        style: const TextStyle(
+                            fontSize: 14, color: AppColors.primary)),
+                  ),
               ],
             ),
         ],

@@ -3,6 +3,7 @@
 import 'dart:typed_data';
 
 import 'package:drift/native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,14 +59,14 @@ void main() {
 
     // 记录页显示这条真实数据（分组列表行：标题 + 值 · 日期）。
     await tester.tap(find.descendant(
-        of: find.byType(NavigationBar), matching: find.text('记录')));
+        of: find.byType(CupertinoTabBar), matching: find.text('记录')));
     await tester.pumpAndSettle();
     expect(find.text('糖化血红蛋白'), findsWidgets);
     expect(find.textContaining('6.8 %'), findsWidgets);
 
     // 身体页 → 内分泌/代谢部位进入「需要关注」，标注异常项数
     await tester.tap(find.descendant(
-        of: find.byType(NavigationBar), matching: find.text('身体')));
+        of: find.byType(CupertinoTabBar), matching: find.text('身体')));
     await tester.pumpAndSettle();
     expect(find.text('需要关注'), findsWidgets);
     expect(find.text('内分泌/代谢'), findsWidgets);
@@ -112,7 +113,7 @@ void main() {
     expect(find.textContaining('用户已确认'), findsOneWidget);
     expect(find.textContaining('报告标记 H'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+    await tester.tap(find.byIcon(CupertinoIcons.doc_text));
     await tester.pumpAndSettle();
 
     expect(find.text('报告详情'), findsOneWidget);
@@ -126,14 +127,16 @@ void main() {
     await tester.tap(find.text('字典里没有，新增自定义指标'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextFormField, '指标名称'), 'C反应蛋白');
-    await tester.enterText(find.widgetWithText(TextFormField, '单位'), 'mg/L');
-    await tester.enterText(find.widgetWithText(TextFormField, '分类'), '炎症');
-    await tester.tap(find.widgetWithText(FilledButton, '添加'));
+    // 自定义指标弹窗：三个 CupertinoTextField（名称 / 单位 / 分类）
+    final dialogFields = find.byType(CupertinoTextField);
+    await tester.enterText(dialogFields.at(0), 'C反应蛋白');
+    await tester.enterText(dialogFields.at(1), 'mg/L');
+    await tester.enterText(dialogFields.at(2), '炎症');
+    await tester.tap(find.widgetWithText(CupertinoDialogAction, '添加'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.widgetWithText(TextFormField, '检查结果'), '3.2');
-    await tester.tap(find.widgetWithText(FilledButton, '保存记录'));
+    await tester.tap(find.widgetWithText(CupertinoButton, '保存记录'));
     await tester.pumpAndSettle();
 
     final metrics = await repo.getAllMetrics();
@@ -198,7 +201,7 @@ void main() {
     expect(find.text('影响部位'), findsNothing);
     expect(find.text('检查指标'), findsNothing);
     // A2 / F7：详情页分享入口保留在 AppBar 右上角图标（正文不再重复放按钮）。
-    expect(find.byIcon(Icons.ios_share), findsWidgets);
+    expect(find.byIcon(CupertinoIcons.share), findsWidgets);
   });
 
   testWidgets('影像/病理报告：在记录页显示为图文报告（卡片只三行，结论点开看）', (tester) async {
@@ -218,7 +221,7 @@ void main() {
     // 行瘦身：结论摘要 / 影响部位 / 分享按钮都不铺在行上，点开报告详情才有。
     expect(find.textContaining('未见明显异常密度影'), findsNothing);
     expect(find.textContaining('0 项指标'), findsNothing);
-    expect(find.byIcon(Icons.ios_share), findsNothing);
+    expect(find.byIcon(CupertinoIcons.share), findsNothing);
   });
 
   testWidgets('影像/病理报告：既无指标也无识别文字时给出图文报告说明', (tester) async {

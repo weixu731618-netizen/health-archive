@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../main.dart';
 import '../utils/patient_name_match.dart';
@@ -35,9 +35,9 @@ Future<bool> guardReportAgainstActiveProfile(
     case NameCheckResult.mismatch:
       if (!context.mounted) return true;
       final known = parseKnownNames(profile.knownNames).join('、');
-      final proceed = await showDialog<bool>(
+      final proceed = await showCupertinoDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => CupertinoAlertDialog(
           title: const Text('是不是存错档案了？'),
           content: Text(
             '这份报告上的姓名是「$ocrPatientName」，'
@@ -45,11 +45,12 @@ Future<bool> guardReportAgainstActiveProfile(
             '仍要把它保存到「${profile.displayName}」吗？',
           ),
           actions: [
-            TextButton(
+            CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('取消'),
             ),
-            FilledButton(
+            CupertinoDialogAction(
+              isDestructiveAction: true,
               onPressed: () => Navigator.pop(ctx, true),
               child: Text('仍存到「${profile.displayName}」'),
             ),
@@ -73,18 +74,19 @@ Future<bool> guardReportAgainstActiveProfile(
       if (fillBirth)
         '出生日期${ocrBirthDate.year}-${ocrBirthDate.month.toString().padLeft(2, '0')}-${ocrBirthDate.day.toString().padLeft(2, '0')}',
     ];
-    final apply = await showDialog<bool>(
+    final apply = await showCupertinoDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: const Text('补充档案资料？'),
         content: Text('报告上读到${parts.join('、')}，'
             '当前档案「${profile.displayName}」还没填。补充进去吗？'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('不用'),
           ),
-          FilledButton(
+          CupertinoDialogAction(
+            isDefaultAction: true,
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('补充'),
           ),

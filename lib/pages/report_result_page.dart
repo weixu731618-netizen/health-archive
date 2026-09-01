@@ -1,7 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/health_ui.dart';
+import '../widgets/ios_button.dart';
 import '../models/body_area_health.dart';
 import '../models/report_followup.dart';
 import '../services/analytics.dart';
@@ -231,13 +234,11 @@ class _ReportResultPageState extends State<ReportResultPage> {
               if (_suggestsRecheck && !_recheckSet)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: OutlinedButton.icon(
+                  child: IosButton.tinted(
+                    '这份报告建议复查 · 设置提醒',
+                    icon: CupertinoIcons.alarm,
                     onPressed: _setRecheck,
-                    icon: const Icon(Icons.alarm_add_outlined, size: 18),
-                    label: const Text('这份报告建议复查 · 设置提醒'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(46),
-                    ),
+                    expand: true,
                   ),
                 ),
               if (_recheckSet)
@@ -247,19 +248,18 @@ class _ReportResultPageState extends State<ReportResultPage> {
                       style: TextStyle(
                           fontSize: 13, color: AppColors.textSecondary)),
                 ),
-              FilledButton(
+              IosButton.filled(
+                '完成',
                 onPressed: () =>
                     Navigator.of(context).popUntil((r) => r.isFirst),
-                style:
-                    FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                child: const Text('完成'),
+                expand: true,
               ),
               const SizedBox(height: 4),
-              TextButton(
+              IosButton.plain(
+                '查看原始报告',
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) =>
                         ReportDetailPage(reportId: widget.reportId))),
-                child: const Text('查看原始报告'),
               ),
             ],
           ),
@@ -608,15 +608,12 @@ class _DateConfirmCardState extends State<_DateConfirmCard> {
           const SizedBox(height: 8),
           Row(
             children: [
-              TextButton(
+              IosButton.plain(
+                '暂不填写',
                 onPressed: () => setState(() => _done = true),
-                child: const Text('暂不填写'),
               ),
               const SizedBox(width: 4),
-              FilledButton.tonal(
-                onPressed: _pick,
-                child: const Text('确认检查日期'),
-              ),
+              IosButton.tinted('确认检查日期', onPressed: _pick),
             ],
           ),
         ],
@@ -626,11 +623,11 @@ class _DateConfirmCardState extends State<_DateConfirmCard> {
 
   Future<void> _pick() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(now.year, now.month, now.day),
+    final picked = await pickCupertinoDate(
+      context,
+      initial: _date,
+      minimumDate: DateTime(2000),
+      maximumDate: DateTime(now.year, now.month, now.day),
     );
     if (picked == null) return;
     final repo = appRepository;

@@ -1,10 +1,14 @@
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/health_ui.dart';
+import '../widgets/ios_button.dart';
+import '../widgets/ios_tap.dart';
 import '../models/app_metadata.dart';
 import '../models/body_area_health.dart';
 import '../models/report_models.dart' show kUnlinkedReportType;
@@ -15,7 +19,6 @@ import '../utils/report_image_save.dart';
 import '../widgets/current_profile_badge.dart';
 import '../widgets/health_status_card.dart';
 import '../widgets/normal_items_toggle.dart';
-import '../widgets/section_title.dart';
 import 'imaging_report_page.dart' show imagingReportTypes;
 import 'manual_metric_entry_page.dart';
 
@@ -85,21 +88,20 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
   /// 未关联记录归类：选一个已知类型 → 把 reportType 改过去，变成正式的影像/病历报告。
   Future<void> _reclassifyUnlinked() async {
-    final picked = await showModalBottomSheet<String>(
+    final picked = await showCupertinoModalPopup<String>(
       context: context,
-      showDragHandle: true,
-      builder: (_) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Text('归类为哪一种？',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('归类为哪一种？'),
+        actions: [
+          for (final t in imagingReportTypes)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, t),
+              child: Text(t),
             ),
-            for (final t in imagingReportTypes)
-              ListTile(title: Text(t), onTap: () => Navigator.pop(context, t)),
-          ],
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('取消'),
         ),
       ),
     );
@@ -136,19 +138,23 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   Future<void> _editInfoText(
       String label, String current, Future<void> Function(String) save) async {
     final ctrl = TextEditingController(text: current);
-    final result = await showDialog<String>(
+    final result = await showCupertinoDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: Text('修改$label'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: InputDecoration(hintText: '填写$label'),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            controller: ctrl,
+            autofocus: true,
+            placeholder: '填写$label',
+          ),
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-          TextButton(
+          CupertinoDialogAction(
+              isDefaultAction: true,
               onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
               child: const Text('保存')),
         ],
@@ -173,11 +179,11 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     final current = _report?.reportDate;
     if (repo == null || rid == null || current == null) return;
     final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: current,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(now.year, now.month, now.day),
+    final picked = await pickCupertinoDate(
+      context,
+      initial: current,
+      minimumDate: DateTime(2000),
+      maximumDate: DateTime(now.year, now.month, now.day),
     );
     if (picked == null) return;
     try {
@@ -207,8 +213,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       if (!shared && mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(
-              const SnackBar(content: Text('该报告没有可导出的原图或文字')));
+          ..showSnackBar(const SnackBar(content: Text('该报告没有可导出的原图或文字')));
       }
     } catch (e) {
       if (mounted) {
@@ -223,16 +228,17 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     final repo = appRepository;
     final rid = widget.reportId;
     if (repo == null || rid == null) return;
-    final confirm = await showDialog<bool>(
+    final confirm = await showCupertinoDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: const Text('删除这份报告？'),
         content: const Text('与该报告关联的检查指标也会一并删除，且无法恢复。'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('取消')),
-          TextButton(
+          CupertinoDialogAction(
+              isDestructiveAction: true,
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('删除')),
         ],
@@ -272,7 +278,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
           if (_isImported && _report != null)
             IconButton(
               tooltip: '分享 / 导出原件',
-              icon: const Icon(Icons.ios_share),
+              icon: const Icon(CupertinoIcons.share),
               onPressed: _shareReport,
             ),
         ],
@@ -301,7 +307,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         if (_loading)
           const Padding(
             padding: EdgeInsets.all(48),
-            child: Center(child: CircularProgressIndicator()),
+            child: Center(child: CupertinoActivityIndicator()),
           )
         else if (_error != null)
           Padding(
@@ -316,12 +322,13 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    TextButton(
+                    CupertinoButton(
                       onPressed: () => Navigator.of(context).maybePop(),
                       child: const Text('返回'),
                     ),
                     const SizedBox(width: 8),
-                    FilledButton.tonal(
+                    CupertinoButton(
+                      color: AppColors.primary.withValues(alpha: 0.12),
                       onPressed: () {
                         setState(() {
                           _loading = true;
@@ -329,7 +336,8 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                         });
                         _load();
                       },
-                      child: const Text('重试'),
+                      child: const Text('重试',
+                          style: TextStyle(color: AppColors.primary)),
                     ),
                   ],
                 ),
@@ -349,68 +357,61 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
             ),
             const SizedBox(height: 12),
           ],
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _InfoRow(
-                    label: '医院',
-                    value: (_report?.hospitalName ?? '').trim().isEmpty
-                        ? '未填写'
-                        : _report!.hospitalName,
-                    onTap: () => _editInfoText(
-                      '医院',
-                      _report?.hospitalName ?? '',
-                      (v) => appRepository!
-                          .updateReportInfo(widget.reportId!, hospitalName: v),
-                    ),
+          HealthCard(
+            child: Column(
+              children: [
+                _InfoRow(
+                  label: '医院',
+                  value: (_report?.hospitalName ?? '').trim().isEmpty
+                      ? '未填写'
+                      : _report!.hospitalName,
+                  onTap: () => _editInfoText(
+                    '医院',
+                    _report?.hospitalName ?? '',
+                    (v) => appRepository!
+                        .updateReportInfo(widget.reportId!, hospitalName: v),
                   ),
-                  _InfoRow(
-                    label: '检查日期',
-                    value: _report == null
-                        ? '—'
-                        : formatDate(_report!.reportDate),
-                    onTap: _report == null ? null : _editDate,
+                ),
+                _InfoRow(
+                  label: '检查日期',
+                  value:
+                      _report == null ? '—' : formatDate(_report!.reportDate),
+                  onTap: _report == null ? null : _editDate,
+                ),
+                _InfoRow(
+                  label: '类型',
+                  value: (_report?.reportType ?? '').trim().isEmpty
+                      ? '未填写'
+                      : _report!.reportType,
+                  onTap: () => _editInfoText(
+                    '类型',
+                    _report?.reportType ?? '',
+                    (v) => appRepository!
+                        .updateReportInfo(widget.reportId!, reportType: v),
                   ),
-                  _InfoRow(
-                    label: '类型',
-                    value: (_report?.reportType ?? '').trim().isEmpty
-                        ? '未填写'
-                        : _report!.reportType,
-                    onTap: () => _editInfoText(
-                      '类型',
-                      _report?.reportType ?? '',
-                      (v) => appRepository!
-                          .updateReportInfo(widget.reportId!, reportType: v),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           if ((_report?.rawText ?? '').trim().isNotEmpty) ...[
-            const SectionTitle(title: '报告结论'),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  _report!.rawText!.trim(),
-                  style: const TextStyle(
-                      fontSize: 14, color: AppColors.textPrimary, height: 1.5),
-                ),
+            const HealthSectionHeader('报告结论'),
+            HealthCard(
+              child: Text(
+                _report!.rawText!.trim(),
+                style: const TextStyle(
+                    fontSize: 14, color: AppColors.textPrimary, height: 1.5),
               ),
             ),
           ],
           // 关联器官：化验单从指标推导，影像 / 图文报告用保存时手选的。
           if (_effectiveAreas.isNotEmpty) ...[
-            const SectionTitle(title: '关联器官'),
+            const HealthSectionHeader('关联器官'),
             _AffectedBodyAreasCard(areas: _effectiveAreas),
           ],
           // 影像/病理等图文报告没有结构化指标，收起「检查指标」区块；
           // 若连结论文字也没有，给一句说明避免页面过空。
           if (_metrics.isNotEmpty) ...[
-            const SectionTitle(title: '检查指标'),
+            const HealthSectionHeader('检查指标'),
             for (final m in _attentionMetrics) ...[
               _ImportedMetricCard(metric: m),
               const SizedBox(height: 12),
@@ -442,17 +443,16 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                   style:
                       TextStyle(fontSize: 14, color: AppColors.textSecondary)),
             ),
-          const SectionTitle(title: '原始报告'),
+          const HealthSectionHeader('原始报告'),
           _buildOriginalImage(),
           const SizedBox(height: 24),
           // F7：分享入口只保留 AppBar 右上角图标，正文不再重复放按钮。
           // F8：删除是破坏性操作，放最底、用弱化的红色文字按钮，不与其它操作抢视觉。
           Center(
-            child: TextButton(
+            child: CupertinoButton(
               onPressed: _deleteReport,
-              style: TextButton.styleFrom(
-                  foregroundColor: AppColors.abnormal),
-              child: const Text('删除报告'),
+              child: const Text('删除报告',
+                  style: TextStyle(color: AppColors.abnormal)),
             ),
           ),
         ],
@@ -497,16 +497,16 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   }
 
   Widget _pdfOriginalCard() {
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.picture_as_pdf_outlined,
-            color: AppColors.primary),
-        title: const Text('PDF 原件', style: TextStyle(fontSize: 15)),
-        subtitle: const Text('用「分享 / 导出原件」发送或保存这份 PDF',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-        trailing: IconButton(
-          icon: const Icon(Icons.ios_share),
+    return HealthCard(
+      child: HealthRow(
+        leading: const Icon(CupertinoIcons.doc_text, color: AppColors.primary),
+        title: 'PDF 原件',
+        subtitle: '用「分享 / 导出原件」发送或保存这份 PDF',
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(32, 32),
           onPressed: _shareReport,
+          child: const Icon(CupertinoIcons.share, size: 20),
         ),
       ),
     );
@@ -523,7 +523,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.image_outlined, size: 36, color: AppColors.textSecondary),
+          Icon(CupertinoIcons.photo, size: 36, color: AppColors.textSecondary),
           SizedBox(height: 8),
           Text('未保存原始图片',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
@@ -541,26 +541,23 @@ class _AffectedBodyAreasCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = areas.isEmpty ? '暂无可追溯的身体部位影响' : areas.join('、');
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            const Icon(Icons.account_tree_outlined,
-                size: 20, color: AppColors.primary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                text,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+    return HealthCard(
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.rectangle_stack,
+              size: 20, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -577,47 +574,44 @@ class _ImportedMetricCard extends StatelessWidget {
     final rangeText = hasRange
         ? '  ·  参考 ${_fmt(metric.referenceMin!)}–${_fmt(metric.referenceMax!)}'
         : '';
-    final sourceFlag = metric.sourceAbnormalFlag == null ||
-            metric.sourceAbnormalFlag!.isEmpty
-        ? ''
-        : '  ·  报告标记 ${metric.sourceAbnormalFlag}';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    metric.metricName,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${_fmt(metric.value)} ${metric.unit}$rangeText$sourceFlag',
-                    style: const TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _verificationLabel(metric.verificationStatus),
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
+    final sourceFlag =
+        metric.sourceAbnormalFlag == null || metric.sourceAbnormalFlag!.isEmpty
+            ? ''
+            : '  ·  报告标记 ${metric.sourceAbnormalFlag}';
+    return HealthCard(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  metric.metricName,
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${_fmt(metric.value)} ${metric.unit}$rangeText$sourceFlag',
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _verificationLabel(metric.verificationStatus),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ],
             ),
-            StatusChip(
-              text: metric.status,
-              color: valueStatusColor(metric.status),
-            ),
-          ],
-        ),
+          ),
+          StatusChip(
+            text: metric.status,
+            color: valueStatusColor(metric.status),
+          ),
+        ],
       ),
     );
   }
@@ -633,43 +627,41 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 88,
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 11),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 88,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppColors.textSecondary,
               ),
             ),
-            Expanded(
-              child: Text(
-                value,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
             ),
-            if (onTap != null) ...[
-              const SizedBox(width: 6),
-              const Icon(Icons.edit_outlined,
-                  size: 16, color: AppColors.textSecondary),
-            ],
+          ),
+          if (onTap != null) ...[
+            const SizedBox(width: 6),
+            const Icon(CupertinoIcons.pencil,
+                size: 15, color: AppColors.textSecondary),
           ],
-        ),
+        ],
       ),
     );
+    if (onTap == null) return row;
+    return IosTap(onTap: onTap, child: row);
   }
 }
 
@@ -697,7 +689,8 @@ class _UnlinkedNotice extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary)),
           const SizedBox(height: 2),
-          const Text('识别时归不到已知类型，先存了原图和文字。是哪一类可以在这里归类；'
+          const Text(
+              '识别时归不到已知类型，先存了原图和文字。是哪一类可以在这里归类；'
               '如果哪一类都不合适，可以提交给开发者判断要不要新增。',
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           const SizedBox(height: 8),
@@ -705,16 +698,10 @@ class _UnlinkedNotice extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              FilledButton.tonalIcon(
-                onPressed: onReclassify,
-                icon: const Icon(Icons.label_outline, size: 18),
-                label: const Text('归类'),
-              ),
-              OutlinedButton.icon(
-                onPressed: onSendToDev,
-                icon: const Icon(Icons.outgoing_mail, size: 18),
-                label: const Text('归类里没有 · 提交给开发者'),
-              ),
+              IosButton.tinted('归类',
+                  icon: CupertinoIcons.tag, onPressed: onReclassify),
+              IosButton.tinted('归类里没有 · 提交给开发者',
+                  icon: CupertinoIcons.paperplane, onPressed: onSendToDev),
             ],
           ),
         ],
@@ -745,20 +732,15 @@ class _FailedNotice extends StatelessWidget {
                   color: AppColors.textPrimary)),
           const SizedBox(height: 2),
           const Text('原件已存进档案，不会丢失。你可以手动补录其中的指标。',
-              style:
-                  TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
           const SizedBox(height: 8),
-          FilledButton.tonalIcon(
-            onPressed: onAddMetrics,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('补录指标'),
-          ),
+          IosButton.tinted('补录指标',
+              icon: CupertinoIcons.add, onPressed: onAddMetrics),
         ],
       ),
     );
   }
 }
-
 
 String _verificationLabel(String status) {
   switch (status) {

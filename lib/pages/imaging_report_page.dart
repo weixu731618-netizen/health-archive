@@ -1,6 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/health_ui.dart';
+import '../widgets/ios_button.dart';
 import '../models/body_area_health.dart';
 import '../models/report_followup.dart';
 import '../utils/image_storage.dart';
@@ -222,11 +225,7 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _reportDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
+    final picked = await pickCupertinoDate(context, initial: _reportDate, minimumDate: DateTime(2000), maximumDate: DateTime.now(),
     );
     if (picked != null) {
       setState(() {
@@ -350,21 +349,15 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
                           runSpacing: 8,
                           alignment: WrapAlignment.center,
                           children: [
-                            FilledButton.tonalIcon(
-                              onPressed: _pickFromCamera,
-                              icon: const Icon(Icons.photo_camera_outlined),
-                              label: const Text('拍照'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: _pickFromGallery,
-                              icon: const Icon(Icons.photo_library_outlined),
-                              label: const Text('相册'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: _pickFromFile,
-                              icon: const Icon(Icons.folder_open_outlined),
-                              label: const Text('PDF / 文件'),
-                            ),
+                            IosButton.tinted('拍照',
+                                icon: CupertinoIcons.camera,
+                                onPressed: _pickFromCamera),
+                            IosButton.tinted('相册',
+                                icon: CupertinoIcons.photo_on_rectangle,
+                                onPressed: _pickFromGallery),
+                            IosButton.tinted('PDF / 文件',
+                                icon: CupertinoIcons.folder,
+                                onPressed: _pickFromFile),
                           ],
                         ),
                       ],
@@ -384,15 +377,11 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
                         Wrap(
                           alignment: WrapAlignment.center,
                           children: [
-                            TextButton(
-                                onPressed: _pickFromCamera,
-                                child: const Text('重新拍照')),
-                            TextButton(
-                                onPressed: _pickFromGallery,
-                                child: const Text('相册')),
-                            TextButton(
-                                onPressed: _pickFromFile,
-                                child: const Text('PDF / 文件')),
+                            IosButton.plain('重新拍照',
+                                onPressed: _pickFromCamera),
+                            IosButton.plain('相册', onPressed: _pickFromGallery),
+                            IosButton.plain('PDF / 文件',
+                                onPressed: _pickFromFile),
                           ],
                         ),
                       ],
@@ -519,12 +508,8 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
                 style: const TextStyle(fontSize: 13, color: AppColors.abnormal)),
           ],
           const SizedBox(height: 24),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14)),
-            child: Text(_saving ? '保存中…' : '保存', style: const TextStyle(fontSize: 16)),
-          ),
+          IosButton.filled(_saving ? '保存中…' : '保存',
+              onPressed: _saving ? null : _save, expand: true),
         ],
       ),
     );
