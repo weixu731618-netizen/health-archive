@@ -5,6 +5,7 @@ import '../data/app_database.dart';
 import '../main.dart';
 import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 import '../widgets/ios_button.dart';
 import '../widgets/ios_tap.dart';
 import '../services/notification_service.dart';
@@ -117,13 +118,17 @@ class _RemindersPageState extends State<RemindersPage> {
     final followups = _reminders.where((r) => r.kind == 'followup').toList()
       ..sort((a, b) => (a.dueDate ?? DateTime(9999))
           .compareTo(b.dueDate ?? DateTime(9999)));
-    return Scaffold(
-      appBar: AppBar(title: const Text('提醒')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
-              children: [
+    return IosLargeTitleScaffold(
+      title: '提醒',
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+      children: _loading
+          ? const [
+              Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CupertinoActivityIndicator()),
+              )
+            ]
+          : [
                 if (followups.isNotEmpty) ...[
                   const HealthSectionHeader('随访计划',
                       padding: EdgeInsets.fromLTRB(4, 8, 4, 10)),
@@ -157,7 +162,6 @@ class _RemindersPageState extends State<RemindersPage> {
                         children: [for (final r in meds) _reminderTile(r)]),
                   ),
               ],
-            ),
     );
   }
 

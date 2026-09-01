@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 import '../utils/format.dart';
 
 /// 通知中心（§2-15）：首页铃铛进入。
@@ -50,13 +50,17 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
   @override
   Widget build(BuildContext context) {
     final hasUnread = _notifications.any((n) => n.readAt == null);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('通知'),
-        actions: [
+    return IosLargeTitleScaffold(
+      title: '通知',
+      onRefresh: _loading ? null : _load,
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           if (hasUnread)
             CupertinoButton(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 32),
               onPressed: () async {
                 await appRepository?.markAllNotificationsRead();
                 _load();
@@ -64,42 +68,40 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
               child: const Text('全部已读', style: TextStyle(fontSize: 15)),
             ),
           if (_notifications.isNotEmpty)
-            IconButton(
-              tooltip: '全部清除',
-              icon: const Icon(CupertinoIcons.trash),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(32, 32),
               onPressed: _clearAll,
+              child: const Icon(CupertinoIcons.trash, size: 22),
             ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator.adaptive(
-              onRefresh: _load,
-              child: _notifications.isEmpty
-                  ? ListView(children: const [
-                      Padding(
-                        padding: EdgeInsets.only(top: 48),
-                        child: Center(
-                          child: Text('还没有通知记录',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary)),
-                        ),
-                      ),
-                    ])
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-                      children: [
-                        HealthCard(
-                          padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
-                          child: Column(children: [
-                            for (final n in _notifications)
-                              _notificationTile(n),
-                          ]),
-                        ),
-                      ],
+      children: _loading
+          ? const [
+              Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CupertinoActivityIndicator()),
+              )
+            ]
+          : _notifications.isEmpty
+              ? const [
+                  Padding(
+                    padding: EdgeInsets.only(top: 48),
+                    child: Center(
+                      child: Text('还没有通知记录',
+                          style: TextStyle(
+                              fontSize: 13, color: AppColors.textSecondary)),
                     ),
-            ),
+                  ),
+                ]
+              : [
+                  HealthCard(
+                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+                    child: Column(children: [
+                      for (final n in _notifications) _notificationTile(n),
+                    ]),
+                  ),
+                ],
     );
   }
 

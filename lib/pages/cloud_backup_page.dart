@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../main.dart';
 import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 
 /// 云端备份 / 账号页（V0.5 匿名方案）。
 class CloudBackupPage extends StatefulWidget {
@@ -169,13 +169,17 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('账号与云端备份')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
-              children: [
+    return IosLargeTitleScaffold(
+      title: '账号与云端备份',
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+      children: _loading
+          ? const [
+              Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CupertinoActivityIndicator()),
+              )
+            ]
+          : [
                 const HealthSectionHeader('匿名档案',
                     padding: EdgeInsets.fromLTRB(4, 8, 4, 10)),
                 _stateTile(
@@ -264,7 +268,6 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
                   enabled: _loggedIn,
                 ),
               ],
-            ),
     );
   }
 

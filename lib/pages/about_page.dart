@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../models/app_metadata.dart';
 import '../services/report_ocr_service.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
@@ -13,11 +13,10 @@ class AboutPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final recognitionStatus =
         RemoteOcrService.isConfigured ? '已配置真实识别后端' : '未配置真实识别后端';
-    return Scaffold(
-      appBar: AppBar(title: const Text('关于健康档案')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-        children: [
+    return IosLargeTitleScaffold(
+      title: '关于健康档案',
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+      children: [
           const HealthCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,7 +73,6 @@ class AboutPage extends StatelessWidget {
             ),
           ),
         ],
-      ),
     );
   }
 }

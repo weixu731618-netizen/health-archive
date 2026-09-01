@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 import 'allergy_page.dart';
 import 'condition_page.dart';
 import 'medical_summary_page.dart';
@@ -50,11 +51,10 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('健康资料')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-        children: [
+    return IosLargeTitleScaffold(
+      title: '健康资料',
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+      children: [
           _CategoryCard(
             icon: CupertinoIcons.checkmark_seal,
             title: '慢性病',
@@ -86,7 +86,6 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
             onTap: () => _push(const MedicalSummaryPage()),
           ),
         ],
-      ),
     );
   }
 }
