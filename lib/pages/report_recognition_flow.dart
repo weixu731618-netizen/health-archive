@@ -44,6 +44,21 @@ Future<void> startReportRecognitionFlowPages(
   );
 }
 
+/// 同 [startReportRecognitionFlowPages]，但用 `pushReplacement` 把当前页（拍报告 /
+/// 导入报告的入口页）替换掉——识别流程接管后，入口页不再留在栈里，避免用户从
+/// 核对页 / 结果页手势返回时撞回一个「图还在、还能再点识别」的残留页（会重复导入）。
+Future<void> startReportRecognitionFlowPagesReplacing(
+  BuildContext context,
+  List<PickedReportImage> pages, {
+  String? initialArea,
+}) {
+  return Navigator.of(context).pushReplacement(
+    MaterialPageRoute(
+      builder: (_) => _RecognizingPage(pages: pages, initialArea: initialArea),
+    ),
+  );
+}
+
 class _RecognizingPage extends StatefulWidget {
   /// 按顺序的报告页（至少一页）。
   final List<PickedReportImage> pages;

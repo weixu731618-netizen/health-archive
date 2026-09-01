@@ -45,13 +45,13 @@ class _ReportCapturePageState extends State<ReportCapturePage> {
     try {
       final img = await captureLabReportImage();
       if (!mounted) return;
-      // 相机里已经确认过照片，直接进识别流程；本页替换掉，返回时不回到空壳页。
-      await Navigator.of(context).pushReplacement(MaterialPageRoute(
-        builder: (_) => _RecognitionLauncher(
-          image: img,
-          initialArea: widget.initialArea,
-        ),
-      ));
+      // 相机里已经确认过照片 → 识别流程接管，并把本页从栈里替换掉，
+      // 保存后手势返回不会撞回这个空壳拍照页。
+      await startReportRecognitionFlowPagesReplacing(
+        context,
+        [img],
+        initialArea: widget.initialArea,
+      );
     } on StateError {
       // image_picker 取消（未拍摄）→ 退回上一页，不当错误。
       if (mounted) Navigator.of(context).pop();
@@ -133,33 +133,4 @@ class _ReportCapturePageState extends State<ReportCapturePage> {
       ),
     );
   }
-}
-
-/// 极薄中转 widget：initState 触发识别流程后立刻被替换。
-class _RecognitionLauncher extends StatefulWidget {
-  final PickedReportImage image;
-  final String? initialArea;
-  const _RecognitionLauncher({required this.image, this.initialArea});
-
-  @override
-  State<_RecognitionLauncher> createState() => _RecognitionLauncherState();
-}
-
-class _RecognitionLauncherState extends State<_RecognitionLauncher> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await startReportRecognitionFlowPages(
-        context,
-        [widget.image],
-        initialArea: widget.initialArea,
-      );
-      if (mounted) Navigator.of(context).pop();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: CupertinoActivityIndicator()));
 }

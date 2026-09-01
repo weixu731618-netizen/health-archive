@@ -58,12 +58,9 @@ class _ReportImportPageState extends State<ReportImportPage> {
       _error = null;
       _recognizing = true;
     });
-    try {
-      await startReportRecognitionFlowPages(context, _pages,
-          initialArea: widget.initialArea);
-    } finally {
-      if (mounted) setState(() => _recognizing = false);
-    }
+    // 识别流程接管：把本页（导入入口）从栈里替换掉，保存后手势返回不会撞回这里。
+    await startReportRecognitionFlowPagesReplacing(context, _pages,
+        initialArea: widget.initialArea);
   }
 
   @override
