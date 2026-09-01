@@ -90,13 +90,20 @@ class _HomePageState extends State<HomePage> {
       //   1) FollowUpTask —— 真实存在的复查 / 随访提醒（已到期 / 即将到期）
       //   2) HealthAttention —— 身体部位层面的异常 / 需关注
       //   3) ChronicCondition（长期关注）—— 不在首页高频展示疾病名，放到详情页
-      final followups = <Reminder>[
+      final followupsAll = <Reminder>[
         for (final r in reminders)
           if ((r.kind == 'recheck' || r.kind == 'followup') &&
               r.completedAt == null &&
               r.dueDate != null)
             r,
       ]..sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+      // 去重：慢病自动排期偶尔给同一项目排出两条（如「眼底检查」×2），
+      // 首页只留最早到期的那条。
+      final seenTitles = <String>{};
+      final followups = <Reminder>[
+        for (final r in followupsAll)
+          if (seenTitles.add(r.title.trim())) r,
+      ];
 
       final overdue = [
         for (final r in followups)
@@ -107,11 +114,13 @@ class _HomePageState extends State<HomePage> {
           if (!r.dueDate!.isBefore(today) && !r.dueDate!.isAfter(horizon)) r,
       ];
 
-      // HealthAttention：只看身体部位的异常 / 需关注，不再往上贴复查后缀。
+      // HealthAttention：身体部位的异常 / 需关注。首页只收「新的 / 变差的」——
+      // 常年稳定的慢性异常（如一直 6.8 的糖化）不再挤首页，身体页照样标红。
       final attention = [
         for (final a in buildBodyAreaHealthFromMetrics(metrics)
             .where((a) => a.priorityRank <= 1))
-          _AttentionArea(area: a),
+          if (_areaIsFreshAttention(a, metrics, now))
+            _AttentionArea(area: a),
       ];
 
       final sortedReports = [...reports]
@@ -182,6 +191,84 @@ class _HomePageState extends State<HomePage> {
       .push(MaterialPageRoute(builder: (_) => page))
       .then((_) => _load());
 
+  /// 首页「待跟进」只收「新的 / 变差的」异常部位——判定：该部位有一项异常指标
+  /// ① 最新一次测量在 60 天内，或 ② 比上一次读数更偏离参考范围（含新变异常）。
+  bool _areaIsFreshAttention(
+      BodyAreaHealthSummary a, List<HealthMetric> all, DateTime now) {
+    final cutoff = now.subtract(const Duration(days: 60));
+    for (final m in a.metrics) {
+      if (!m.isAbnormal) continue;
+      if (m.measuredAt != null && m.measuredAt!.isAfter(cutoff)) return true;
+      final hist = all.where((x) => x.metricId == m.metricId).toList()
+        ..sort((x, y) => y.measuredAt.compareTo(x.measuredAt));
+      if (hist.length >= 2) {
+        final latest = hist[0];
+        final prev = hist[1];
+        if (!isMetricAbnormalStatus(prev.status)) return true; // 新变异常
+        final ld = _deviation(latest);
+        final pd = _deviation(prev);
+        if (ld != null && pd != null && ld > pd + 1e-9) return true; // 变差
+      }
+    }
+    return false;
+  }
+
+  /// 数值偏离参考范围的绝对量（在范围内为 0，缺范围为 null）。
+  double? _deviation(HealthMetric m) {
+    final v = m.value;
+    final lo = m.referenceMin;
+    final hi = m.referenceMax;
+    if (lo != null && v < lo) return lo - v;
+    if (hi != null && v > hi) return v - hi;
+    if (lo == null && hi == null) return null;
+    return 0;
+  }
+
+  /// 待跟进里点复查行：弹「标记已复查 / 推迟 / 取消」。
+  Future<void> _recheckActions(Reminder r) async {
+    final repo = appRepository;
+    if (repo == null) return;
+    final pick = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(r.title),
+        message: const Text('复查计划'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, 'done'),
+            child: const Text('标记已复查'),
+          ),
+          if (r.kind == 'recheck')
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, 'snooze'),
+              child: const Text('推迟 1 个月'),
+            ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, 'open'),
+            child: const Text('去提醒页'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    if (pick == null || !mounted) return;
+    if (pick == 'done') {
+      await repo.markReminderCompleted(r.id);
+      await syncReminders();
+      _load();
+    } else if (pick == 'snooze') {
+      await repo.snoozeReminder(
+          r.id, DateTime.now().add(const Duration(days: 30)));
+      await syncReminders();
+      _load();
+    } else if (pick == 'open') {
+      _push(const RemindersPage());
+    }
+  }
+
   /// 待跟进：按「已到期复查 → 即将到期复查 → 当前明确异常」排序。
   /// 长期关注（慢性病）不在首页列，放到部位详情页。
   /// 首页最多显示前 3 项，超过时给一行「查看全部 N 项 ›」进完整列表页。
@@ -189,12 +276,12 @@ class _HomePageState extends State<HomePage> {
         for (final r in _overdueFollowups)
           _RecheckRow(
             reminder: r,
-            onTap: () => _push(const RemindersPage()),
+            onTap: () => _recheckActions(r),
           ),
         for (final r in _upcomingFollowups)
           _RecheckRow(
             reminder: r,
-            onTap: () => _push(const RemindersPage()),
+            onTap: () => _recheckActions(r),
           ),
         for (final a in _attention)
           _AttentionCard(
@@ -318,7 +405,13 @@ class _HomePageState extends State<HomePage> {
                       ],
 
                       // 3. 最近
-                      const HealthSectionHeader('最近'),
+                      HealthSectionHeader(
+                        '最近',
+                        actionLabel: _recent.isEmpty ? null : '查看全部',
+                        onAction: _recent.isEmpty
+                            ? null
+                            : () => activeTabNotifier.value = 2,
+                      ),
                       if (_recent.isEmpty)
                         const _EmptyRecent()
                       else
@@ -649,31 +742,41 @@ class _BellAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(alignment: Alignment.center, children: [
-      IconButton(
-        tooltip: '通知',
-        icon: const Icon(CupertinoIcons.bell),
-        onPressed: onTap,
-      ),
-      if (unread > 0)
-        Positioned(
-          right: 6,
-          top: 8,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-            constraints: const BoxConstraints(minWidth: 16),
-            decoration: BoxDecoration(
-              color: AppColors.abnormal,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              unread > 99 ? '99+' : '$unread',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 10, color: Colors.white),
-            ),
+    // 与记录页搜索/＋、身体页闹钟一致：32pt 按钮 + 22pt 图标。
+    return SizedBox(
+      width: 34,
+      height: 34,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(32, 32),
+            onPressed: onTap,
+            child: const Icon(CupertinoIcons.bell, size: 22),
           ),
-        ),
-    ]);
+          if (unread > 0)
+            Positioned(
+              right: -3,
+              top: -1,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                constraints: const BoxConstraints(minWidth: 15),
+                decoration: BoxDecoration(
+                  color: AppColors.abnormal,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  unread > 99 ? '99+' : '$unread',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 10, color: Colors.white),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 

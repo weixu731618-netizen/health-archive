@@ -1007,6 +1007,33 @@ class HealthRepository {
                 t.profileId.equals(p.id) & t.kind.equals('followup')))
           .get();
 
+      // 历史遗留去重：同一 key 有多条随访提醒（早期版本重复排期留下的，
+      // 如「眼底检查」×2）——保留一条（优先有 completedAt 的、否则最早 id），
+      // 其余删掉。否则首页 / 提醒页会重复显示。
+      {
+        final byKeyDedup = <String, Reminder>{};
+        final dupIds = <int>[];
+        for (final r in existing) {
+          final key = '${r.conditionCode ?? ''}|${r.followUpKey ?? ''}';
+          final kept = byKeyDedup[key];
+          if (kept == null) {
+            byKeyDedup[key] = r;
+          } else {
+            final keepR = (r.completedAt != null && kept.completedAt == null)
+                ? r
+                : (kept.id <= r.id ? kept : r);
+            final dropR = identical(keepR, kept) ? r : kept;
+            byKeyDedup[key] = keepR;
+            dupIds.add(dropR.id);
+          }
+        }
+        if (dupIds.isNotEmpty) {
+          await (_db.delete(_db.reminders)..where((t) => t.id.isIn(dupIds)))
+              .go();
+          existing.removeWhere((r) => dupIds.contains(r.id));
+        }
+      }
+
       final lastCompleted = <String, DateTime>{};
       for (final r in existing) {
         final key = '${r.conditionCode ?? ''}|${r.followUpKey ?? ''}';
@@ -1079,6 +1106,17 @@ class HealthRepository {
       (_db.update(_db.reminders)..where((t) => t.id.equals(id))).write(
         RemindersCompanion(
           completedAt: Value(at ?? DateTime.now()),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+
+  /// 把提醒到期日推后（首页「待跟进」里「推迟」用）。
+  /// 注意：`followup` 类的到期日由 [regenerateFollowUpsForAllProfiles] 按模板重排，
+  /// 推迟只对 `recheck` 类真正持久。
+  Future<void> snoozeReminder(int id, DateTime newDue) =>
+      (_db.update(_db.reminders)..where((t) => t.id.equals(id))).write(
+        RemindersCompanion(
+          dueDate: Value(newDue),
           updatedAt: Value(DateTime.now()),
         ),
       );
