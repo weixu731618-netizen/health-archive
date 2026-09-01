@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../models/body_area_health.dart';
 import '../utils/image_storage.dart';
+import '../widgets/current_profile_badge.dart';
+import '../widgets/error_note.dart';
 import '../widgets/privacy_note.dart';
-import 'manual_metric_entry_page.dart';
 import 'report_recognition_flow.dart';
 
 /// 报告导入页（上传）：选择化验单图片或 PDF -> 识别（走共享 [startReportRecognitionFlow]）。
@@ -19,56 +21,72 @@ class ReportImportPage extends StatefulWidget {
 }
 
 class _ReportImportPageState extends State<ReportImportPage> {
-  PickedReportImage? _image;
+  /// 选中的报告页（图片 1 页；PDF 每页一项）。预览展示第 1 页。
+  List<PickedReportImage> _pages = const [];
+  PickedReportImage? get _image => _pages.isEmpty ? null : _pages.first;
   String? _error;
 
-  Future<void> _pickFromGallery() => _pick(pickReportImageFromGallery);
-  Future<void> _pickFromFile() => _pick(pickLabReportImage);
+  Future<void> _pickFromGallery() =>
+      _pick(() async => [await pickReportImageFromGallery()]);
+  Future<void> _pickFromFile() => _pick(pickLabReportPages);
 
-  Future<void> _pick(Future<PickedReportImage> Function() picker) async {
+  Future<void> _pick(
+      Future<List<PickedReportImage>> Function() picker) async {
     setState(() => _error = null);
     try {
       final picked = await picker();
-      if (mounted) setState(() => _image = picked);
-    } catch (e) {
-      if (mounted) {
-        final msg = e is StateError && e.message.isNotEmpty
-            ? e.message
-            : '无法读取该文件，请重新选择';
-        setState(() => _error = msg);
-      }
+      if (mounted) setState(() => _pages = picked);
+    } on PickCancelled {
+      // 用户取消，什么都不做
+    } on StateError catch (e) {
+      // 「未选择图片 / 未选择文件」是取消，不是错误 —— 静默。
+      if (e.message.contains('未选择')) return;
+      if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = '无法读取该文件，请重新选择');
     }
   }
 
-  Future<void> _recognize() async {
-    final img = _image;
-    if (img == null) return;
-    setState(() => _error = null);
-    // 共享识别流程自带全屏 Loading，天然防止重复点击。
-    await startReportRecognitionFlow(context, img,
-        initialArea: widget.initialArea);
-  }
+  bool _recognizing = false;
 
-  void _goManual() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ManualMetricEntryPage()),
-    );
+  Future<void> _recognize() async {
+    if (_pages.isEmpty || _recognizing) return;
+    setState(() {
+      _error = null;
+      _recognizing = true;
+    });
+    try {
+      await startReportRecognitionFlowPages(context, _pages,
+          initialArea: widget.initialArea);
+    } finally {
+      if (mounted) setState(() => _recognizing = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final area = widget.initialArea;
     return Scaffold(
-      appBar: AppBar(title: const Text('上传报告')),
+      appBar: AppBar(title: const Text('导入报告')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
+          const CurrentProfileBadge(),
           const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: Text(
-              '选择一张报告图片或 PDF，系统将自动识别其中的检查指标（PDF 按首页识别）',
+              '选择一张报告图片或 PDF —— 化验单、影像、病历、处方都可以。系统自动识别：'
+              '有检查指标的进逐项核对，没有指标的（影像/病历等）存成图文报告（PDF 只识别第一页）。',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
           ),
+          if (area != null && coreBodyAreaOrder.contains(area))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('将关联到：$area',
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary)),
+            ),
           const PrivacyNote(),
           // 图片预览区域
           Card(
@@ -109,13 +127,15 @@ class _ReportImportPageState extends State<ReportImportPage> {
                           borderRadius: BorderRadius.circular(12),
                           child: Image.memory(
                             _image!.bytes,
-                            height: 220,
+                            height: 260,
                             fit: BoxFit.contain,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _image!.fileName,
+                          _pages.length > 1
+                              ? '${_image!.fileName}（共 ${_pages.length} 页）'
+                              : _image!.fileName,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                               fontSize: 13, color: AppColors.textSecondary),
@@ -124,17 +144,18 @@ class _ReportImportPageState extends State<ReportImportPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            TextButton(
+                            FilledButton.tonalIcon(
                               onPressed: _pickFromGallery,
-                              child: const Text('相册'),
+                              icon:
+                                  const Icon(Icons.photo_library_outlined),
+                              label: const Text('相册'),
                             ),
-                            TextButton(
+                            const SizedBox(width: 10),
+                            OutlinedButton.icon(
                               onPressed: _pickFromFile,
-                              child: const Text('PDF / 文件'),
-                            ),
-                            TextButton(
-                              onPressed: () => setState(() => _image = null),
-                              child: const Text('移除'),
+                              icon:
+                                  const Icon(Icons.folder_open_outlined),
+                              label: const Text('PDF / 文件'),
                             ),
                           ],
                         ),
@@ -144,48 +165,16 @@ class _ReportImportPageState extends State<ReportImportPage> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.abnormal.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline,
-                      size: 20, color: AppColors.abnormal),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(
-                          fontSize: 14, color: AppColors.textPrimary),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _goManual,
-                    child: const Text('手工录入'),
-                  ),
-                ],
-              ),
-            ),
+            // 这条路只处理图片/PDF，手工录入在这里没意义（PDF 没法手录），只展示错误。
+            ErrorNote(message: _error!),
           ],
           const SizedBox(height: 20),
           FilledButton(
-            onPressed: _image == null ? null : _recognize,
+            onPressed: _image == null || _recognizing ? null : _recognize,
             style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14)),
+                minimumSize: const Size.fromHeight(48)),
             child: const Text('识别报告', style: TextStyle(fontSize: 16)),
           ),
-          if (_error != null && _error!.contains('识别失败'))
-            const SizedBox(height: 8),
-          if (_error != null && _error!.contains('识别失败'))
-            Center(
-              child: TextButton(
-                onPressed: _recognize,
-                child: const Text('重新识别'),
-              ),
-            ),
         ],
       ),
     );

@@ -61,3 +61,8 @@ backend/backend_dev.db
 # B2：推送模块本地 SQLite
 backend/push_dev.db
 backend/push.db
+
+# Python venv (backend local dev)
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/

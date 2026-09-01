@@ -37,18 +37,43 @@ SYSTEM_PROMPT = '''你是医疗检验报告结构化工具，不是医生。
 JSON Schema（metric 的 value 用 numericValue/textValue/qualifier 组合表达，不要拼成字符串）：
 {"hospitalName":"string"|null,"reportDate":"YYYY-MM-DD"|null,
 "reportType":"血常规|生化|肝功能|肾功能|血脂|血糖|尿常规|甲状腺功能|凝血|免疫|其他检验",
-"patientName":"string"|null,
+"patientName":"string"|null,"patientGender":"男|女"|null,"patientBirthDate":"YYYY-MM-DD"|null,
+"isMedical":true|false,
+"imagingType":"X光|CT|MRI|B超|彩超|心电图|病理|出院小结|手术记录|门诊病历|处方笺|疫苗接种"|null,
 "metrics":[{"rawName":"string","canonicalName":"string"|null,"matchedMetricId":"string"|null,
 "numericValue":number|null,"textValue":"string"|null,"qualifier":"string"|null,
 "unit":"string"|null,"referenceMin":number|null,"referenceMax":number|null,
 "referenceText":"string"|null,"originalStatus":"string"|null,"bodySystem":"string"|null,
 "confidence":number}]}
+patientGender 只在报告明确写了性别时填 男/女，否则 null；
+patientBirthDate 只在报告明确写了出生日期时填 YYYY-MM-DD，只写了“年龄”不要反推，返回 null。
+isMedical：这张图上的文字整体是不是医疗相关（检验单/影像报告/病历/出院小结/处方/体检/疫苗本
+等 = true；海报/说明书/聊天截图/收据/随手拍/与医疗无关 = false）。文字太少太乱无法判断也填 false。
+imagingType：**只有当这张确实是该类报告本身时**才填对应值；判不准、或它其实是检验单、或
+只是体检套餐清单里列到该项目名，一律填 null。宁可 null 也不要猜。
 规则：数值型结果放 numericValue（并把 qualifier 填 <、>、<=、>= 等，无则 null）；
 阴性/阳性等文本放 textValue；报告没有的参考范围/单位必须返回 null，不得猜。
 只提取明确呈现为“检查项目 + 结果”的行；不要把姓名、年龄、日期、科室、条码、提示语、标题当作指标。
 如果 OCR 内容不是医学检验/体检报告，或文字过少/过乱导致不能确认项目与结果，请返回 metrics: []。
+超声(B超/彩超)、CT、MRI、X光、心电图、病理等影像/描述性报告，即使含有器官尺寸、血流速度、
+房室内径等测量数字，也一律返回 metrics: []——这些是描述性测量，不是可追踪的检验指标；
+此类报告把 imagingType 填成对应检查类型，诊断结论保留在原始文字里即可。
 不要根据常识生成报告中没有出现的指标。'''
 
+
+
+IMAGING_TYPES = {
+    "X光", "CT", "MRI", "B超", "彩超", "心电图", "病理",
+    "出院小结", "手术记录", "门诊病历", "处方笺", "疫苗接种",
+}
+
+
+def _clean_imaging_type(v) -> str | None:
+    """只接受受限的 12 类之一，其余（含 '其他'、模型自由发挥的值）一律 None。"""
+    if not isinstance(v, str):
+        return None
+    s = v.strip()
+    return s if s in IMAGING_TYPES else None
 
 
 class DeepSeekParseError(Exception):
@@ -146,6 +171,10 @@ def parse_ocr_result(ocr_lines: list[dict]) -> dict:
             reportDate=data.get("reportDate"),
             reportType=data.get("reportType"),
             patientName=data.get("patientName"),
+            patientGender=data.get("patientGender"),
+            patientBirthDate=data.get("patientBirthDate"),
+            isMedical=bool(data.get("isMedical")),
+            imagingType=_clean_imaging_type(data.get("imagingType")),
             metrics=[],
         )
     except Exception:
@@ -167,5 +196,9 @@ def parse_ocr_result(ocr_lines: list[dict]) -> dict:
         "reportDate": model.reportDate,
         "reportType": model.reportType,
         "patientName": model.patientName,
+        "patientGender": model.patientGender,
+        "patientBirthDate": model.patientBirthDate,
+        "isMedical": model.isMedical,
+        "imagingType": model.imagingType,
         "metrics": metrics,
     }

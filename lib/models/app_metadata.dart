@@ -2,7 +2,7 @@ class AppMetadata {
   const AppMetadata._();
 
   static const String versionName = '1.8.0';
-  static const int versionCode = 18;
+  static const int versionCode = 28;
   static const String buildLabel =
       '首页只留「拍报告」入口 + 动态「需要关注」（超 3 行折叠）；'
       '身体页改器官导航（记录概览 / 需要关注 / 全部部位，等待复查·长期关注）；'

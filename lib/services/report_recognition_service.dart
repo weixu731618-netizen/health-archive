@@ -237,12 +237,10 @@ class RemoteReportRecognitionService implements ReportRecognitionService {
     if (body is! Map<String, dynamic>) {
       throw StateError('报告识别失败');
     }
-    final report = structuredReportFromBackendJson(body, imagePath);
-    final qualityMessage = validateStructuredReportForReview(report);
-    if (qualityMessage != null) {
-      throw StateError(qualityMessage);
-    }
-    return report;
+    // 0 指标不再当失败：可能是影像/病理/病历等图文报告。调用方按
+    // report.metrics.isEmpty 决定进「结构化核对页」还是「图文报告」流程。
+    // 真正的失败（网络 / 502 / 无文字）已在上面按状态码抛出。
+    return structuredReportFromBackendJson(body, imagePath);
   }
 }
 
@@ -277,6 +275,7 @@ StructuredMedicalReport structuredReportFromBackendJson(
       metrics.add(RecognizedMetric(
         rawName: rawName,
         matchedMetricId: id,
+        matchType: id != null ? 'exact' : 'unmatched',
         canonicalName:
             def?.metricName ?? (item['canonicalName'] ?? rawName).toString(),
         value: value ?? 0,
@@ -296,15 +295,103 @@ StructuredMedicalReport structuredReportFromBackendJson(
   }
 
   final parsedDate = _parseDate(body['reportDate']);
+  final birth = _parseDate(body['patientBirthDate']);
+  final gender = _normalizeGender((body['patientGender'] ?? '').toString());
   return StructuredMedicalReport(
     hospitalName: (body['hospitalName'] ?? '').toString(),
     reportDate: parsedDate ?? DateTime.now(),
     dateFromOcr: parsedDate != null,
     reportType: (body['reportType'] ?? '').toString(),
     patientName: (body['patientName'] ?? '').toString(),
+    patientGender: gender,
+    patientBirthDate: birth,
+    isMedical: body['isMedical'] == true,
+    imagingType: kImagingReportTypes.contains((body['imagingType'] ?? '').toString())
+        ? (body['imagingType']).toString()
+        : '',
+    rawText: (body['rawText'] ?? '').toString(),
     metrics: metrics,
     sourceImagePath: imagePath,
   );
+}
+
+/// 受限的 12 类图文/影像报告类型（与后端 DeepSeek 的 imagingType 枚举一致，
+/// 也是 imaging_report_page 里 imagingReportTypes 的来源）。此处独立一份，避免
+/// service 层 import 页面层。
+const List<String> kImagingReportTypes = [
+  'X光', 'CT', 'MRI', 'B超', '彩超', '心电图', '病理',
+  '出院小结', '手术记录', '门诊病历', '处方笺', '疫苗接种',
+];
+
+/// 把同一份报告的多页识别结果合并成一份。
+///
+/// - 元信息（医院/日期/类型/姓名/性别/生日）：取各页里第一个"有意义"的值。
+/// - 指标：各页顺序拼接，按 (规范化名 + 数值/文本值) 去重。
+/// - 原文：按页拼接，加"—— 第 N 页 ——"分隔。
+/// - dateFromOcr：任一页从 OCR 得到日期即为 true。
+StructuredMedicalReport mergeStructuredReports(
+  List<StructuredMedicalReport> pages, {
+  String? sourceImagePath,
+}) {
+  if (pages.length == 1) return pages.first;
+
+  String firstNonEmpty(String Function(StructuredMedicalReport) get,
+      {Set<String> skip = const {}}) {
+    for (final p in pages) {
+      final v = get(p).trim();
+      if (v.isNotEmpty && !skip.contains(v)) return v;
+    }
+    return '';
+  }
+
+  final mergedMetrics = <RecognizedMetric>[];
+  final seen = <String>{};
+  for (final p in pages) {
+    for (final m in p.metrics) {
+      final key = '${m.canonicalName.trim().toLowerCase().replaceAll(' ', '')}'
+          '|${m.numericValue ?? ''}|${(m.textValue ?? '').trim()}';
+      if (seen.add(key)) mergedMetrics.add(m);
+    }
+  }
+
+  DateTime? ocrDate;
+  for (final p in pages) {
+    if (p.dateFromOcr) {
+      ocrDate = p.reportDate;
+      break;
+    }
+  }
+
+  final rawText = [
+    for (var i = 0; i < pages.length; i++)
+      if (pages[i].rawText.trim().isNotEmpty)
+        '—— 第 ${i + 1} 页 ——\n${pages[i].rawText.trim()}',
+  ].join('\n\n');
+
+  return StructuredMedicalReport(
+    hospitalName: firstNonEmpty((p) => p.hospitalName),
+    reportDate: ocrDate ?? DateTime.now(),
+    dateFromOcr: ocrDate != null,
+    reportType: firstNonEmpty((p) => p.reportType, skip: {'其他检验', '其他'}),
+    patientName: firstNonEmpty((p) => p.patientName),
+    patientGender: firstNonEmpty((p) => p.patientGender),
+    patientBirthDate:
+        pages.map((p) => p.patientBirthDate).firstWhere((d) => d != null,
+            orElse: () => null),
+    isMedical: pages.any((p) => p.isMedical),
+    imagingType: firstNonEmpty((p) => p.imagingType),
+    rawText: rawText,
+    metrics: mergedMetrics,
+    sourceImagePath: sourceImagePath,
+  );
+}
+
+/// 把后端/OCR 给的性别文本收敛成「男 / 女 / 空」。其他一律空，不猜。
+String _normalizeGender(String raw) {
+  final v = raw.trim();
+  if (v == '男' || v.toLowerCase() == 'male' || v.toLowerCase() == 'm') return '男';
+  if (v == '女' || v.toLowerCase() == 'female' || v.toLowerCase() == 'f') return '女';
+  return '';
 }
 
 /// 核对页前的质量门槛：宁可让用户重拍/手工录入，也不把明显不可靠的识别结果送去入库。

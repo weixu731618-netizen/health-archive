@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
@@ -7,6 +8,10 @@ import '../utils/format.dart';
 import '../utils/report_image_save.dart';
 
 /// B1：家庭成员管理。列出「本人 + 家庭成员」，可切换当前档案、新增 / 编辑 / 删除成员。
+///
+/// UI 走经典 iOS「分组内嵌列表」：点行切换档案，行尾 ⓘ 进编辑页；
+/// 新增 / 编辑是整页推入的分组表单（对齐 iOS 通讯录编辑联系人），
+/// 删除成员放在编辑页底部的红色行里，不再用安卓式的三点溢出菜单。
 class FamilyMembersPage extends StatefulWidget {
   const FamilyMembersPage({super.key});
 
@@ -15,14 +20,32 @@ class FamilyMembersPage extends StatefulWidget {
 }
 
 /// 关系可选项（「本人」固定，不在此列）。存的就是这里的中文。
+/// 关系是「选填」：不选时存空串，界面上不显示那行小字。
 const List<String> kMemberRelationships = [
   '配偶',
   '父亲',
   '母亲',
   '儿子',
   '女儿',
+  '兄弟姐妹',
   '其他',
 ];
+
+/// 判断某个 relationship 值是否是一个「可显示的关系标签」。
+/// 空串、旧的英文哨兵值（'self' / 'other'）都当作「没有关系」。
+bool _hasRelationshipLabel(String r) =>
+    r.isNotEmpty && r != 'self' && r != 'other';
+
+/// 由出生日期算周岁，用于列表副标题。
+String _ageText(DateTime birth) {
+  final now = DateTime.now();
+  var age = now.year - birth.year;
+  if (now.month < birth.month ||
+      (now.month == birth.month && now.day < birth.day)) {
+    age--;
+  }
+  return age >= 0 ? '$age 岁' : '';
+}
 
 class _FamilyMembersPageState extends State<FamilyMembersPage> {
   List<PersonProfile> _people = [];
@@ -53,19 +76,19 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
   int get _activeId => appRepository?.activeProfileId ?? 1;
 
   Future<void> _switchTo(PersonProfile p) async {
-    if (_busy) return;
+    if (_busy || p.id == _activeId) return;
     await switchActiveProfile(p.id);
     if (mounted) Navigator.of(context).pop(true);
   }
 
   Future<void> _addMember() async {
-    final data = await showModalBottomSheet<_MemberFormResult>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => const _MemberFormSheet(),
+    final data = await Navigator.of(context).push<_MemberFormResult>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const _MemberEditPage(),
+      ),
     );
-    if (data == null) return;
+    if (data == null || data.delete) return;
     final repo = appRepository;
     if (repo == null) return;
     setState(() => _busy = true);
@@ -85,13 +108,17 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
   }
 
   Future<void> _editMember(PersonProfile p) async {
-    final data = await showModalBottomSheet<_MemberFormResult>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => _MemberFormSheet(existing: p),
+    final data = await Navigator.of(context).push<_MemberFormResult>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _MemberEditPage(existing: p),
+      ),
     );
     if (data == null) return;
+    if (data.delete) {
+      await _deleteMember(p);
+      return;
+    }
     final repo = appRepository;
     if (repo == null) return;
     setState(() => _busy = true);
@@ -118,22 +145,6 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
   Future<void> _deleteMember(PersonProfile p) async {
     final repo = appRepository;
     if (repo == null) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('删除「${p.displayName}」'),
-        content: const Text('将删除该成员的全部报告、指标、日常记录、疾病史和用药记录，且无法恢复。是否继续？'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('删除')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
     setState(() => _busy = true);
     try {
       // 先收集该成员报告原图路径，级联删除后清理磁盘文件。
@@ -159,8 +170,19 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
       ..showSnackBar(SnackBar(content: Text(s)));
   }
 
-  String _relationshipLabel(PersonProfile p) =>
-      p.id == HealthRepository.defaultProfileId ? '本人' : p.relationship;
+  /// 列表副标题：关系 · 性别 · 年龄（关系为空、或与名字相同则省略）。
+  String _subtitleFor(PersonProfile p) {
+    final isSelf = p.id == HealthRepository.defaultProfileId;
+    final relLabel = isSelf ? '本人' : p.relationship;
+    final parts = <String>[
+      if ((isSelf || _hasRelationshipLabel(p.relationship)) &&
+          relLabel != p.displayName)
+        relLabel,
+      if ((p.sex ?? '').isNotEmpty) p.sex!,
+      if (p.dateOfBirth != null) _ageText(p.dateOfBirth!),
+    ]..removeWhere((s) => s.isEmpty);
+    return parts.join(' · ');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -169,24 +191,24 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: const EdgeInsets.only(top: 8, bottom: 28),
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Text(
+                CupertinoListSection.insetGrouped(
+                  footer: const Text(
                     '每个成员的报告和健康数据相互独立。点选一个成员即可切换当前查看的档案。',
-                    style:
-                        TextStyle(fontSize: 13, color: AppColors.textSecondary),
                   ),
+                  children: [for (final p in _people) _memberTile(p)],
                 ),
-                for (final p in _people) _memberTile(p),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _busy ? null : _addMember,
-                  icon: const Icon(Icons.person_add_alt_1_outlined),
-                  label: const Text('添加家庭成员'),
-                  style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14)),
+                CupertinoListSection.insetGrouped(
+                  children: [
+                    CupertinoListTile.notched(
+                      leading: const Icon(CupertinoIcons.add_circled_solid,
+                          color: AppColors.primary),
+                      title: const Text('添加家庭成员',
+                          style: TextStyle(color: AppColors.primary)),
+                      onTap: _busy ? null : _addMember,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -195,54 +217,50 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
 
   Widget _memberTile(PersonProfile p) {
     final isActive = p.id == _activeId;
-    final isSelf = p.id == HealthRepository.defaultProfileId;
-    final subtitleParts = <String>[
-      _relationshipLabel(p),
-      if ((p.sex ?? '').isNotEmpty) p.sex!,
-      if (p.dateOfBirth != null) formatDate(p.dateOfBirth!),
-    ];
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        onTap: _busy ? null : () => _switchTo(p),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: CircleAvatar(
-          backgroundColor: isActive
-              ? AppColors.primary
-              : AppColors.primary.withValues(alpha: 0.15),
-          child: Text(
-            p.displayName.isNotEmpty ? p.displayName.characters.first : '?',
-            style: TextStyle(
-                color: isActive ? Colors.white : AppColors.primary,
-                fontWeight: FontWeight.w600),
+    final subtitle = _subtitleFor(p);
+    return CupertinoListTile.notched(
+      leading: _Avatar(name: p.displayName, active: isActive),
+      title: Text(p.displayName,
+          style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: subtitle.isEmpty ? null : Text(subtitle),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isActive)
+            const Icon(CupertinoIcons.checkmark_alt,
+                color: AppColors.primary, size: 22),
+          const SizedBox(width: 4),
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            onPressed: _busy ? null : () => _editMember(p),
+            child: const Icon(CupertinoIcons.info_circle,
+                color: AppColors.primary, size: 24),
           ),
-        ),
-        title: Row(
-          children: [
-            Flexible(
-                child: Text(p.displayName,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600))),
-            if (isActive) ...[
-              const SizedBox(width: 8),
-              const Icon(Icons.check_circle,
-                  size: 18, color: AppColors.primary),
-            ],
-          ],
-        ),
-        subtitle: Text(subtitleParts.join(' · '),
-            style:
-                const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-        trailing: PopupMenuButton<String>(
-          onSelected: (v) {
-            if (v == 'edit') _editMember(p);
-            if (v == 'delete') _deleteMember(p);
-          },
-          itemBuilder: (_) => [
-            const PopupMenuItem(value: 'edit', child: Text('编辑资料')),
-            if (!isSelf)
-              const PopupMenuItem(value: 'delete', child: Text('删除该成员')),
-          ],
+        ],
+      ),
+      onTap: _busy ? null : () => _switchTo(p),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  final String name;
+  final bool active;
+  const _Avatar({required this.name, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      radius: 16,
+      backgroundColor: active
+          ? AppColors.primary
+          : AppColors.primary.withValues(alpha: 0.15),
+      child: Text(
+        name.isNotEmpty ? name.characters.first : '?',
+        style: TextStyle(
+          fontSize: 14,
+          color: active ? Colors.white : AppColors.primary,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -255,43 +273,66 @@ class _MemberFormResult {
   final String? sex;
   final DateTime? birth;
   final double? heightCm;
+
+  /// 编辑页点了「删除成员」时回传，其余字段无意义。
+  final bool delete;
+
   const _MemberFormResult(
-      this.name, this.relationship, this.sex, this.birth, this.heightCm);
+    this.name,
+    this.relationship,
+    this.sex,
+    this.birth,
+    this.heightCm,
+  ) : delete = false;
+
+  const _MemberFormResult.remove()
+      : name = '',
+        relationship = '',
+        sex = null,
+        birth = null,
+        heightCm = null,
+        delete = true;
 }
 
-class _MemberFormSheet extends StatefulWidget {
+/// 新增 / 编辑成员：整页推入的 iOS 分组表单。
+class _MemberEditPage extends StatefulWidget {
   final PersonProfile? existing;
-  const _MemberFormSheet({this.existing});
+  const _MemberEditPage({this.existing});
 
   @override
-  State<_MemberFormSheet> createState() => _MemberFormSheetState();
+  State<_MemberEditPage> createState() => _MemberEditPageState();
 }
 
-class _MemberFormSheetState extends State<_MemberFormSheet> {
+class _MemberEditPageState extends State<_MemberEditPage> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _heightCtrl;
-  late String _relationship;
+  String _relationship = '';
   String _sex = '';
   DateTime? _birth;
+  bool _canSave = false;
 
   bool get _isSelf => widget.existing?.id == HealthRepository.defaultProfileId;
-
-  static const List<String> _sexes = ['男', '女'];
+  bool get _isNew => widget.existing == null;
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
-    _nameCtrl = TextEditingController(text: e?.displayName ?? '');
+    _nameCtrl = TextEditingController(text: e?.displayName ?? '')
+      ..addListener(_recomputeCanSave);
     _heightCtrl = TextEditingController(
         text: e?.heightCm == null ? '' : _fmtHeight(e!.heightCm!));
-    _relationship = e == null || e.id == HealthRepository.defaultProfileId
-        ? kMemberRelationships.first
-        : (kMemberRelationships.contains(e.relationship)
-            ? e.relationship
-            : kMemberRelationships.last);
+    _relationship = (e != null && _hasRelationshipLabel(e.relationship))
+        ? e.relationship
+        : '';
     _sex = e?.sex ?? '';
     _birth = e?.dateOfBirth;
+    _canSave = _nameCtrl.text.trim().isNotEmpty;
+  }
+
+  void _recomputeCanSave() {
+    final next = _nameCtrl.text.trim().isNotEmpty;
+    if (next != _canSave) setState(() => _canSave = next);
   }
 
   static String _fmtHeight(double v) =>
@@ -304,117 +345,275 @@ class _MemberFormSheetState extends State<_MemberFormSheet> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final title =
-        widget.existing == null ? '添加家庭成员' : (_isSelf ? '编辑「本人」资料' : '编辑成员资料');
-    return Padding(
-      // 键盘弹起时把内容整体上推，避免遮挡输入框。
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+  String get _title {
+    if (_isNew) return '添加家庭成员';
+    return _isSelf ? '编辑「本人」资料' : '编辑资料';
+  }
+
+  void _submit() {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) return;
+    Navigator.of(context).pop(_MemberFormResult(
+      name,
+      _relationship,
+      _sex.isEmpty ? null : _sex,
+      _birth,
+      double.tryParse(_heightCtrl.text.trim()),
+    ));
+  }
+
+  Future<void> _pickRelationship() async {
+    final picked = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => _RelationshipPickerPage(selected: _relationship),
+      ),
+    );
+    if (picked == null) return; // 返回但没选，保持不变
+    setState(() => _relationship = picked == _kNoRelationship ? '' : picked);
+  }
+
+  Future<void> _pickBirth() async {
+    FocusScope.of(context).unfocus();
+    final initial = _birth ?? DateTime(1990, 1, 1);
+    DateTime temp = initial;
+    final picked = await showModalBottomSheet<DateTime>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: SizedBox(
+          height: 300,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: '称呼 / 姓名'),
-              ),
-              if (!_isSelf) ...[
-                const SizedBox(height: 16),
-                const Text('关系',
-                    style: TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary)),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final r in kMemberRelationships)
-                      ChoiceChip(
-                        label: Text(r),
-                        selected: _relationship == r,
-                        onSelected: (_) => setState(() => _relationship = r),
-                      ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 16),
-              const Text('性别',
-                  style:
-                      TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  for (final s in _sexes)
-                    ChoiceChip(
-                      label: Text(s),
-                      selected: _sex == s,
-                      onSelected: (v) => setState(() => _sex = v ? s : ''),
-                    ),
+                  CupertinoButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('取消'),
+                  ),
+                  CupertinoButton(
+                    onPressed: () => Navigator.pop(ctx, temp),
+                    child: const Text('完成'),
+                  ),
                 ],
               ),
-              const SizedBox(height: 8),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.cake_outlined,
-                    color: AppColors.textSecondary),
-                title: const Text('出生日期'),
-                trailing: Text(_birth == null ? '未填' : formatDate(_birth!),
-                    style: const TextStyle(fontSize: 15)),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _birth ?? DateTime(1990),
-                    firstDate: DateTime(1900),
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) setState(() => _birth = picked);
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _heightCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: '身高（选填）',
-                  suffixText: 'cm',
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: initial,
+                  minimumDate: DateTime(1900),
+                  maximumDate: DateTime.now(),
+                  onDateTimeChanged: (d) => temp = d,
                 ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: () {
-                  final name = _nameCtrl.text.trim();
-                  if (name.isEmpty) {
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(
-                          const SnackBar(content: Text('请填写称呼 / 姓名')));
-                    return;
-                  }
-                  Navigator.of(context).pop(_MemberFormResult(
-                    name,
-                    _relationship,
-                    _sex.isEmpty ? null : _sex,
-                    _birth,
-                    double.tryParse(_heightCtrl.text.trim()),
-                  ));
-                },
-                style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14)),
-                child: const Text('保存', style: TextStyle(fontSize: 16)),
               ),
             ],
           ),
         ),
+      ),
+    );
+    if (picked != null) setState(() => _birth = picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_title),
+        automaticallyImplyLeading: false,
+        leadingWidth: 76,
+        leading: TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _canSave ? _submit : null,
+            child: Text('完成',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: _canSave
+                        ? AppColors.primary
+                        : AppColors.textSecondary)),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 32),
+        children: [
+          CupertinoFormSection.insetGrouped(
+            children: [
+              CupertinoTextFormFieldRow(
+                controller: _nameCtrl,
+                prefix: const SizedBox(width: 84, child: Text('姓名')),
+                placeholder: '称呼 / 姓名',
+                textInputAction: TextInputAction.done,
+              ),
+            ],
+          ),
+          CupertinoFormSection.insetGrouped(
+            children: [
+              if (!_isSelf)
+                _TapFormRow(
+                  label: '关系',
+                  value: _relationship.isEmpty ? '未设置' : _relationship,
+                  muted: _relationship.isEmpty,
+                  onTap: _pickRelationship,
+                ),
+              CupertinoFormRow(
+                prefix: const SizedBox(width: 84, child: Text('性别')),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: CupertinoSlidingSegmentedControl<String>(
+                      groupValue: _sex.isEmpty ? null : _sex,
+                      onValueChanged: (v) => setState(() => _sex = v ?? ''),
+                      children: const {
+                        '男': Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 14),
+                            child: Text('男')),
+                        '女': Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 14),
+                            child: Text('女')),
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              _TapFormRow(
+                label: '出生日期',
+                value: _birth == null ? '未设置' : formatDate(_birth!),
+                muted: _birth == null,
+                onTap: _pickBirth,
+              ),
+              CupertinoTextFormFieldRow(
+                controller: _heightCtrl,
+                prefix: const SizedBox(width: 84, child: Text('身高')),
+                placeholder: '选填',
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+              ),
+            ],
+          ),
+          if (!_isNew && !_isSelf)
+            CupertinoFormSection.insetGrouped(
+              children: [
+                CupertinoListTile.notched(
+                  title: const Center(
+                    child: Text('删除成员',
+                        style: TextStyle(color: CupertinoColors.destructiveRed)),
+                  ),
+                  onTap: _confirmDelete,
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete() async {
+    final name = widget.existing?.displayName ?? '';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('删除「$name」'),
+        content: const Text(
+            '将删除该成员的全部报告、指标、日常记录、疾病史和用药记录，且无法恢复。是否继续？'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('删除')),
+        ],
+      ),
+    );
+    if (ok == true && mounted) {
+      Navigator.of(context).pop(const _MemberFormResult.remove());
+    }
+  }
+}
+
+/// 可点击的表单行：左标题、右当前值 + 灰色 chevron。
+class _TapFormRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool muted;
+  final VoidCallback onTap;
+  const _TapFormRow({
+    required this.label,
+    required this.value,
+    required this.muted,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: CupertinoFormRow(
+        prefix: SizedBox(width: 84, child: Text(label)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Flexible(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: muted
+                        ? AppColors.textSecondary
+                        : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(CupertinoIcons.chevron_forward,
+                  size: 16, color: AppColors.textSecondary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+const String _kNoRelationship = '__none__';
+
+/// 关系选择子页：分组列表 + 打勾，含「不设置」。
+class _RelationshipPickerPage extends StatelessWidget {
+  final String selected;
+  const _RelationshipPickerPage({required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    final options = <String>[_kNoRelationship, ...kMemberRelationships];
+    return Scaffold(
+      appBar: AppBar(title: const Text('关系')),
+      body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 28),
+        children: [
+          CupertinoListSection.insetGrouped(
+            children: [
+              for (final o in options)
+                CupertinoListTile.notched(
+                  title: Text(o == _kNoRelationship ? '不设置' : o),
+                  trailing: (o == _kNoRelationship
+                          ? selected.isEmpty
+                          : selected == o)
+                      ? const Icon(CupertinoIcons.checkmark_alt,
+                          color: AppColors.primary)
+                      : null,
+                  onTap: () => Navigator.of(context).pop(o),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -203,119 +204,88 @@ class _PrivacyPageState extends State<PrivacyPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('数据与隐私')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.only(top: 8, bottom: 28),
         children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Text(
-              '健康档案属于长期数据。你可以将本地结构化数据导出备份，或彻底删除本机全部数据。',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          CupertinoListSection.insetGrouped(
+            header: const Text('备份（推荐）'),
+            footer: const Text(
+              '「完整备份并分享」把全部数据和报告原图打包成一个文件（可设密码），'
+              '通过分享面板存到微信 / 网盘等自选渠道，不需要自己部署服务器。'
+              '「从备份文件恢复」会覆盖当前设备上的全部健康数据。',
             ),
+            children: [
+              _row(
+                icon: CupertinoIcons.archivebox,
+                title: '完整备份并分享',
+                onTap: _busy ? null : _exportAndShare,
+              ),
+              _row(
+                icon: CupertinoIcons.arrow_counterclockwise,
+                title: '从备份文件恢复',
+                danger: true,
+                onTap: _busy ? null : _restoreFromFile,
+              ),
+            ],
           ),
+          CupertinoListSection.insetGrouped(
+            header: const Text('其它'),
+            footer: const Text(
+              '纯文本导出为 JSON，含指标 / 日常记录 / 报告 / 疾病史 / 用药，不含报告原图。'
+              '删除操作无法恢复。',
+            ),
+            children: [
+              _row(
+                icon: CupertinoIcons.square_arrow_up,
+                title: '导出健康数据（纯文本）',
+                onTap: _busy ? null : _export,
+              ),
+              _row(
+                icon: CupertinoIcons.delete,
+                title: '删除全部健康数据',
+                danger: true,
+                onTap: _busy ? null : _deleteAll,
+              ),
+            ],
+          ),
+          if (kDebugMode || _kSeedEnabled)
+            CupertinoListSection.insetGrouped(
+              header: const Text('调试（仅开发版可见）'),
+              footer: const Text('清空当前数据并写入一套演示用的报告 / 指标 / 日常记录 / 疾病史 / 用药，方便逐页自查。'),
+              children: [
+                _row(
+                  icon: CupertinoIcons.lab_flask,
+                  title: '填充示例数据',
+                  onTap: _busy ? null : _seedSampleData,
+                ),
+              ],
+            ),
           const Padding(
-            padding: EdgeInsets.only(bottom: 16),
+            padding: EdgeInsets.fromLTRB(20, 8, 20, 4),
             child: Text(
-              '提示：你在「上传报告 / 拍摄检查报告」中选择的图片，仅用于识别其中的检查指标。\n'
+              '关于识别：你在「上传报告 / 拍摄检查报告」中选择的图片，仅用于识别其中的检查指标。'
               '负责识别的 OCR/DeepSeek 服务运行在你的 FastAPI 后端，识别后 App 会先让你在确认页逐项核对，'
               '只有你点击「确认并保存」后，这些指标才写入本地健康档案。',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Text(
-              '备份（推荐）',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
-            ),
-          ),
-          _Tile(
-            icon: Icons.folder_zip_outlined,
-            title: '完整备份并分享',
-            subtitle: '打包全部数据与报告原图为一个文件，可设置密码保护，通过分享面板发到微信/网盘等自选渠道保存；不需要你自己部署服务器',
-            onTap: _busy ? null : _exportAndShare,
-          ),
-          _Tile(
-            icon: Icons.settings_backup_restore,
-            title: '从备份文件恢复',
-            subtitle: '选择之前导出的备份文件，恢复到本机（会覆盖当前数据）',
-            danger: true,
-            onTap: _busy ? null : _restoreFromFile,
-          ),
-          const Padding(
-            padding: EdgeInsets.only(top: 8, bottom: 8),
-            child: Text(
-              '其它',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
-            ),
-          ),
-          _Tile(
-            icon: Icons.ios_share,
-            title: '导出健康数据（纯文本）',
-            subtitle: '导出指标、日常记录、报告、疾病史与用药记录（JSON，不含报告原图）',
-            onTap: _busy ? null : _export,
-          ),
-          _Tile(
-            icon: Icons.delete_forever,
-            title: '删除全部健康数据',
-            subtitle: '删除本机报告、指标、日常记录、疾病史、用药记录与原图，且无法恢复',
-            danger: true,
-            onTap: _busy ? null : _deleteAll,
-          ),
-          if (kDebugMode || _kSeedEnabled) ...[
-            const Padding(
-              padding: EdgeInsets.only(top: 8, bottom: 8),
-              child: Text(
-                '调试（仅开发版可见）',
-                style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600),
-              ),
-            ),
-            _Tile(
-              icon: Icons.science_outlined,
-              title: '填充示例数据',
-              subtitle: '清空当前数据并写入一套演示用的报告 / 指标 / 日常记录 / 疾病史 / 用药，方便逐页自查',
-              onTap: _busy ? null : _seedSampleData,
-            ),
-          ],
         ],
       ),
     );
   }
-}
 
-class _Tile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-  final bool danger;
-
-  const _Tile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        onTap: onTap,
-        enabled: onTap != null,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: Icon(icon, color: danger ? AppColors.abnormal : AppColors.primary),
-        title: Text(title,
-            style: TextStyle(
-                fontSize: 15,
-                color: danger ? AppColors.abnormal : AppColors.textPrimary)),
-        subtitle: Text(subtitle,
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-      ),
+  Widget _row({
+    required IconData icon,
+    required String title,
+    VoidCallback? onTap,
+    bool danger = false,
+  }) {
+    final tint = danger ? AppColors.abnormal : AppColors.primary;
+    return CupertinoListTile.notched(
+      leading: Icon(icon, color: onTap == null ? AppColors.insufficient : tint),
+      title: Text(title,
+          style: TextStyle(color: danger ? AppColors.abnormal : null)),
+      trailing: const CupertinoListTileChevron(),
+      onTap: onTap,
     );
   }
 }

@@ -264,9 +264,16 @@ int compareBodyAreaSummary(
 }
 
 List<BodyAreaHealthSummary> buildBodyAreaHealthFromMetrics(
-  List<HealthMetric> metrics, {
+  List<HealthMetric> rawMetrics, {
   bool includeEmptyCoreAreas = true,
 }) {
+  // 未匹配标准指标的（metricId='UNKNOWN'）不进生理图谱：它们没有可靠的参考范围
+  // 和系统归属，堆进「其他」只是噪音。数据仍存在库里，报告详情能看到，
+  // 但器官/系统视图与首页「需要关注」都不据它计算。
+  // 用 metricId 而非 matchType 判断：入库时 metricId = matchedMetricId ?? 'UNKNOWN'，
+  // 比 matchType 可靠（历史数据里 matchType 一度未被正确写入）。
+  final metrics = rawMetrics.where((m) => m.metricId != 'UNKNOWN').toList();
+
   final latestByMetric = <String, HealthMetric>{};
   for (final m in metrics) {
     final area = bodyAreaForSystem(m.bodySystem);

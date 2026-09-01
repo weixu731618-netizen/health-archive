@@ -6,6 +6,14 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<!-- 让系统原生 UI（文档扫描 VNDocumentCameraViewController、权限弹窗、分享面板等）
+	     跟随手机语言显示中文。Flutter 工程默认只有 en，导致这些系统界面一律英文。 -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>zh-Hans</string>
+		<string>zh-Hant</string>
+		<string>en</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>Health Archive</string>
 	<key>CFBundleExecutable</key>
@@ -26,6 +34,31 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- 让 App 文档目录（内含 exports/ 备份包）出现在「文件」App 的「我的 iPhone」下，
+	     用户可自行把备份包拖到 iCloud Drive / 移动到其它位置。不依赖付费开发者号。 -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<!-- 仅为本地开发调试：允许 App 连本机/局域网的明文 HTTP 识别后端。
+	     生产环境 REPORT_API_BASE 指向 https 域名，不依赖此例外。 -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>192.168.1.73</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>用于连接你自行部署在本地网络的识别后端，上传检查报告图片进行 OCR 识别。</string>
 	<key>NSCameraUsageDescription</key>
 	<string>用于拍摄用户选择导入的检查报告。</string>
 	<key>NSPhotoLibraryUsageDescription</key>

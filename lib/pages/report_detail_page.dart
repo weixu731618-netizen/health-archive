@@ -1,15 +1,23 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../models/app_metadata.dart';
 import '../models/body_area_health.dart';
+import '../models/report_models.dart' show kUnlinkedReportType;
 import '../utils/file_image.dart';
 import '../utils/format.dart';
 import '../utils/report_export.dart';
 import '../utils/report_image_save.dart';
+import '../widgets/current_profile_badge.dart';
 import '../widgets/health_status_card.dart';
 import '../widgets/normal_items_toggle.dart';
 import '../widgets/section_title.dart';
+import 'imaging_report_page.dart' show imagingReportTypes;
+import 'manual_metric_entry_page.dart';
 
 /// 检查详情页。
 /// - 不传 [reportId] → 显示空状态，不注入演示数据。
@@ -72,6 +80,125 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     }
   }
 
+  bool get _isFailed => _report?.recognitionStatus == 'failed';
+  bool get _isUnlinked => _report?.reportType == kUnlinkedReportType;
+
+  /// 未关联记录归类：选一个已知类型 → 把 reportType 改过去，变成正式的影像/病历报告。
+  Future<void> _reclassifyUnlinked() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Text('归类为哪一种？',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
+            for (final t in imagingReportTypes)
+              ListTile(title: Text(t), onTap: () => Navigator.pop(context, t)),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    await appRepository!.updateReportInfo(widget.reportId!, reportType: picked);
+    await _load();
+  }
+
+  /// 「归类里没有合适的」→ 把这份的识别文字 + 原图通过系统分享发给开发者（用户自己），
+  /// 由开发者判断要不要新增一类处理。
+  Future<void> _sendUnlinkedToDev() async {
+    final r = _report;
+    if (r == null) return;
+    final lines = <String>[
+      '【未关联记录 · 待判断是否新增类型】',
+      'App 版本：${AppMetadata.versionName}+${AppMetadata.versionCode}',
+      '记录时间：${formatDate(r.reportDate)}',
+      if (r.hospitalName.trim().isNotEmpty) '医院：${r.hospitalName}',
+      '',
+      '—— 识别出的文字 ——',
+      (r.rawText ?? '').trim().isEmpty ? '（无）' : r.rawText!.trim(),
+    ];
+    final img = r.sourceImagePath;
+    final withImage = img != null &&
+        !img.toLowerCase().endsWith('.pdf') &&
+        File(img).existsSync();
+    await SharePlus.instance.share(ShareParams(
+      text: lines.join('\n'),
+      files: withImage ? [XFile(img)] : null,
+      subject: '健康档案 · 未关联记录反馈',
+    ));
+  }
+
+  Future<void> _editInfoText(
+      String label, String current, Future<void> Function(String) save) async {
+    final ctrl = TextEditingController(text: current);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('修改$label'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: InputDecoration(hintText: '填写$label'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+              child: const Text('保存')),
+        ],
+      ),
+    );
+    if (result == null) return;
+    try {
+      await save(result);
+      await _load();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('保存失败，请重试')));
+      }
+    }
+  }
+
+  Future<void> _editDate() async {
+    final repo = appRepository;
+    final rid = widget.reportId;
+    final current = _report?.reportDate;
+    if (repo == null || rid == null || current == null) return;
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(now.year, now.month, now.day),
+    );
+    if (picked == null) return;
+    try {
+      await repo.updateReportDate(rid, picked);
+      await _load();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('保存失败，请重试')));
+      }
+    }
+  }
+
+  Future<void> _addMetricsManually() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ManualMetricEntryPage()),
+    );
+    if (mounted) _load();
+  }
+
   Future<void> _shareReport() async {
     final report = _report;
     if (report == null) return;
@@ -99,7 +226,8 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('删除报告后，与该报告关联的检查指标也将删除。是否继续？'),
+        title: const Text('删除这份报告？'),
+        content: const Text('与该报告关联的检查指标也会一并删除，且无法恢复。'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -116,6 +244,10 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       await repo.deleteReportCascade(rid);
       // 数据库行删除成功后再清理本地原图文件，避免遗留占用存储空间。
       await deleteManagedReportImage(imagePath);
+      // F6：报告可能关联过复查提醒，删除后重排一次，避免提醒悬空。
+      try {
+        await syncReminders();
+      } catch (_) {}
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -154,7 +286,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       child: Padding(
         padding: EdgeInsets.all(24),
         child: Text(
-          '没有可显示的报告。请从「添加」页导入真实报告。',
+          '没有可显示的报告。请从首页「拍报告 / 导入报告」添加。',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
@@ -174,24 +306,85 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         else if (_error != null)
           Padding(
             padding: const EdgeInsets.all(24),
-            child: Center(
-                child: Text(_error!,
+            child: Column(
+              children: [
+                Text(_error!,
+                    textAlign: TextAlign.center,
                     style: const TextStyle(
-                        fontSize: 14, color: AppColors.textSecondary))),
+                        fontSize: 14, color: AppColors.textSecondary)),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      child: const Text('返回'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.tonal(
+                      onPressed: () {
+                        setState(() {
+                          _loading = true;
+                          _error = null;
+                        });
+                        _load();
+                      },
+                      child: const Text('重试'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           )
         else ...[
+          const CurrentProfileBadge(),
+          if (_isFailed) ...[
+            _FailedNotice(onAddMetrics: _addMetricsManually),
+            const SizedBox(height: 12),
+          ],
+          if (_isUnlinked) ...[
+            _UnlinkedNotice(
+              onReclassify: _reclassifyUnlinked,
+              onSendToDev: _sendUnlinkedToDev,
+            ),
+            const SizedBox(height: 12),
+          ],
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _InfoRow(label: '医院', value: _report?.hospitalName ?? '—'),
                   _InfoRow(
-                      label: '检查日期',
-                      value: _report == null
-                          ? '—'
-                          : formatDate(_report!.reportDate)),
-                  _InfoRow(label: '类型', value: _report?.reportType ?? '—'),
+                    label: '医院',
+                    value: (_report?.hospitalName ?? '').trim().isEmpty
+                        ? '未填写'
+                        : _report!.hospitalName,
+                    onTap: () => _editInfoText(
+                      '医院',
+                      _report?.hospitalName ?? '',
+                      (v) => appRepository!
+                          .updateReportInfo(widget.reportId!, hospitalName: v),
+                    ),
+                  ),
+                  _InfoRow(
+                    label: '检查日期',
+                    value: _report == null
+                        ? '—'
+                        : formatDate(_report!.reportDate),
+                    onTap: _report == null ? null : _editDate,
+                  ),
+                  _InfoRow(
+                    label: '类型',
+                    value: (_report?.reportType ?? '').trim().isEmpty
+                        ? '未填写'
+                        : _report!.reportType,
+                    onTap: () => _editInfoText(
+                      '类型',
+                      _report?.reportType ?? '',
+                      (v) => appRepository!
+                          .updateReportInfo(widget.reportId!, reportType: v),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -242,7 +435,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                 ],
               ],
             ],
-          ] else if ((_report?.rawText ?? '').trim().isEmpty)
+          ] else if (!_isFailed && (_report?.rawText ?? '').trim().isEmpty)
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text('本报告为图文报告，未录入文字内容',
@@ -252,22 +445,15 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
           const SectionTitle(title: '原始报告'),
           _buildOriginalImage(),
           const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: _shareReport,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
+          // F7：分享入口只保留 AppBar 右上角图标，正文不再重复放按钮。
+          // F8：删除是破坏性操作，放最底、用弱化的红色文字按钮，不与其它操作抢视觉。
+          Center(
+            child: TextButton(
+              onPressed: _deleteReport,
+              style: TextButton.styleFrom(
+                  foregroundColor: AppColors.abnormal),
+              child: const Text('删除报告'),
             ),
-            icon: const Icon(Icons.ios_share, size: 20),
-            label: const Text('分享 / 导出原件', style: TextStyle(fontSize: 16)),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: _deleteReport,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              foregroundColor: AppColors.abnormal,
-            ),
-            child: const Text('删除报告', style: TextStyle(fontSize: 16)),
           ),
         ],
       ],
@@ -330,7 +516,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     return Container(
       height: 140,
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F3F5),
+        color: AppColors.background,
         borderRadius: BorderRadius.circular(16),
       ),
       alignment: Alignment.center,
@@ -437,39 +623,135 @@ class _ImportedMetricCard extends StatelessWidget {
   }
 }
 
-/// 一行「标签 + 值」信息
+/// 一行「标签 + 值」信息。传了 [onTap] 时整行可点、右侧显示编辑图标。
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({required this.label, required this.value, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 88,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            if (onTap != null) ...[
+              const SizedBox(width: 6),
+              const Icon(Icons.edit_outlined,
+                  size: 16, color: AppColors.textSecondary),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// F1：OCR 失败落库的报告在详情页的说明 + 补录入口，避免变成死路。
+class _UnlinkedNotice extends StatelessWidget {
+  final VoidCallback onReclassify;
+  final VoidCallback onSendToDev;
+  const _UnlinkedNotice(
+      {required this.onReclassify, required this.onSendToDev});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 88,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
+          const Text('未关联记录 · 待整理',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
+          const SizedBox(height: 2),
+          const Text('识别时归不到已知类型，先存了原图和文字。是哪一类可以在这里归类；'
+              '如果哪一类都不合适，可以提交给开发者判断要不要新增。',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonalIcon(
+                onPressed: onReclassify,
+                icon: const Icon(Icons.label_outline, size: 18),
+                label: const Text('归类'),
               ),
-            ),
+              OutlinedButton.icon(
+                onPressed: onSendToDev,
+                icon: const Icon(Icons.outgoing_mail, size: 18),
+                label: const Text('归类里没有 · 提交给开发者'),
+              ),
+            ],
           ),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FailedNotice extends StatelessWidget {
+  final VoidCallback onAddMetrics;
+  const _FailedNotice({required this.onAddMetrics});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('这份报告没能自动识别',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
+          const SizedBox(height: 2),
+          const Text('原件已存进档案，不会丢失。你可以手动补录其中的指标。',
+              style:
+                  TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          const SizedBox(height: 8),
+          FilledButton.tonalIcon(
+            onPressed: onAddMetrics,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('补录指标'),
           ),
         ],
       ),

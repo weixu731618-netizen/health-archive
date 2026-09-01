@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,11 +23,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('首页'), findsWidgets);
-    expect(find.byIcon(Icons.notifications_none), findsOneWidget);
-    // 三个导入入口：拍报告（第一优先级）+ 导入截图或 PDF + 添加医学影像
+    expect(find.byIcon(CupertinoIcons.bell), findsOneWidget);
+    // 两个导入入口：拍报告（第一优先级）+ 上传截图或 PDF（统一识别，自动分流）
     expect(find.text('拍报告'), findsOneWidget);
-    expect(find.text('导入截图或 PDF'), findsOneWidget);
-    expect(find.text('添加医学影像'), findsOneWidget);
+    expect(find.text('上传截图或 PDF'), findsOneWidget);
     // 「最近」空状态只有说明，不再有重复的操作按钮
     expect(find.text('还没有健康记录'), findsOneWidget);
     expect(find.text('本人档案'), findsNothing);
@@ -128,30 +128,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // 进入拍摄页（该页独有文案）
-    expect(find.text('对准报告拍照，确保文字清晰'), findsOneWidget);
+    expect(find.text('把整份报告放进画面，横竖均可，确保文字清晰。'), findsOneWidget);
   });
 
-  testWidgets('从右上角头像进入设置，可打开关于页', (tester) async {
+  testWidgets('右上角头像菜单里直接有「关于健康档案」，一步打开', (tester) async {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
-    // 右上角头像入口（首页 AppBar）→ 弹出菜单 → 设置
+    // 右上角头像 → 账户菜单（不再有「设置」这层套娃）
     await tester.tap(find.byType(ProfileSwitcher));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('设置'));
-    await tester.pumpAndSettle();
+    expect(find.text('设置'), findsNothing);
+    expect(find.text('数据与隐私'), findsOneWidget);
 
-    expect(find.text('账号与云端备份'), findsNothing);
-    await tester.scrollUntilVisible(
-      find.text('关于健康档案'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.8.0+18'), findsOneWidget);
+    expect(find.text('版本 1.8.0+28'), findsOneWidget);
     expect(find.textContaining('器官导航'), findsOneWidget);
   });
 

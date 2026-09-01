@@ -9,7 +9,11 @@ import '../utils/reminder_schedule.dart';
 
 /// 用药记录页（MVP）：真实可增删改存。
 class MedicationPage extends StatefulWidget {
-  const MedicationPage({super.key});
+  /// 从「添加」菜单点「用药」进来时为 true：不停在列表页，直接弹「新增用药」表单，
+  /// 免得用户已经选过一次「用药」还要再点右下角「+」。
+  final bool startAdding;
+
+  const MedicationPage({super.key, this.startAdding = false});
 
   @override
   State<MedicationPage> createState() => _MedicationPageState();
@@ -23,6 +27,10 @@ class _MedicationPageState extends State<MedicationPage> {
   void initState() {
     super.initState();
     _load();
+    if (widget.startAdding) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _addOrEdit());
+    }
   }
 
   Future<void> _load() async {

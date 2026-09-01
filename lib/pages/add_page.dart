@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 import 'daily_health_entry_page.dart';
-import 'imaging_report_page.dart';
 import 'manual_metric_entry_page.dart';
 import 'medication_page.dart';
 import 'report_capture_page.dart';
@@ -42,14 +41,12 @@ Future<void> showAddDataSheet(BuildContext context, {String? contextArea}) async
       } else if (mode == 'upload') {
         page = ReportImportPage(initialArea: area);
       }
-    case _AddPick.imaging:
-      page = ImagingReportPage(initialArea: area);
     case _AddPick.manual:
       page = const ManualMetricEntryPage();
     case _AddPick.daily:
       page = const DailyHealthEntryPage();
     case _AddPick.medication:
-      page = const MedicationPage();
+      page = const MedicationPage(startAdding: true);
   }
 
   if (page != null && context.mounted) {
@@ -57,7 +54,7 @@ Future<void> showAddDataSheet(BuildContext context, {String? contextArea}) async
   }
 }
 
-enum _AddPick { lab, imaging, manual, daily, medication }
+enum _AddPick { lab, manual, daily, medication }
 
 class _AddDataSheet extends StatelessWidget {
   const _AddDataSheet();
@@ -78,14 +75,8 @@ class _AddDataSheet extends StatelessWidget {
             _AddRow(
               icon: Icons.description_outlined,
               title: '拍报告 / 上传',
-              subtitle: '拍照或选文件，自动识别检查指标',
+              subtitle: '化验单、影像、病历、处方都可以；自动识别、自动分类',
               onTap: () => Navigator.pop(context, _AddPick.lab),
-            ),
-            _AddRow(
-              icon: Icons.medical_information_outlined,
-              title: '影像 / 病理报告',
-              subtitle: 'X光·CT·B超·病理，识别文字并存原件',
-              onTap: () => Navigator.pop(context, _AddPick.imaging),
             ),
             _AddRow(
               icon: Icons.edit_note,

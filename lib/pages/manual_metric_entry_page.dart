@@ -346,7 +346,6 @@ class _CustomMetricDialogState extends State<_CustomMetricDialog> {
           children: [
             TextFormField(
               controller: _nameCtrl,
-              autofocus: true,
               decoration: const InputDecoration(
                 labelText: '指标名称',
                 hintText: '例如 C反应蛋白',

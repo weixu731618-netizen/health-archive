@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 
 import '../main.dart';
+import '../models/body_area_health.dart';
 import '../utils/image_storage.dart';
+import '../widgets/current_profile_badge.dart';
+import '../widgets/error_note.dart';
 import '../widgets/privacy_note.dart';
+import 'manual_metric_entry_page.dart';
 import 'report_recognition_flow.dart';
 
-/// 拍摄检查报告页（V0.4B）。
-/// 拍摄一张化验单图片 → 预览 → 重新拍摄 / 使用照片 → 走共享识别流程。
+/// 拍报告页：系统相机拍一张（相机自带「✓ 使用照片」确认）→ 直接进识别流程。
+/// 不再有多余的二次预览确认。
 class ReportCapturePage extends StatefulWidget {
   /// 从某个器官 / 系统详情页的 `+` 进来时传入该部位名，识别核对页会作为
   /// 「建议关联部位」默认带上。
@@ -19,14 +24,12 @@ class ReportCapturePage extends StatefulWidget {
 }
 
 class _ReportCapturePageState extends State<ReportCapturePage> {
-  PickedReportImage? _image;
   bool _busy = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    // 进入页面即尝试拍照
     WidgetsBinding.instance.addPostFrameCallback((_) => _capture());
   }
 
@@ -38,112 +41,128 @@ class _ReportCapturePageState extends State<ReportCapturePage> {
     });
     try {
       final img = await captureLabReportImage();
-      if (mounted) setState(() => _image = img);
-    } catch (_) {
+      if (!mounted) return;
+      // 相机里已经确认过照片，直接进识别流程；本页替换掉，返回时不回到空壳页。
+      await Navigator.of(context).pushReplacement(MaterialPageRoute(
+        builder: (_) => _RecognitionLauncher(
+          image: img,
+          initialArea: widget.initialArea,
+        ),
+      ));
+    } on StateError {
+      // image_picker 取消（未拍摄）→ 退回上一页，不当错误。
+      if (mounted) Navigator.of(context).pop();
+    } on PlatformException catch (e) {
       if (mounted) {
-        setState(() => _error = '无法读取该图片，请重新拍摄');
+        final denied = e.code.contains('access_denied') ||
+            e.code == 'camera_access_denied';
+        setState(() => _error = denied
+            ? '没有相机权限。请到「设置 › 隐私与安全性 › 相机」里允许本 App 使用相机，再回来重试。'
+            : '打不开相机，请重试，或改用「上传报告」从相册 / 文件选择。');
       }
+    } catch (_) {
+      if (mounted) setState(() => _error = '无法读取这张照片，请重新拍摄');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _usePhoto() async {
-    final img = _image;
-    if (img == null) return;
-    // 与「上传」完全相同的识别流程
-    await startReportRecognitionFlow(context, img,
-        initialArea: widget.initialArea);
+  void _goManual() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ManualMetricEntryPage()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final area = widget.initialArea;
     return Scaffold(
-      appBar: AppBar(title: const Text('拍摄检查报告')),
+      appBar: AppBar(title: const Text('拍报告')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
+          const CurrentProfileBadge(),
           const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: Text(
-              '对准报告拍照，确保文字清晰',
+              '把整份报告放进画面，横竖均可，确保文字清晰。',
               style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
           ),
+          if (area != null && coreBodyAreaOrder.contains(area))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text('将关联到：$area',
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary)),
+            ),
           const PrivacyNote(),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: _image == null
-                  ? Column(
-                      children: [
-                        if (_busy) ...[
-                          const CircularProgressIndicator(),
-                          const SizedBox(height: 12),
-                        ] else ...[
-                          const Icon(Icons.photo_camera_outlined,
-                              size: 56, color: AppColors.textSecondary),
-                          const SizedBox(height: 8),
-                          const Text('尚未拍摄',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.textSecondary)),
-                        ],
-                        const SizedBox(height: 12),
-                        FilledButton.icon(
-                          onPressed: _busy ? null : _capture,
-                          icon: const Icon(Icons.photo_camera),
-                          label: const Text('拍摄'),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.memory(
-                            _image!.bytes,
-                            height: 320,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            TextButton.icon(
-                              onPressed: _busy ? null : _capture,
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('重新拍摄'),
-                            ),
-                            const SizedBox(width: 12),
-                            FilledButton.icon(
-                              onPressed: _usePhoto,
-                              icon: const Icon(Icons.check),
-                              label: const Text('使用照片'),
-                            ),
-                          ],
-                        ),
-                      ],
+              child: Column(
+                children: [
+                  if (_busy) ...[
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 12),
+                    const Text('正在打开相机…',
+                        style: TextStyle(
+                            fontSize: 14, color: AppColors.textSecondary)),
+                  ] else ...[
+                    const Icon(Icons.photo_camera_outlined,
+                        size: 56, color: AppColors.textSecondary),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: _capture,
+                      icon: const Icon(Icons.photo_camera),
+                      label: const Text('打开相机'),
                     ),
+                  ],
+                ],
+              ),
             ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.abnormal.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(_error!,
-                  style: const TextStyle(
-                      fontSize: 14, color: AppColors.textPrimary)),
+            ErrorNote(
+              message: _error!,
+              actions: [
+                ErrorNoteAction('重试', _busy ? null : _capture),
+                ErrorNoteAction('手工录入', _goManual),
+              ],
             ),
           ],
         ],
       ),
     );
   }
+}
+
+/// 极薄中转 widget：initState 触发识别流程后立刻被替换。
+class _RecognitionLauncher extends StatefulWidget {
+  final PickedReportImage image;
+  final String? initialArea;
+  const _RecognitionLauncher({required this.image, this.initialArea});
+
+  @override
+  State<_RecognitionLauncher> createState() => _RecognitionLauncherState();
+}
+
+class _RecognitionLauncherState extends State<_RecognitionLauncher> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await startReportRecognitionFlowPages(
+        context,
+        [widget.image],
+        initialArea: widget.initialArea,
+      );
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: CircularProgressIndicator()));
 }

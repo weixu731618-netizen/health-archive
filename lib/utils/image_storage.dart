@@ -7,6 +7,30 @@ import 'package:path/path.dart' as p;
 import 'pdf_support.dart';
 import 'report_image_save.dart';
 
+/// 用户在选择/扫描环节直接取消（不是错误，调用方应静默返回，不弹提示）。
+class PickCancelled implements Exception {
+  const PickCancelled();
+}
+
+/// 按文件头魔数判断真实图片格式，返回扩展名（'.png' / '.jpg'）。
+/// 后端会核对魔数与声明类型是否一致，不能只信插件给的扩展名。
+String _imageExtFromMagic(Uint8List b) {
+  if (b.length >= 8 &&
+      b[0] == 0x89 &&
+      b[1] == 0x50 &&
+      b[2] == 0x4E &&
+      b[3] == 0x47) {
+    return '.png';
+  }
+  return '.jpg'; // 默认按 JPEG（0xFF 0xD8 0xFF）
+}
+
+/// image_picker 的取图参数：限制到 2400px + JPEG 质量 80。
+/// 一张报告的 JPEG 一般 0.5~2MB，稳稳在后端 8MB 上限内，文字也够清晰。
+/// （不自己重编码——dart:ui 只能编 PNG，相机照片转 PNG 反而更大。）
+const int _pickMaxDim = 2400;
+const int _pickJpegQuality = 80;
+
 /// 用户选择化验单图片的结果。
 ///
 /// 选的是 PDF 时：[bytes] / [fileName] 是「首页渲染出的 PNG」（供识别和预览），
@@ -86,6 +110,63 @@ Future<PickedReportImage> pickLabReportImage() async {
   );
 }
 
+/// 选择一份报告文件，**支持多页 PDF**。返回按页顺序的图片列表：
+/// - 图片：一个元素，等同 [pickLabReportImage]。
+/// - PDF：每页渲染成一张 PNG；第 1 页的 [PickedReportImage.path] 指向落盘的**原始 PDF**
+///   （供查看原件），其余页 path 为 null。最多 [kPdfMaxPages] 页。
+Future<List<PickedReportImage>> pickLabReportPages() async {
+  final file = await FilePicker.pickFile(
+    type: FileType.custom,
+    allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+  );
+  if (file == null) {
+    throw const PickCancelled();
+  }
+  final bytes = await file.readAsBytes();
+  if (bytes.isEmpty) {
+    throw StateError('无法读取该文件');
+  }
+
+  if (!isPdfFileName(file.name)) {
+    final ext = p.extension(file.name).isEmpty ? '.jpg' : p.extension(file.name);
+    String? savedPath;
+    try {
+      savedPath = await saveReportImageLocally(bytes, ext);
+    } catch (_) {
+      savedPath = null;
+    }
+    return [
+      PickedReportImage(bytes: bytes, fileName: file.name, path: savedPath),
+    ];
+  }
+
+  final List<Uint8List> pageImages;
+  try {
+    pageImages = await renderPdfAllPagesToPng(bytes);
+  } catch (_) {
+    throw StateError('无法读取该 PDF（可能已加密或损坏），请改用报告截图');
+  }
+  String? pdfPath;
+  try {
+    pdfPath = await saveReportImageLocally(bytes, '.pdf');
+  } catch (_) {
+    pdfPath = null;
+  }
+  final baseName = p.basenameWithoutExtension(file.name);
+  final stem = baseName.isEmpty ? 'report' : baseName;
+  return [
+    for (var i = 0; i < pageImages.length; i++)
+      PickedReportImage(
+        bytes: pageImages[i],
+        fileName: '${stem}_p${i + 1}.png',
+        // 只有第一页挂原始 PDF 路径，作为整份报告的「原件」。
+        path: i == 0 ? pdfPath : null,
+        mimeType: 'application/pdf',
+        isPdf: true,
+      ),
+  ];
+}
+
 /// 从系统**相册**选一张报告图片（截图 / 已拍好的报告照）。
 /// 走 image_picker，直接进「照片」，而不是像 [pickLabReportImage] 那样进「文件」App
 /// ——「文件」里看不到相册照片，是用户反馈「选不到相册」的原因。
@@ -93,9 +174,9 @@ Future<PickedReportImage> pickLabReportImage() async {
 Future<PickedReportImage> pickReportImageFromGallery() async {
   final picked = await ImagePicker().pickImage(
     source: ImageSource.gallery,
-    maxWidth: 4096,
-    maxHeight: 4096,
-    imageQuality: 92,
+    maxWidth: _pickMaxDim.toDouble(),
+    maxHeight: _pickMaxDim.toDouble(),
+    imageQuality: _pickJpegQuality,
   );
   if (picked == null) {
     throw StateError('未选择图片');
@@ -104,8 +185,7 @@ Future<PickedReportImage> pickReportImageFromGallery() async {
   if (bytes.isEmpty) {
     throw StateError('无法读取该图片');
   }
-  final ext =
-      p.extension(picked.name).isEmpty ? '.jpg' : p.extension(picked.name);
+  final ext = _imageExtFromMagic(bytes);
   String? savedPath;
   try {
     savedPath = await saveReportImageLocally(bytes, ext);
@@ -114,23 +194,20 @@ Future<PickedReportImage> pickReportImageFromGallery() async {
   }
   return PickedReportImage(
     bytes: bytes,
-    fileName: picked.name,
+    fileName: 'gallery$ext',
     path: savedPath,
-    mimeType: 'image/jpeg',
+    mimeType: ext == '.png' ? 'image/png' : 'image/jpeg',
   );
 }
 
-/// 拍照获取化验单图片（V0.4B）。
+/// 拍照获取化验单图片（V0.4B）—— 系统相机拍一张，无扫描器、无自动取景框。
 /// 仅移动端（Android/iOS）调用相机；Web/桌面调用会抛出一个明确提示的异常。
-/// 拍照得到的图片会与「上传」一样落盘（返回 [PickedReportImage]），随后进入同一识别流程。
 Future<PickedReportImage> captureLabReportImage() async {
-  // image_picker 在支持的平台上调用系统相机；Web 上会使用文件上传（capture），
-  // 若不希望 Web 走相机，可在 Web 端返回错误提示。
   final picked = await ImagePicker().pickImage(
     source: ImageSource.camera,
-    maxWidth: 4096,
-    maxHeight: 4096,
-    imageQuality: 92,
+    maxWidth: _pickMaxDim.toDouble(),
+    maxHeight: _pickMaxDim.toDouble(),
+    imageQuality: _pickJpegQuality,
   );
   if (picked == null) {
     throw StateError('未拍摄图片');
@@ -139,9 +216,8 @@ Future<PickedReportImage> captureLabReportImage() async {
   if (bytes.isEmpty) {
     throw StateError('无法读取该图片');
   }
-  final ext = p.extension(picked.name).isEmpty ? '.jpg' : p.extension(picked.name);
+  final ext = _imageExtFromMagic(bytes);
 
-  // 尝试落盘；失败则仅保留字节做会话内预览。
   String? savedPath;
   try {
     savedPath = await saveReportImageLocally(bytes, ext);
@@ -150,8 +226,8 @@ Future<PickedReportImage> captureLabReportImage() async {
   }
   return PickedReportImage(
     bytes: bytes,
-    fileName: picked.name,
+    fileName: 'camera$ext',
     path: savedPath,
-    mimeType: 'image/jpeg',
+    mimeType: ext == '.png' ? 'image/png' : 'image/jpeg',
   );
 }

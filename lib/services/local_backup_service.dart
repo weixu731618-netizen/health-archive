@@ -6,6 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../main.dart';
@@ -21,6 +22,29 @@ import 'snapshot_importer.dart';
 class LocalBackupService {
   static const String _dataEntryName = 'data.json';
   static const String _imagesPrefix = 'images/';
+
+  /// 上次成功导出本地备份包的时间（ISO8601）。首页据此判断是否提醒备份。
+  static const String _kLastBackupAtKey = 'local_backup_last_at';
+
+  /// 上次成功导出本地备份包的时间；从没备份过返回 null。
+  Future<DateTime?> getLastBackupAt() async {
+    try {
+      final s = (await SharedPreferences.getInstance())
+          .getString(_kLastBackupAtKey);
+      return s == null ? null : DateTime.tryParse(s);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _markBackedUp() async {
+    try {
+      await (await SharedPreferences.getInstance())
+          .setString(_kLastBackupAtKey, DateTime.now().toIso8601String());
+    } catch (_) {
+      // 记录失败不影响备份本身，仅使首页提醒判断保守（继续提醒）。
+    }
+  }
 
   // 防止损坏/构造过的 zip 造成解压炸弹式内存占用：
   // 压缩包本身、条目数、单条目解压后大小、整体解压后总大小都设上限。
@@ -69,6 +93,7 @@ class LocalBackupService {
     final file = File(p.join(folder.path,
         'health_archive_backup_${DateTime.now().millisecondsSinceEpoch}.zip'));
     await file.writeAsBytes(zipBytes, flush: true);
+    await _markBackedUp();
     return file.path;
   }
 

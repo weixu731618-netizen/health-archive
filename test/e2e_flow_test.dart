@@ -56,11 +56,10 @@ void main() {
     await tester.pumpWidget(const HealthArchiveApp());
     await tester.pumpAndSettle();
 
-    // 记录页只显示真实数据（带来源标记）。
+    // 记录页显示这条真实数据（分组列表行：标题 + 值 · 日期）。
     await tester.tap(find.descendant(
         of: find.byType(NavigationBar), matching: find.text('记录')));
     await tester.pumpAndSettle();
-    expect(find.text('手工录入'), findsOneWidget);
     expect(find.text('糖化血红蛋白'), findsWidgets);
     expect(find.textContaining('6.8 %'), findsWidgets);
 
@@ -169,7 +168,10 @@ void main() {
     await tester.tap(find.text('识别'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('真实识别后端未配置'), findsOneWidget);
+    // 后端未配置：走失败路径，展示统一的中性文案（不把技术原因透给用户），
+    // 且不显示「重新识别」（重试必然再失败）。
+    expect(find.text('这张读不出内容'), findsOneWidget);
+    expect(find.text('重新识别'), findsNothing);
     expect(find.text('报告核对'), findsNothing);
   });
 
@@ -195,8 +197,7 @@ void main() {
     // 图文报告无结构化指标：不再渲染「影响部位」「检查指标」两个空区块。
     expect(find.text('影响部位'), findsNothing);
     expect(find.text('检查指标'), findsNothing);
-    // A2：详情页提供「分享 / 导出原件」入口（正文按钮 + AppBar 图标）。
-    expect(find.text('分享 / 导出原件'), findsOneWidget);
+    // A2 / F7：详情页分享入口保留在 AppBar 右上角图标（正文不再重复放按钮）。
     expect(find.byIcon(Icons.ios_share), findsWidgets);
   });
 
@@ -213,8 +214,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('CT · 图文报告'), findsOneWidget);
-    expect(find.text('市中心医院'), findsOneWidget);
-    // 卡片瘦身：结论摘要 / 影响部位 / 分享按钮都不铺在卡片上，点开报告详情才有。
+    expect(find.textContaining('市中心医院'), findsOneWidget);
+    // 行瘦身：结论摘要 / 影响部位 / 分享按钮都不铺在行上，点开报告详情才有。
     expect(find.textContaining('未见明显异常密度影'), findsNothing);
     expect(find.textContaining('0 项指标'), findsNothing);
     expect(find.byIcon(Icons.ios_share), findsNothing);

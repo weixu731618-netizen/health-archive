@@ -53,6 +53,10 @@ class ReportResultPage extends StatefulWidget {
   /// 当前档案名。仅多档案时传非 null，用于显示「已保存到：X」（§25）。
   final String? savedProfileName;
 
+  /// E4：核对页保存后已弹过关联窗、且用户把这份报告关联成了某条待复查。
+  /// 为 true 时结果页不再重复提示「设置复查提醒」。
+  final bool alreadyLinkedFollowup;
+
   const ReportResultPage({
     super.key,
     required this.reportId,
@@ -64,6 +68,7 @@ class ReportResultPage extends StatefulWidget {
     required this.rawText,
     required this.dateFromOcr,
     this.savedProfileName,
+    this.alreadyLinkedFollowup = false,
   });
 
   @override
@@ -86,6 +91,8 @@ class _ReportResultPageState extends State<ReportResultPage> {
       byArea.putIfAbsent(a, () => 0);
     }
     for (final m in widget.metrics) {
+      // 未匹配标准指标的（metricId == 'UNKNOWN'）不计入身体系统，也不新建「其他」。
+      if (m.metricId == 'UNKNOWN') continue;
       final a = bodyAreaForSystem(m.bodySystem);
       byArea.update(a, (v) => v + (m.isAbnormal ? 1 : 0),
           ifAbsent: () => m.isAbnormal ? 1 : 0);
@@ -97,8 +104,14 @@ class _ReportResultPageState extends State<ReportResultPage> {
   }
 
   bool get _suggestsRecheck {
+    // E4：核对页已关联过复查，就不再提示。
+    if (widget.alreadyLinkedFollowup) return false;
+    final t = widget.rawText.trim();
+    if (t.isEmpty) return false; // E5：没识别出全文就别猜
+    // E5：先排除明确「不用复查」的说法，避免命中里面的「复查」二字。
+    const negative = ['无需复查', '不需复查', '无须复查', '暂不复查', '无复查', '不必复查'];
+    if (negative.any(t.contains)) return false;
     const kw = ['复查', '随访', '复诊', '定期检查', '定期复查', '按时复查'];
-    final t = widget.rawText;
     return kw.any(t.contains);
   }
 
@@ -172,6 +185,12 @@ class _ReportResultPageState extends State<ReportResultPage> {
             label: '需要关注',
             value: '$_abnormal 项',
             valueColor: _abnormal > 0 ? AppColors.warning : null,
+            // E6：有需要关注的指标时，点这行去报告详情看是哪几项。
+            onTap: _abnormal > 0
+                ? () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) =>
+                        ReportDetailPage(reportId: widget.reportId)))
+                : null,
           ),
           if (_systems.isNotEmpty) ...[
             const SizedBox(height: 18),
@@ -201,8 +220,6 @@ class _ReportResultPageState extends State<ReportResultPage> {
           const _HintCard(
             text: '以后上传同类报告，可自动和这些历史记录比较变化。',
           ),
-          const SizedBox(height: 12),
-          _OriginalRow(reportId: widget.reportId),
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -230,26 +247,19 @@ class _ReportResultPageState extends State<ReportResultPage> {
                       style: TextStyle(
                           fontSize: 13, color: AppColors.textSecondary)),
                 ),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context)
-                          .push(MaterialPageRoute(
-                              builder: (_) =>
-                                  ReportDetailPage(reportId: widget.reportId))),
-                      child: const Text('查看原始报告'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () =>
-                          Navigator.of(context).popUntil((r) => r.isFirst),
-                      child: const Text('查看身体档案'),
-                    ),
-                  ),
-                ],
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(context).popUntil((r) => r.isFirst),
+                style:
+                    FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                child: const Text('完成'),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) =>
+                        ReportDetailPage(reportId: widget.reportId))),
+                child: const Text('查看原始报告'),
               ),
             ],
           ),
@@ -309,13 +319,27 @@ class _ReportResultPageState extends State<ReportResultPage> {
     );
     if (months == null) return;
     final due = DateTime.now().add(Duration(days: months * 30));
+    // 复查目标以「涉及的身体系统」为主，不叫「复查 生化检查」这种泛报告名。
+    // 报告没关联到任何系统时，才退回用报告类型。
+    final areaList = widget.areas.toList();
+    final String title;
+    final String? areaName;
+    if (areaList.isNotEmpty) {
+      final shown = areaList.take(2).join('、');
+      title = '复查 $shown${areaList.length > 2 ? ' 等' : ''}';
+      areaName = areaList.first;
+    } else {
+      title = '复查 ${widget.reportType.isEmpty ? '报告' : widget.reportType}';
+      areaName = null;
+    }
     try {
       await repo.insertReminder(
         kind: 'recheck',
-        title: '复查 ${widget.reportType.isEmpty ? '报告' : widget.reportType}',
+        title: title,
         detail: '来自 ${formatDate(widget.reportDate)} 的报告建议',
         dueDate: due,
         sourceType: 'report',
+        areaName: areaName,
       );
       await syncReminders();
       AnalyticsEvents.followupCreatedFromResult();
@@ -412,27 +436,40 @@ class _StatRow extends StatelessWidget {
   final String value;
   final bool strong;
   final Color? valueColor;
+  final VoidCallback? onTap;
   const _StatRow({
     required this.label,
     required this.value,
     this.strong = false,
     this.valueColor,
+    this.onTap,
   });
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 14, color: AppColors.textPrimary)),
-            Text(value,
-                style: TextStyle(
-                    fontSize: strong ? 15 : 14,
-                    fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
-                    color: valueColor ?? AppColors.textPrimary)),
-          ],
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 14, color: AppColors.textPrimary)),
+              Row(
+                children: [
+                  Text(value,
+                      style: TextStyle(
+                          fontSize: strong ? 15 : 14,
+                          fontWeight:
+                              strong ? FontWeight.w700 : FontWeight.w500,
+                          color: valueColor ?? AppColors.textPrimary)),
+                  if (onTap != null)
+                    const Icon(Icons.chevron_right,
+                        size: 18, color: AppColors.textSecondary),
+                ],
+              ),
+            ],
+          ),
         ),
       );
 }
@@ -532,28 +569,6 @@ class _HintCard extends StatelessWidget {
           ],
         ),
       );
-}
-
-class _OriginalRow extends StatelessWidget {
-  final int reportId;
-  const _OriginalRow({required this.reportId});
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: const Icon(Icons.description_outlined,
-            color: AppColors.textSecondary),
-        title: const Text('原始报告已保存', style: TextStyle(fontSize: 14)),
-        subtitle: const Text('点击查看原图 / 原件',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-        trailing:
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => ReportDetailPage(reportId: reportId))),
-      ),
-    );
-  }
 }
 
 /// §21：后端没识别出检查日期时，提示用户确认（可跳过，不阻塞）。

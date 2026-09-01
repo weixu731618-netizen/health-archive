@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -7,6 +8,7 @@ import 'medical_summary_page.dart';
 import 'medication_page.dart';
 
 /// 「健康资料」：不常看、看医生时才用的东西。从右上角头像菜单进入。
+/// UI 与「家庭成员」一致，走 iOS 分组内嵌列表。
 class HealthRecordsPage extends StatefulWidget {
   const HealthRecordsPage({super.key});
 
@@ -50,72 +52,58 @@ class _HealthRecordsPageState extends State<HealthRecordsPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('健康资料')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.only(top: 8, bottom: 28),
         children: [
-          _Tile(
-            icon: Icons.checklist_rtl_outlined,
-            title: '慢性病',
-            trailing: _conditions > 0 ? '$_conditions 项' : null,
-            onTap: () => _push(const ConditionPage()),
+          CupertinoListSection.insetGrouped(
+            children: [
+              _row(
+                icon: CupertinoIcons.checkmark_square,
+                title: '慢性病',
+                info: _conditions > 0 ? '$_conditions 项' : null,
+                onTap: () => _push(const ConditionPage()),
+              ),
+              _row(
+                icon: CupertinoIcons.capsule,
+                title: '用药',
+                info: _meds > 0 ? '$_meds 条' : null,
+                onTap: () => _push(const MedicationPage()),
+              ),
+              _row(
+                icon: CupertinoIcons.exclamationmark_triangle,
+                title: '过敏史',
+                info: _allergies > 0 ? '$_allergies 条' : null,
+                onTap: () => _push(const AllergyPage()),
+              ),
+            ],
           ),
-          _Tile(
-            icon: Icons.medication_outlined,
-            title: '用药',
-            trailing: _meds > 0 ? '$_meds 条' : null,
-            onTap: () => _push(const MedicationPage()),
-          ),
-          _Tile(
-            icon: Icons.warning_amber_outlined,
-            title: '过敏史',
-            trailing: _allergies > 0 ? '$_allergies 条' : null,
-            onTap: () => _push(const AllergyPage()),
-          ),
-          _Tile(
-            icon: Icons.description_outlined,
-            title: '给医生看的摘要',
-            trailing: '导出',
-            onTap: () => _push(const MedicalSummaryPage()),
+          CupertinoListSection.insetGrouped(
+            footer: const Text('整理成一页，方便就诊时给医生看。'),
+            children: [
+              _row(
+                icon: CupertinoIcons.doc_text,
+                title: '给医生看的摘要',
+                info: '导出',
+                onTap: () => _push(const MedicalSummaryPage()),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
-}
 
-class _Tile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String? trailing;
-  final VoidCallback onTap;
-  const _Tile({
-    required this.icon,
-    required this.title,
-    this.trailing,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: Icon(icon, color: AppColors.textSecondary),
-        title: Text(title,
-            style: const TextStyle(fontSize: 15, color: AppColors.textPrimary)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (trailing != null)
-              Text(trailing!,
-                  style: const TextStyle(
-                      fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-          ],
-        ),
-        onTap: onTap,
-      ),
+  Widget _row({
+    required IconData icon,
+    required String title,
+    String? info,
+    required VoidCallback onTap,
+  }) {
+    return CupertinoListTile.notched(
+      leading: Icon(icon, color: AppColors.primary),
+      title: Text(title),
+      additionalInfo: info == null ? null : Text(info),
+      trailing: const CupertinoListTileChevron(),
+      onTap: onTap,
     );
   }
 }

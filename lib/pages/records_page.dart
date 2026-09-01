@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
@@ -5,7 +6,9 @@ import '../data/health_repository.dart';
 import '../main.dart';
 import '../models/body_area_health.dart';
 import '../models/metric_source.dart';
+import '../models/report_models.dart' show kUnlinkedReportType;
 import '../utils/format.dart';
+import '../widgets/ios_tap.dart';
 import '../widgets/profile_switcher.dart';
 import '../utils/records_filter.dart';
 import 'add_page.dart';
@@ -29,7 +32,7 @@ class RecordsPage extends StatefulWidget {
 }
 
 /// 记录条目类型。随访记录（FOLLOW_UP_RECORD）暂无创建入口，先不做。
-enum _RecKind { report, image, manual }
+enum _RecKind { report, image, unlinked, manual }
 
 class _RecordsPageState extends State<RecordsPage> {
   /// 资料类型筛选：all / report（化验报告）/ image（影像·图文报告）/ manual（手动·日常记录）。
@@ -37,6 +40,7 @@ class _RecordsPageState extends State<RecordsPage> {
     ('全部', 'all'),
     ('报告', 'report'),
     ('影像', 'image'),
+    ('未关联', 'unlinked'),
     ('手动记录', 'manual'),
   ];
   String _typeFilter = _recordsTypeFilter;
@@ -78,12 +82,10 @@ class _RecordsPageState extends State<RecordsPage> {
       if (!_searchOpen) {
         _searchCtrl.clear();
         _filter = _filter.copyWith(query: '');
+        _searchFocus.unfocus(); // 收起时也收键盘
       }
     });
-    if (_searchOpen) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _searchFocus.requestFocus());
-    }
+    // 展开时只露出搜索框，不自动弹键盘——用户点搜索框才弹，避免"一点放大镜键盘就糊脸"。
   }
 
   Future<void> _load() async {
@@ -155,17 +157,18 @@ class _RecordsPageState extends State<RecordsPage> {
       appBar: AppBar(
         title: const Text('记录'),
         actions: [
-          IconButton(
-            tooltip: '搜索',
-            icon: Icon(
-              _searchOpen ? Icons.search_off : Icons.search,
-              color: _filter.query.isNotEmpty ? AppColors.primary : null,
+          if (!_searchOpen)
+            IconButton(
+              tooltip: '搜索',
+              icon: Icon(
+                CupertinoIcons.search,
+                color: _filter.query.isNotEmpty ? AppColors.primary : null,
+              ),
+              onPressed: _toggleSearch,
             ),
-            onPressed: _toggleSearch,
-          ),
           IconButton(
             tooltip: '新增记录',
-            icon: const Icon(Icons.add),
+            icon: const Icon(CupertinoIcons.add),
             onPressed: _openAddMenu,
           ),
           const ProfileSwitcher(),
@@ -178,78 +181,85 @@ class _RecordsPageState extends State<RecordsPage> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
           children: [
             if (_searchOpen) ...[
-              TextField(
-                controller: _searchCtrl,
-                focusNode: _searchFocus,
-                onChanged: (v) =>
-                    setState(() => _filter = _filter.copyWith(query: v)),
-                decoration: InputDecoration(
-                  isDense: true,
-                  filled: true,
-                  hintText: '搜索医院、指标、报告内容、标签…',
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  suffixIcon: _filter.query.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.close, size: 18),
-                          onPressed: () {
-                            _searchCtrl.clear();
-                            setState(
-                                () => _filter = _filter.copyWith(query: ''));
-                          },
-                        ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+              Row(
+                children: [
+                  Expanded(
+                    child: CupertinoSearchTextField(
+                      controller: _searchCtrl,
+                      focusNode: _searchFocus,
+                      placeholder: '搜索医院、指标、报告内容、标签…',
+                      onChanged: (v) =>
+                          setState(() => _filter = _filter.copyWith(query: v)),
+                    ),
                   ),
-                ),
+                  CupertinoButton(
+                    padding: const EdgeInsets.only(left: 8),
+                    onPressed: _toggleSearch,
+                    child: const Text('取消'),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
             ],
-            // 第一层：资料类型。视觉权重最高。
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                for (final (label, value) in _typeFilters)
-                  ChoiceChip(
-                    label: Text(label),
-                    showCheckmark: false,
-                    selected: _typeFilter == value,
-                    // 再点一下选中的 chip → 回到「全部」。
-                    onSelected: (sel) => setState(() {
-                      _typeFilter = sel ? value : 'all';
-                      _recordsTypeFilter = _typeFilter; // 记住，切 Tab 不丢
-                    }),
+            // 一行：资料类型胶囊（可横向滚动）+ 固定在右侧的「筛选」（器官 / 时间 / 标签 / 医院都收进去）。
+            SizedBox(
+              height: 34,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      key: const PageStorageKey('records-type-scroll'),
+                      scrollDirection: Axis.horizontal,
+                      padding: EdgeInsets.zero,
+                      children: [
+                        for (final (label, value) in _typeFilters) ...[
+                          _TypePill(
+                            label: label,
+                            selected: _typeFilter == value,
+                            // 再点一下选中的 → 回到「全部」。
+                            onTap: () => setState(() {
+                              _typeFilter =
+                                  _typeFilter == value ? 'all' : value;
+                              _recordsTypeFilter = _typeFilter; // 切 Tab 不丢
+                            }),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                      ],
+                    ),
                   ),
-              ],
+                  const SizedBox(width: 4),
+                  _TypePill(
+                    label: _sheetActiveCount > 0
+                        ? '筛选·$_sheetActiveCount'
+                        : '筛选',
+                    selected: _sheetActiveCount > 0,
+                    onTap: _openFilterSheet,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 6),
-            // 第二层：器官 / 高级筛选。放在下面一行，用文字按钮，权重明显更低。
-            Row(
-              children: [
-                _OrganFilterButton(
-                  organ: _organFilter,
-                  onTap: _pickOrgan,
-                ),
-                const SizedBox(width: 4),
-                _FilterButton(
-                  activeCount: _filter.activeCount,
-                  onTap: _openFilterSheet,
-                ),
-              ],
-            ),
-            if (_filter.activeCount > 0) ...[
+            if (_filterSummary != null) ...[
               const SizedBox(height: 8),
-              _ActiveFilterChips(
-                filter: _filter,
-                onClear: () => setState(() => _filter = RecordFilter(
-                      query: _filter.query,
-                    )),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(_filterSummary!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary)),
+                  ),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 28),
+                    onPressed: _clearSheetFilters,
+                    child: const Text('清除', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             if (_loading)
               const Padding(
                 padding: EdgeInsets.all(24),
@@ -292,7 +302,7 @@ class _RecordsPageState extends State<RecordsPage> {
                                 color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 14),
-                          FilledButton(
+                          CupertinoButton.filled(
                             onPressed: _openAddMenu,
                             child: const Text('添加第一条记录'),
                           ),
@@ -302,7 +312,7 @@ class _RecordsPageState extends State<RecordsPage> {
             else
               for (final block in _groupByMonth(_timeline)) ...[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(2, 4, 0, 8),
+                  padding: const EdgeInsets.fromLTRB(4, 8, 0, 2),
                   child: Text(
                     block.month,
                     style: const TextStyle(
@@ -311,22 +321,25 @@ class _RecordsPageState extends State<RecordsPage> {
                         color: AppColors.textSecondary),
                   ),
                 ),
-                for (final item in block.items) ...[
-                  if (item.report != null)
-                    _ReportTile(
-                      report: item.report!,
-                      metricCount: _reportMetricCounts[item.report!.id] ?? 0,
-                      onTap: () => _openReport(context, item.report!),
-                      onEditTags: () => _editTags(item.report!),
-                    )
-                  else
-                    _RealTile(
-                      entry: item.entry!,
-                      onTap: () => _openReal(context, item.entry!),
-                      onLongPress: () => _openReal(context, item.entry!),
-                    ),
-                  const SizedBox(height: 12),
-                ],
+                CupertinoListSection.insetGrouped(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  children: [
+                    for (final item in block.items)
+                      if (item.report != null)
+                        _ReportRow(
+                          report: item.report!,
+                          metricCount:
+                              _reportMetricCounts[item.report!.id] ?? 0,
+                          onTap: () => _openReport(context, item.report!),
+                          onEditTags: () => _editTags(item.report!),
+                        )
+                      else
+                        _RealRow(
+                          entry: item.entry!,
+                          onTap: () => _openReal(context, item.entry!),
+                        ),
+                  ],
+                ),
               ],
           ],
         ),
@@ -341,41 +354,28 @@ class _RecordsPageState extends State<RecordsPage> {
     if (mounted) _load();
   }
 
-  Future<void> _pickOrgan() async {
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: const Text('全部器官'),
-                trailing: _organFilter == null
-                    ? const Icon(Icons.check, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.pop(context, '__all__'),
-              ),
-              for (final a in coreBodyAreaOrder)
-                ListTile(
-                  title: Text(a),
-                  trailing: _organFilter == a
-                      ? const Icon(Icons.check, color: AppColors.primary)
-                      : null,
-                  onTap: () => Navigator.pop(context, a),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (picked == null) return;
-    setState(() {
-      _organFilter = picked == '__all__' ? null : picked;
-      _recordsOrganFilter = _organFilter;
-    });
+  /// 「筛选」胶囊上的角标数：器官 + 高级筛选（时间 / 只看异常 / 标签 / 医院）。
+  int get _sheetActiveCount =>
+      _filter.activeCount + (_organFilter != null ? 1 : 0);
+
+  /// 胶囊行下方那一行灰字摘要；没有任何筛选时为 null。
+  String? get _filterSummary {
+    final parts = <String>[
+      if (_organFilter != null) _organFilter!,
+      if (_filter.abnormalOnly) '只看异常',
+      for (final t in _filter.tags) '#$t',
+      for (final h in _filter.hospitals) h,
+      if (_filter.dateRange != null)
+        '${formatDateShort(_filter.dateRange!.start)}~${formatDateShort(_filter.dateRange!.end)}',
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
   }
+
+  void _clearSheetFilters() => setState(() {
+        _filter = RecordFilter(query: _filter.query);
+        _organFilter = null;
+        _recordsOrganFilter = null;
+      });
 
   bool _matchesType(_RecKind k) {
     switch (_typeFilter) {
@@ -383,6 +383,8 @@ class _RecordsPageState extends State<RecordsPage> {
         return k == _RecKind.report;
       case 'image':
         return k == _RecKind.image;
+      case 'unlinked':
+        return k == _RecKind.unlinked;
       case 'manual':
         return k == _RecKind.manual;
       default:
@@ -395,7 +397,9 @@ class _RecordsPageState extends State<RecordsPage> {
     final out = <_TimelineItem>[];
     for (final r in _reports) {
       final count = _reportMetricCounts[r.id] ?? 0;
-      final kind = count > 0 ? _RecKind.report : _RecKind.image;
+      final kind = r.reportType == kUnlinkedReportType
+          ? _RecKind.unlinked
+          : (count > 0 ? _RecKind.report : _RecKind.image);
       if (!_matchesType(kind)) continue;
       final areas = affectedBodyAreasForRawMetricNames(
           _reportMetricNames[r.id] ?? const []);
@@ -459,17 +463,25 @@ class _RecordsPageState extends State<RecordsPage> {
   }
 
   Future<void> _openFilterSheet() async {
-    final result = await showModalBottomSheet<RecordFilter>(
+    final result =
+        await showModalBottomSheet<({RecordFilter filter, String? organ})>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (_) => _FilterSheet(
         initial: _filter,
+        initialOrgan: _organFilter,
         allTags: _allTags,
         allHospitals: _allHospitals,
       ),
     );
-    if (result != null) setState(() => _filter = result);
+    if (result != null) {
+      setState(() {
+        _filter = result.filter;
+        _organFilter = result.organ;
+        _recordsOrganFilter = _organFilter;
+      });
+    }
   }
 
   Future<void> _editTags(MedicalReport report) async {
@@ -504,82 +516,43 @@ class _MonthBlock {
   _MonthBlock(this.month, this.items);
 }
 
-class _OrganFilterButton extends StatelessWidget {
-  final String? organ;
+/// 记录页第一层「资料类型」筛选胶囊。无水波纹，选中态浅色填充 + 主色描边。
+class _TypePill extends StatelessWidget {
+  final String label;
+  final bool selected;
   final VoidCallback onTap;
-  const _OrganFilterButton({required this.organ, required this.onTap});
+  const _TypePill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final active = organ != null;
-    return TextButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.category_outlined, size: 16),
-      label: Text(active ? '器官·$organ' : '器官',
-          style: const TextStyle(fontSize: 13)),
-      style: TextButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        foregroundColor:
-            active ? AppColors.primary : AppColors.textSecondary,
-      ),
-    );
-  }
-}
-
-class _FilterButton extends StatelessWidget {
-  final int activeCount;
-  final VoidCallback onTap;
-  const _FilterButton({required this.activeCount, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: onTap,
-      icon: const Icon(Icons.tune, size: 16),
-      label: Text(activeCount == 0 ? '筛选' : '筛选·$activeCount',
-          style: const TextStyle(fontSize: 13)),
-      style: TextButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        foregroundColor:
-            activeCount == 0 ? AppColors.textSecondary : AppColors.primary,
-      ),
-    );
-  }
-}
-
-class _ActiveFilterChips extends StatelessWidget {
-  final RecordFilter filter;
-  final VoidCallback onClear;
-  const _ActiveFilterChips({required this.filter, required this.onClear});
-
-  @override
-  Widget build(BuildContext context) {
-    final labels = <String>[
-      if (filter.abnormalOnly) '只看异常',
-      for (final t in filter.tags) '标签：$t',
-      for (final h in filter.hospitals) h,
-      if (filter.dateRange != null)
-        '${formatDate(filter.dateRange!.start)} ~ ${formatDate(filter.dateRange!.end)}',
-    ];
-    return Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        for (final l in labels)
-          Chip(
-            label: Text(l, style: const TextStyle(fontSize: 12)),
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return IosTap(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? AppColors.primary : const Color(0xFFD9DEE3),
           ),
-        TextButton(
-          onPressed: onClear,
-          style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 8)),
-          child: const Text('清除', style: TextStyle(fontSize: 12)),
         ),
-      ],
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? AppColors.primary : AppColors.textPrimary,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -701,15 +674,15 @@ String _valueText(double value, String unit) => '${fmtNum(value)} $unit';
 String sourceTypeLabel(String sourceType) =>
     metricSourceLabelFromWire(sourceType);
 
-/// 一份导入报告的时间线卡片：只三行——日期、医院、类型。
-/// 结论 / 影响部位 / 标签 / 分享 等都点开报告详情做，卡片上不铺。
-class _ReportTile extends StatelessWidget {
+/// 一份导入报告的时间线行：标题「类型 · N 项指标」，副标题「医院 · 日期」。
+/// 结论 / 影响部位 / 标签 / 分享 等都点开报告详情做，行里不铺。
+class _ReportRow extends StatelessWidget {
   final MedicalReport report;
   final int metricCount;
   final VoidCallback onTap;
   final VoidCallback onEditTags;
 
-  const _ReportTile({
+  const _ReportRow({
     required this.report,
     required this.metricCount,
     required this.onTap,
@@ -719,117 +692,53 @@ class _ReportTile extends StatelessWidget {
   String get _typeLabel =>
       report.reportType.isNotEmpty ? report.reportType : '报告';
 
-  /// 有指标 → 「类型 · N 项指标」；无指标（影像/病理等图文报告）→ 「类型 · 图文报告」。
-  String get _summaryLine =>
-      metricCount > 0 ? '$_typeLabel · $metricCount 项指标' : '$_typeLabel · 图文报告';
+  String get _summaryLine {
+    if (report.reportType == kUnlinkedReportType) return '未关联记录 · 待整理';
+    return metricCount > 0
+        ? '$_typeLabel · $metricCount 项指标'
+        : '$_typeLabel · 图文报告';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+    final hospital =
+        report.hospitalName.isEmpty ? '医院未知' : report.hospitalName;
+    return GestureDetector(
+      onLongPress: onEditTags, // 长按仍可改标签（左滑操作留到下一轮）
+      child: CupertinoListTile.notched(
+        title: Text(_summaryLine,
+            style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text('$hospital · ${formatDateShort(report.reportDate)}'),
+        trailing: const CupertinoListTileChevron(),
         onTap: onTap,
-        onLongPress: onEditTags,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                formatDate(report.reportDate),
-                style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                report.hospitalName.isEmpty ? '医院未知' : report.hospitalName,
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _summaryLine,
-                style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 }
 
-/// 渲染一条真实数据卡片
-class _RealTile extends StatelessWidget {
+/// 一条真实数据（手工录入 / 日常记录）的时间线行。
+class _RealRow extends StatelessWidget {
   final RealEntry entry;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
 
-  const _RealTile({
-    required this.entry,
-    required this.onTap,
-    required this.onLongPress,
-  });
+  const _RealRow({required this.entry, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    formatDate(entry.measuredAt),
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
-                  ),
-                  const Spacer(),
-                  _SourceChip(text: entry.cornerLabel),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                entry.title,
-                style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                entry.subtitle,
-                style: const TextStyle(
-                    fontSize: 14, color: AppColors.textSecondary),
-              ),
-              if (entry.status.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  entry.status,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: _statusColor(entry.status),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    final sub =
+        '${entry.subtitle} · ${formatDateShort(entry.measuredAt)}';
+    return CupertinoListTile.notched(
+      title: Text(entry.title,
+          style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(sub),
+      additionalInfo: entry.status.isEmpty
+          ? null
+          : Text(entry.status,
+              style: TextStyle(
+                  color: _statusColor(entry.status),
+                  fontWeight: FontWeight.w500)),
+      trailing: const CupertinoListTileChevron(),
+      onTap: onTap,
     );
   }
 }
@@ -841,13 +750,16 @@ Color _statusColor(String s) {
   return AppColors.insufficient;
 }
 
-/// B3：筛选 bottom sheet（时间范围 / 只看异常 / 标签 / 医院）。
+/// B3：筛选 bottom sheet（器官 / 时间范围 / 只看异常 / 标签 / 医院）。
+/// 返回 `(filter, organ)` —— 器官原本是页面上单独的入口，现在收进这里一起选。
 class _FilterSheet extends StatefulWidget {
   final RecordFilter initial;
+  final String? initialOrgan;
   final List<String> allTags;
   final List<String> allHospitals;
   const _FilterSheet({
     required this.initial,
+    required this.initialOrgan,
     required this.allTags,
     required this.allHospitals,
   });
@@ -860,6 +772,7 @@ class _FilterSheetState extends State<_FilterSheet> {
   late bool _abnormalOnly;
   late Set<String> _tags;
   late Set<String> _hospitals;
+  String? _organ;
   DateTimeRange? _range;
   RecordDatePreset _preset = RecordDatePreset.all;
 
@@ -869,6 +782,7 @@ class _FilterSheetState extends State<_FilterSheet> {
     _abnormalOnly = widget.initial.abnormalOnly;
     _tags = {...widget.initial.tags};
     _hospitals = {...widget.initial.hospitals};
+    _organ = widget.initialOrgan;
     _range = widget.initial.dateRange;
     if (_range != null) _preset = RecordDatePreset.custom;
   }
@@ -910,11 +824,40 @@ class _FilterSheetState extends State<_FilterSheet> {
               const Text('筛选',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('只看异常'),
-                value: _abnormalOnly,
-                onChanged: (v) => setState(() => _abnormalOnly = v),
+              const Text('器官',
+                  style:
+                      TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _TypePill(
+                    label: '全部',
+                    selected: _organ == null,
+                    onTap: () => setState(() => _organ = null),
+                  ),
+                  for (final a in coreBodyAreaOrder)
+                    _TypePill(
+                      label: a,
+                      selected: _organ == a,
+                      onTap: () => setState(
+                          () => _organ = _organ == a ? null : a),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    const Expanded(child: Text('只看异常')),
+                    CupertinoSwitch(
+                      value: _abnormalOnly,
+                      onChanged: (v) => setState(() => _abnormalOnly = v),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 4),
               const Text('时间范围',
@@ -923,6 +866,7 @@ class _FilterSheetState extends State<_FilterSheet> {
               const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: [
                   for (final e in const {
                     '全部': RecordDatePreset.all,
@@ -930,18 +874,17 @@ class _FilterSheetState extends State<_FilterSheet> {
                     '近 3 个月': RecordDatePreset.month3,
                     '近 1 年': RecordDatePreset.year1,
                   }.entries)
-                    ChoiceChip(
-                      label: Text(e.key),
+                    _TypePill(
+                      label: e.key,
                       selected: _preset == e.value,
-                      onSelected: (_) => _applyPreset(e.value),
+                      onTap: () => _applyPreset(e.value),
                     ),
-                  ChoiceChip(
-                    label: Text(_preset == RecordDatePreset.custom &&
-                            _range != null
-                        ? '${formatDate(_range!.start)}~${formatDate(_range!.end)}'
-                        : '自定义'),
+                  _TypePill(
+                    label: _preset == RecordDatePreset.custom && _range != null
+                        ? '${formatDateShort(_range!.start)}~${formatDateShort(_range!.end)}'
+                        : '自定义',
                     selected: _preset == RecordDatePreset.custom,
-                    onSelected: (_) => _pickCustomRange(),
+                    onTap: _pickCustomRange,
                   ),
                 ],
               ),
@@ -953,14 +896,14 @@ class _FilterSheetState extends State<_FilterSheet> {
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
-                  runSpacing: 4,
+                  runSpacing: 8,
                   children: [
                     for (final t in widget.allTags)
-                      FilterChip(
-                        label: Text(t),
+                      _TypePill(
+                        label: t,
                         selected: _tags.contains(t),
-                        onSelected: (s) =>
-                            setState(() => s ? _tags.add(t) : _tags.remove(t)),
+                        onTap: () => setState(() =>
+                            _tags.contains(t) ? _tags.remove(t) : _tags.add(t)),
                       ),
                   ],
                 ),
@@ -973,14 +916,15 @@ class _FilterSheetState extends State<_FilterSheet> {
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
-                  runSpacing: 4,
+                  runSpacing: 8,
                   children: [
                     for (final h in widget.allHospitals)
-                      FilterChip(
-                        label: Text(h),
+                      _TypePill(
+                        label: h,
                         selected: _hospitals.contains(h),
-                        onSelected: (s) => setState(
-                            () => s ? _hospitals.add(h) : _hospitals.remove(h)),
+                        onTap: () => setState(() => _hospitals.contains(h)
+                            ? _hospitals.remove(h)
+                            : _hospitals.add(h)),
                       ),
                   ],
                 ),
@@ -989,25 +933,31 @@ class _FilterSheetState extends State<_FilterSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(
-                        RecordFilter(query: widget.initial.query),
-                      ),
-                      child: const Text('重置'),
+                    child: CupertinoButton(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      onPressed: () => Navigator.of(context).pop((
+                        filter: RecordFilter(query: widget.initial.query),
+                        organ: null,
+                      )),
+                      child: const Text('重置',
+                          style: TextStyle(color: AppColors.primary)),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: FilledButton(
-                      onPressed: () => Navigator.of(context).pop(
-                        RecordFilter(
+                    child: CupertinoButton.filled(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      onPressed: () => Navigator.of(context).pop((
+                        filter: RecordFilter(
                           query: widget.initial.query,
                           abnormalOnly: _abnormalOnly,
                           tags: _tags,
                           hospitals: _hospitals,
                           dateRange: _range,
                         ),
-                      ),
+                        organ: _organ,
+                      )),
                       child: const Text('应用'),
                     ),
                   ),
@@ -1129,26 +1079,6 @@ class _TagEditSheetState extends State<_TagEditSheet> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SourceChip extends StatelessWidget {
-  final String text;
-  const _SourceChip({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 12, color: AppColors.primary),
       ),
     );
   }

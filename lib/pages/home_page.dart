@@ -1,14 +1,18 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../models/backup_nudge.dart';
 import '../models/body_area_health.dart';
 import '../utils/format.dart';
+import '../widgets/ios_tap.dart';
 import '../widgets/profile_switcher.dart';
 import '../widgets/section_title.dart';
 import 'body_page.dart';
-import 'imaging_report_page.dart';
 import 'notification_center_page.dart';
+import 'privacy_page.dart';
 import 'reminders_page.dart';
 import 'report_capture_page.dart';
 import 'report_detail_page.dart';
@@ -43,6 +47,17 @@ class _HomePageState extends State<HomePage> {
   List<Reminder> _overdueFollowups = const [];
   List<Reminder> _upcomingFollowups = const [];
   List<MedicalReport> _recent = const [];
+
+  // —— 换机不丢数据（V1 无登录 / 云同步，只靠本地 zip 备份）——
+  static const String _kRestoreHintDismissedKey = 'home_restore_hint_dismissed';
+  static const String _kBackupNudgeAckKey = 'home_backup_nudge_ack_at';
+
+  /// 本机还没有任何报告 / 指标：可能是新装机，提示可从旧机备份恢复。
+  bool _dbEmpty = false;
+  bool _restoreHintDismissed = false;
+
+  /// 攒够报告且上次备份后又有新报告：提示导出一份本地备份。
+  bool _showBackupNudge = false;
 
   @override
   void initState() {
@@ -102,10 +117,39 @@ class _HomePageState extends State<HomePage> {
       final sortedReports = [...reports]
         ..sort((a, b) => b.reportDate.compareTo(a.reportDate));
 
+      // —— 备份提醒判定 ——
+      final dbEmpty = reports.isEmpty && metrics.isEmpty;
+      DateTime? newestReportCreatedAt;
+      for (final r in reports) {
+        if (newestReportCreatedAt == null ||
+            r.createdAt.isAfter(newestReportCreatedAt)) {
+          newestReportCreatedAt = r.createdAt;
+        }
+      }
+      bool restoreHintDismissed = false;
+      DateTime? nudgeAckAt;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        restoreHintDismissed =
+            prefs.getBool(_kRestoreHintDismissedKey) ?? false;
+        final ack = prefs.getString(_kBackupNudgeAckKey);
+        if (ack != null) nudgeAckAt = DateTime.tryParse(ack);
+      } catch (_) {}
+      final lastBackupAt = await localBackupService.getLastBackupAt();
+      final showNudge = shouldShowBackupNudge(
+        reportCount: reports.length,
+        newestReportCreatedAt: newestReportCreatedAt,
+        lastBackupAt: lastBackupAt,
+        nudgeAckAt: nudgeAckAt,
+      );
+
       if (mounted) {
         setState(() {
           _unread = unread;
           _metrics = metrics;
+          _dbEmpty = dbEmpty;
+          _restoreHintDismissed = restoreHintDismissed;
+          _showBackupNudge = showNudge;
           _attention = attention;
           _overdueFollowups = overdue;
           _upcomingFollowups = upcoming;
@@ -118,6 +162,22 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _dismissRestoreHint() async {
+    setState(() => _restoreHintDismissed = true);
+    try {
+      await (await SharedPreferences.getInstance())
+          .setBool(_kRestoreHintDismissedKey, true);
+    } catch (_) {}
+  }
+
+  Future<void> _dismissBackupNudge() async {
+    setState(() => _showBackupNudge = false);
+    try {
+      await (await SharedPreferences.getInstance()).setString(
+          _kBackupNudgeAckKey, DateTime.now().toIso8601String());
+    } catch (_) {}
+  }
+
   Future<void> _push(Widget page) => Navigator.of(context)
       .push(MaterialPageRoute(builder: (_) => page))
       .then((_) => _load());
@@ -125,7 +185,7 @@ class _HomePageState extends State<HomePage> {
   /// 待跟进：按「已到期复查 → 即将到期复查 → 当前明确异常」排序。
   /// 长期关注（慢性病）不在首页列，放到部位详情页。
   /// 首页最多显示前 3 项，超过时给一行「查看全部 N 项 ›」进完整列表页。
-  List<Widget> _attentionWidgets() => [
+  List<Widget> _attentionTiles() => [
         for (final r in _overdueFollowups)
           _RecheckRow(
             reminder: r,
@@ -147,27 +207,28 @@ class _HomePageState extends State<HomePage> {
           ),
       ];
 
-  List<Widget> _buildAttentionRows() {
-    final rows = _attentionWidgets();
+  Widget _attentionSection() {
+    final tiles = _attentionTiles();
     const cap = 3;
-    final shown = rows.length > cap ? rows.sublist(0, cap) : rows;
-
-    return [
-      for (final w in shown) ...[w, const SizedBox(height: 10)],
-      if (rows.length > cap)
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: () => _push(AttentionListPage(
+    final shown = tiles.length > cap ? tiles.sublist(0, cap) : tiles;
+    return CupertinoListSection.insetGrouped(
+      margin: const EdgeInsets.only(top: 8, bottom: 4),
+      children: [
+        ...shown,
+        if (tiles.length > cap)
+          CupertinoListTile.notched(
+            title: Text('查看全部 ${tiles.length} 项',
+                style: const TextStyle(color: AppColors.primary)),
+            trailing: const CupertinoListTileChevron(),
+            onTap: () => _push(AttentionListPage(
               metrics: _metrics,
               overdueFollowups: _overdueFollowups,
               upcomingFollowups: _upcomingFollowups,
               attentionAreas: [for (final a in _attention) a.area],
             )),
-            child: Text('查看全部 ${rows.length} 项 ›'),
           ),
-        ),
-    ];
+      ],
+    );
   }
 
   @override
@@ -205,45 +266,54 @@ class _HomePageState extends State<HomePage> {
                         onTap: () => _push(const ReportCapturePage()),
                       ),
                       const SizedBox(height: 10),
-                      Row(children: [
-                        Expanded(
-                          child: _BigButton(
-                            icon: Icons.image_outlined,
-                            label: '导入截图或 PDF',
-                            onTap: () => _push(const ReportImportPage()),
-                          ),
+                      // 上传统一入口：化验单、影像、病历、处方都走这里，识别后
+                      // 自动分流（有指标→逐项核对；没指标→图文报告）。
+                      _BigButton(
+                        icon: CupertinoIcons.cloud_upload,
+                        label: '上传截图或 PDF',
+                        onTap: () => _push(const ReportImportPage()),
+                      ),
+
+                      // 换机不丢数据：新装机提示可从旧机备份恢复
+                      if (_dbEmpty && !_restoreHintDismissed) ...[
+                        const SizedBox(height: 14),
+                        _RestoreHintCard(
+                          onTap: () => _push(const PrivacyPage()),
+                          onDismiss: _dismissRestoreHint,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _BigButton(
-                            icon: Icons.medical_information_outlined,
-                            label: '添加医学影像',
-                            onTap: () => _push(const ImagingReportPage()),
-                          ),
+                      ],
+
+                      // 攒够报告且上次备份后又有新报告：提示导出本地备份
+                      if (!_dbEmpty && _showBackupNudge) ...[
+                        const SizedBox(height: 14),
+                        _BackupNudgeCard(
+                          onTap: () => _push(const PrivacyPage()),
+                          onDismiss: _dismissBackupNudge,
                         ),
-                      ]),
+                      ],
 
                       // 2. 需要关注 —— 有内容才显示；超过 3 行折叠
                       if (showAttention) ...[
-                        const SizedBox(height: 22),
                         const SectionTitle(title: '待跟进'),
-                        const SizedBox(height: 8),
-                        ..._buildAttentionRows(),
+                        _attentionSection(),
                       ],
 
                       // 3. 最近
-                      const SizedBox(height: 22),
                       const SectionTitle(title: '最近'),
-                      const SizedBox(height: 8),
                       if (_recent.isEmpty)
                         const _EmptyRecent()
                       else
-                        for (final r in _recent)
-                          _RecentTile(
-                            report: r,
-                            onTap: () =>
-                                _push(ReportDetailPage(reportId: r.id)),
-                          ),
+                        CupertinoListSection.insetGrouped(
+                          margin: const EdgeInsets.only(top: 8, bottom: 4),
+                          children: [
+                            for (final r in _recent)
+                              _RecentTile(
+                                report: r,
+                                onTap: () =>
+                                    _push(ReportDetailPage(reportId: r.id)),
+                              ),
+                          ],
+                        ),
                     ],
                   ),
           ),
@@ -265,30 +335,30 @@ class _PrimaryAddCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.primary.withValues(alpha: .08),
+    return IosTap(
+      onTap: onTap,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-          child: Column(children: [
-            const Icon(Icons.photo_camera_outlined,
-                size: 30, color: AppColors.primary),
-            const SizedBox(height: 10),
-            const Text('拍报告',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary)),
-            const SizedBox(height: 4),
-            Text('对着纸质报告拍照',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.primary.withValues(alpha: .8))),
-          ]),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(16),
         ),
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        child: Column(children: [
+          const Icon(CupertinoIcons.camera,
+              size: 30, color: AppColors.primary),
+          const SizedBox(height: 10),
+          const Text('拍报告',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary)),
+          const SizedBox(height: 4),
+          Text('对着纸质报告拍照',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.primary.withValues(alpha: .8))),
+        ]),
       ),
     );
   }
@@ -303,27 +373,127 @@ class _BigButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.primary.withValues(alpha: .08),
+    return IosTap(
+      onTap: onTap,
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        child: Column(children: [
+          Icon(icon, size: 24, color: AppColors.primary),
+          const SizedBox(height: 8),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary)),
+        ]),
+      ),
+    );
+  }
+}
+
+/// 换机不丢数据用的两张轻提醒卡片，共用同一套样式：左图标 + 标题/副标题 + 右上角关闭。
+class _HintCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+  const _HintCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dismissible(
+      key: ValueKey('home-hint-$title'),
+      direction: DismissDirection.horizontal,
+      onDismissed: (_) => onDismiss(),
+      child: IosTap(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          child: Column(children: [
-            Icon(icon, size: 24, color: AppColors.primary),
-            const SizedBox(height: 8),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary)),
-          ]),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: .06),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: AppColors.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary)),
+                    const SizedBox(height: 3),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(CupertinoIcons.chevron_forward,
+                  size: 15, color: AppColors.textSecondary),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onDismiss,
+                child: const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: Icon(CupertinoIcons.xmark,
+                      size: 14, color: AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+class _RestoreHintCard extends StatelessWidget {
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+  const _RestoreHintCard({required this.onTap, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) => _HintCard(
+        icon: CupertinoIcons.arrow_counterclockwise,
+        title: '在旧手机备份过？',
+        subtitle: '从备份文件恢复健康档案',
+        onTap: onTap,
+        onDismiss: onDismiss,
+      );
+}
+
+class _BackupNudgeCard extends StatelessWidget {
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+  const _BackupNudgeCard({required this.onTap, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) => _HintCard(
+        icon: CupertinoIcons.archivebox,
+        title: '建议备份健康档案',
+        subtitle: '导出一份备份文件，换手机 / 重装不丢数据',
+        onTap: onTap,
+        onDismiss: onDismiss,
+      );
 }
 
 class _AttentionCard extends StatelessWidget {
@@ -339,19 +509,12 @@ class _AttentionCard extends StatelessWidget {
     final count = area.abnormalCount;
     final countText = count > 0 ? '$count 项指标异常' : '需要关注';
 
-    return Card(
-      child: ListTile(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: Icon(Icons.circle, size: 12, color: dotColor),
-        title: Text(area.name, style: const TextStyle(fontSize: 15)),
-        subtitle: Text(countText,
-            style: const TextStyle(
-                fontSize: 12, color: AppColors.textSecondary)),
-        trailing:
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-        onTap: onTap,
-      ),
+    return CupertinoListTile.notched(
+      leading: Icon(CupertinoIcons.circle_fill, size: 12, color: dotColor),
+      title: Text(area.name),
+      subtitle: Text(countText),
+      trailing: const CupertinoListTileChevron(),
+      onTap: onTap,
     );
   }
 }
@@ -387,24 +550,17 @@ class _RecheckRow extends StatelessWidget {
     } else {
       sub = '距离复查还有 $days 天';
     }
-    return Card(
-      child: ListTile(
-        dense: true,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: Icon(Icons.event_outlined,
+    return CupertinoListTile.notched(
+      leading: Icon(CupertinoIcons.calendar,
+          color: urgent ? AppColors.warning : AppColors.textSecondary),
+      title: Text(reminder.title),
+      subtitle: Text(
+        sub,
+        style: TextStyle(
             color: urgent ? AppColors.warning : AppColors.textSecondary),
-        title: Text(reminder.title, style: const TextStyle(fontSize: 14)),
-        subtitle: Text(
-          sub,
-          style: TextStyle(
-              fontSize: 12,
-              color: urgent ? AppColors.warning : AppColors.textSecondary),
-        ),
-        trailing:
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-        onTap: onTap,
       ),
+      trailing: const CupertinoListTileChevron(),
+      onTap: onTap,
     );
   }
 }
@@ -420,23 +576,13 @@ class _RecentTile extends StatelessWidget {
     final label = [r.hospitalName, r.reportType]
         .where((e) => e.trim().isNotEmpty)
         .join(' · ');
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Card(
-        child: ListTile(
-          dense: true,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14)),
-          leading: const Icon(Icons.description_outlined,
-              color: AppColors.textSecondary),
-          title: Text(label.isEmpty ? '报告' : label,
-              style: const TextStyle(fontSize: 14)),
-          subtitle: Text(formatDate(r.reportDate),
-              style: const TextStyle(
-                  fontSize: 12, color: AppColors.textSecondary)),
-          onTap: onTap,
-        ),
-      ),
+    return CupertinoListTile.notched(
+      leading: const Icon(CupertinoIcons.doc_text,
+          color: AppColors.textSecondary),
+      title: Text(label.isEmpty ? '报告' : label),
+      subtitle: Text(formatDate(r.reportDate)),
+      trailing: const CupertinoListTileChevron(),
+      onTap: onTap,
     );
   }
 }
@@ -479,7 +625,7 @@ class _BellAction extends StatelessWidget {
     return Stack(alignment: Alignment.center, children: [
       IconButton(
         tooltip: '通知',
-        icon: const Icon(Icons.notifications_none),
+        icon: const Icon(CupertinoIcons.bell),
         onPressed: onTap,
       ),
       if (unread > 0)
@@ -554,11 +700,11 @@ class AttentionListPage extends StatelessWidget {
               child: Text('当前没有需要关注的项目',
                   style: TextStyle(color: AppColors.textSecondary)),
             )
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              itemCount: rows.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => rows[i],
+          : ListView(
+              padding: const EdgeInsets.only(top: 8, bottom: 24),
+              children: [
+                CupertinoListSection.insetGrouped(children: rows),
+              ],
             ),
     );
   }

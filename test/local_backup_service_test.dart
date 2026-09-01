@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:health_archive/data/app_database.dart';
 import 'package:health_archive/data/health_repository.dart';
@@ -30,6 +31,7 @@ void main() {
   final backup = LocalBackupService();
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     tempDocs = Directory.systemTemp.createTempSync('health_archive_test_docs_');
     PathProviderPlatform.instance = _FakePathProviderPlatform(tempDocs);
 
@@ -263,5 +265,17 @@ void main() {
 
     await deleteManagedReportImage(external.path);
     expect(external.existsSync(), isTrue);
+  });
+
+  test('exportBundle 成功后记录 lastBackupAt（首页据此判断是否提醒备份）', () async {
+    expect(await backup.getLastBackupAt(), isNull);
+
+    final before = DateTime.now().subtract(const Duration(seconds: 1));
+    await repo.insertDisease(name: '高血压', status: '确诊');
+    await backup.exportBundle();
+
+    final at = await backup.getLastBackupAt();
+    expect(at, isNotNull);
+    expect(at!.isAfter(before), isTrue);
   });
 }

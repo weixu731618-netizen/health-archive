@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../data/app_database.dart';
 import '../data/health_repository.dart';
 import '../main.dart';
+import '../pages/about_page.dart';
 import '../pages/family_members_page.dart';
 import '../pages/health_records_page.dart';
-import '../pages/profile_page.dart';
+import '../pages/privacy_page.dart';
 
 /// 每页右上角的头像入口（首页 / 身体 / 记录共用）。
 /// 一个控件承担两件事：
@@ -68,6 +69,7 @@ class _ProfileSwitcherState extends State<ProfileSwitcher> {
     final result = await showModalBottomSheet<_MenuPick>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true, // 允许弹层高过默认的一半
       builder: (_) => _ProfileMenuSheet(people: _people, activeId: activeId),
     );
     if (result == null || !mounted) return;
@@ -78,8 +80,10 @@ class _ProfileSwitcherState extends State<ProfileSwitcher> {
         await _push(const HealthRecordsPage());
       case _PickKind.family:
         await _push(const FamilyMembersPage());
-      case _PickKind.settings:
-        await _push(const ProfilePage());
+      case _PickKind.privacy:
+        await _push(const PrivacyPage());
+      case _PickKind.about:
+        await _push(const AboutPage());
     }
   }
 
@@ -132,7 +136,7 @@ class _ProfileSwitcherState extends State<ProfileSwitcher> {
   }
 }
 
-enum _PickKind { profile, records, family, settings }
+enum _PickKind { profile, records, family, privacy, about }
 
 class _MenuPick {
   final _PickKind kind;
@@ -149,12 +153,22 @@ class _ProfileMenuSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final multi = people.length > 1;
+    // 拉高到屏幕 80%，不再是默认的半屏；内容不足时靠 minHeight 撑起，可下滑关闭。
+    final minH = MediaQuery.of(context).size.height * 0.8;
     return SafeArea(
-      child: SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: minH),
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
+              child: Text('账户',
+                  style:
+                      TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            ),
             if (multi) ...[
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
@@ -188,14 +202,21 @@ class _ProfileMenuSheet extends StatelessWidget {
                   Navigator.pop(context, const _MenuPick(_PickKind.family)),
             ),
             _ActionTile(
-              icon: Icons.settings_outlined,
-              label: '设置',
+              icon: Icons.shield_outlined,
+              label: '数据与隐私',
               onTap: () =>
-                  Navigator.pop(context, const _MenuPick(_PickKind.settings)),
+                  Navigator.pop(context, const _MenuPick(_PickKind.privacy)),
+            ),
+            _ActionTile(
+              icon: Icons.info_outline,
+              label: '关于健康档案',
+              onTap: () =>
+                  Navigator.pop(context, const _MenuPick(_PickKind.about)),
             ),
             const SizedBox(height: 8),
           ],
         ),
+      ),
       ),
     );
   }

@@ -4,17 +4,23 @@ import '../main.dart';
 import '../models/body_area_health.dart';
 import '../models/report_followup.dart';
 import '../utils/image_storage.dart';
+import '../utils/imaging_text_parse.dart';
+import '../utils/report_image_save.dart';
 import '../widgets/privacy_note.dart';
 import 'followup_match.dart';
+import 'report_profile_guard.dart';
 
 /// 图文类报告 / 病历的可选类型。这类是"图片 + 文字"，没有可提取的数字指标，
 /// 跟化验单走不同的存档路径。
 /// 慢病升级 步骤5：在影像/病理之外，补上出院小结、手术记录、门诊病历、处方笺、疫苗接种。
+/// 受限 12 类。**没有「其他」** —— 归不到这 12 类的图文内容走「未关联记录」，
+/// 不再往这个列表里塞模糊选项。与 report_recognition_service.kImagingReportTypes 一致。
 const List<String> imagingReportTypes = [
   'X光',
   'CT',
   'MRI',
   'B超',
+  '彩超',
   '心电图',
   '病理',
   '出院小结',
@@ -22,27 +28,84 @@ const List<String> imagingReportTypes = [
   '门诊病历',
   '处方笺',
   '疫苗接种',
-  '其他',
 ];
 
-/// 添加影像/病理报告：拍照或选图 → 自动 OCR 提取全部文字（含诊断结论，可编辑修正）
+/// 添加图文报告 / 病历：拍照或选图 → 自动 OCR 提取全部文字（含诊断结论，可编辑修正）
 /// → 手填医院/日期/类型 → 保存为一条 medical_reports 记录，不关联任何检查指标。
+///
+/// 两种进入方式：
+/// - 直接进（器官详情页 `+`）：本页自己选图 + 调 `/api/report/ocr`。
+/// - [ImagingReportPage.prefilled]：上传/拍照统一流程识别后发现没有结构化指标，
+///   把已识别的图 + OCR 全文 + 猜出的类型/日期/部位带进来，本页不再重复 OCR。
 class ImagingReportPage extends StatefulWidget {
   /// 从某个器官 / 系统详情页的 `+` 进来时传入该部位名，作为「建议关联」默认勾上。
   final String? initialArea;
 
-  const ImagingReportPage({super.key, this.initialArea});
+  /// 预填模式（来自统一识别流程）。null = 用户自己选图那条老路径。
+  final ImagingPrefill? prefill;
+
+  const ImagingReportPage({super.key, this.initialArea}) : prefill = null;
+
+  ImagingReportPage.prefilled({
+    super.key,
+    required PickedReportImage image,
+    required String ocrText,
+    String patientName = '',
+    String patientGender = '',
+    DateTime? patientBirthDate,
+    DateTime? reportDate,
+    String hospitalName = '',
+    String reportType = '', // 已确定的类型（DeepSeek imagingType / 用户手选）；空=页面自己猜
+    this.initialArea,
+  }) : prefill = ImagingPrefill(
+          image: image,
+          ocrText: ocrText,
+          patientName: patientName,
+          patientGender: patientGender,
+          patientBirthDate: patientBirthDate,
+          reportDate: reportDate,
+          hospitalName: hospitalName,
+          reportType: reportType,
+        );
 
   @override
   State<ImagingReportPage> createState() => _ImagingReportPageState();
+}
+
+/// 统一识别流程传进来的预填数据。
+class ImagingPrefill {
+  final PickedReportImage image;
+  final String ocrText;
+  final String patientName;
+  final String patientGender;
+  final DateTime? patientBirthDate;
+  final DateTime? reportDate;
+  final String hospitalName;
+  final String reportType;
+
+  const ImagingPrefill({
+    required this.image,
+    required this.ocrText,
+    required this.patientName,
+    required this.patientGender,
+    required this.patientBirthDate,
+    required this.reportDate,
+    required this.hospitalName,
+    this.reportType = '',
+  });
 }
 
 class _ImagingReportPageState extends State<ImagingReportPage> {
   PickedReportImage? _image;
   final _textCtrl = TextEditingController();
   final _hospitalCtrl = TextEditingController();
+  // 直接进入本页（器官详情页 +）时的默认类型；预填模式一定会带来确定的类型覆盖它。
   String _reportType = imagingReportTypes.first;
   DateTime _reportDate = DateTime.now();
+
+  /// 用户是否手动改过「报告类型 / 检查日期」。改过之后 OCR 就不再覆盖预填。
+  bool _typeTouched = false;
+  bool _dateTouched = false;
 
   /// 这份影像涉及的身体部位（手选，影像没有指标推不出来）。
   /// 从器官详情页进来时预置该部位（[ImagingReportPage.initialArea]），用户可改。
@@ -58,9 +121,43 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
   bool _ocrRunning = false;
   String? _ocrError;
   bool _saving = false;
+  bool _saved = false;
+
+  /// 预填模式带进来的患者信息（保存时用于「家庭成员核对」）。
+  String _patientName = '';
+  String _patientGender = '';
+  DateTime? _patientBirthDate;
+
+  @override
+  void initState() {
+    super.initState();
+    final pre = widget.prefill;
+    if (pre != null) {
+      _image = pre.image;
+      _textCtrl.text = pre.ocrText;
+      _hospitalCtrl.text = pre.hospitalName;
+      _patientName = pre.patientName;
+      _patientGender = pre.patientGender;
+      _patientBirthDate = pre.patientBirthDate;
+      if (pre.reportType.isNotEmpty &&
+          imagingReportTypes.contains(pre.reportType)) {
+        _reportType = pre.reportType;
+        _typeTouched = true; // 类型已确定，别让文本猜测覆盖
+      }
+      if (pre.reportDate != null) {
+        _reportDate = pre.reportDate!;
+        _dateTouched = true; // 后端给了日期，别让文本猜测覆盖
+      }
+      _applyGuessesFromText(pre.ocrText);
+    }
+  }
 
   @override
   void dispose() {
+    // 预填模式下用户没保存就退出：清掉带进来的原图，避免磁盘留孤儿文件。
+    if (widget.prefill != null && !_saved) {
+      deleteManagedReportImage(_image?.path);
+    }
     _textCtrl.dispose();
     _hospitalCtrl.dispose();
     super.dispose();
@@ -96,6 +193,7 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
         setState(() {
           // 只在文本框为空时自动填入，避免覆盖用户已经手动编辑过的内容。
           if (_textCtrl.text.trim().isEmpty) _textCtrl.text = text;
+          _applyGuessesFromText(text);
         });
       }
     } catch (e) {
@@ -107,6 +205,22 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
     }
   }
 
+  /// 用 OCR 文本轻量预填「报告类型 / 检查日期 / 涉及身体部位」。
+  /// 只在用户还没手动改过对应字段时填；调用方已包在 setState 里。
+  void _applyGuessesFromText(String text) {
+    if (!_typeTouched) {
+      final t = guessImagingReportType(text);
+      if (t != null) _reportType = t;
+    }
+    if (!_dateTouched) {
+      final d = guessReportDate(text);
+      if (d != null) _reportDate = d;
+    }
+    if (_organs.isEmpty) {
+      _organs.addAll(guessBodyAreas(text).where(coreBodyAreaOrder.contains));
+    }
+  }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -114,7 +228,12 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
     );
-    if (picked != null) setState(() => _reportDate = picked);
+    if (picked != null) {
+      setState(() {
+        _reportDate = picked;
+        _dateTouched = true;
+      });
+    }
   }
 
   Future<void> _save() async {
@@ -127,6 +246,14 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
       _toast('数据库未就绪');
       return;
     }
+    // 家庭成员核对：姓名对不上当前档案则提醒；报告读到的性别/生日可补进档案资料。
+    final ok = await guardReportAgainstActiveProfile(
+      context,
+      ocrPatientName: _patientName,
+      ocrGender: _patientGender,
+      ocrBirthDate: _patientBirthDate,
+    );
+    if (!ok || !mounted) return;
     setState(() => _saving = true);
     try {
       final reportId = await repo.insertReport(
@@ -164,6 +291,7 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
         );
       }
 
+      _saved = true;
       if (mounted) {
         _toast('已保存');
         Navigator.of(context).pop(true);
@@ -191,15 +319,15 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('添加影像/病理报告')),
+      appBar: AppBar(title: const Text('添加图文报告 / 病历')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
           const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: Text(
-              '适用于 X光/CT/MRI/B超/心电图/病理这类图文报告：没有可提取的数字指标，'
-              '拍照、选图或选 PDF 后系统会自动识别文字（含诊断结论），可以再编辑修正，原件会一并保存归档。',
+              '适用于 X光/CT/MRI/超声/心电图/病理，以及出院小结、手术记录、门诊病历、处方、疫苗接种这类'
+              '图文报告：没有可提取的数字指标，识别出文字（含诊断结论）后可再编辑修正，原件会一并保存归档。',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
           ),
@@ -279,7 +407,10 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
               for (final t in imagingReportTypes)
                 DropdownMenuItem(value: t, child: Text(t)),
             ],
-            onChanged: (v) => setState(() => _reportType = v ?? _reportType),
+            onChanged: (v) => setState(() {
+              _reportType = v ?? _reportType;
+              _typeTouched = true;
+            }),
           ),
           const SizedBox(height: 12),
           TextField(

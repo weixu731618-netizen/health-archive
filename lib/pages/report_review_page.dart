@@ -8,8 +8,10 @@ import '../models/report_models.dart';
 import '../services/analytics.dart';
 import '../utils/format.dart';
 import '../utils/report_image_save.dart';
+import '../widgets/current_profile_badge.dart';
 import '../widgets/metric_selector.dart';
 import 'followup_match.dart';
+import 'report_profile_guard.dart';
 import 'report_result_page.dart';
 
 /// 报告识别结果确认页：医院/日期/类型可改，指标可编辑、可取消勾选、低置信度提示。
@@ -39,6 +41,13 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
   bool _saving = false;
   bool _saved = false;
 
+  /// D7：建议关联的身体部位。默认取上游带进来的 initialArea，用户可在信息卡里改。
+  /// null 表示「自动」（保存时仅按指标推导）。
+  late String? _area = widget.initialArea != null &&
+          coreBodyAreaOrder.contains(widget.initialArea)
+      ? widget.initialArea
+      : null;
+
   int get _selectedCount => _report.metrics.where((m) => m.isSelected).length;
 
   @override
@@ -53,11 +62,12 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
   Widget build(BuildContext context) {
     final report = _report;
     return Scaffold(
-      appBar: AppBar(title: const Text('确认识别结果')),
+      appBar: AppBar(title: const Text('核对报告')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
         children: [
-          // 报告信息卡（医院/日期/类型 可改）
+          const CurrentProfileBadge(),
+          // 报告信息卡（医院/日期/类型/关联部位 可改）
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -65,7 +75,9 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
                 children: [
                   _InfoField(
                     label: '医院',
-                    value: report.hospitalName,
+                    value: report.hospitalName.isEmpty
+                        ? '未填写'
+                        : report.hospitalName,
                     icon: Icons.local_hospital_outlined,
                     onTap: () => _editText('医院', report.hospitalName,
                         (v) => report.hospitalName = v),
@@ -80,10 +92,19 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
                   const Divider(height: 20),
                   _InfoField(
                     label: '报告类型',
-                    value: report.reportType,
+                    value: report.reportType.isEmpty
+                        ? '未填写'
+                        : report.reportType,
                     icon: Icons.description_outlined,
                     onTap: () => _editText('报告类型', report.reportType,
                         (v) => report.reportType = v),
+                  ),
+                  const Divider(height: 20),
+                  _InfoField(
+                    label: '关联部位',
+                    value: _area ?? '自动（按指标）',
+                    icon: Icons.account_tree_outlined,
+                    onTap: _editArea,
                   ),
                 ],
               ),
@@ -125,29 +146,43 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: FilledButton(
-            onPressed: _saving || _selectedCount == 0 ? null : _save,
-            style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14)),
-            child: _saving
-                ? const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      ),
-                      SizedBox(width: 10),
-                      Text('正在保存…', style: TextStyle(fontSize: 16)),
-                    ],
-                  )
-                : Text(
-                    '确认并保存（将保存 $_selectedCount 项指标）',
-                    style: const TextStyle(fontSize: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_selectedCount == 0 && !_saving)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '请至少勾选一项要保存的指标',
+                    style: TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
                   ),
+                ),
+              FilledButton(
+                onPressed: _saving || _selectedCount == 0 ? null : _save,
+                style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48)),
+                child: _saving
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          ),
+                          SizedBox(width: 10),
+                          Text('正在保存…', style: TextStyle(fontSize: 16)),
+                        ],
+                      )
+                    : Text(
+                        '确认并保存（将保存 $_selectedCount 项指标）',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+              ),
+            ],
           ),
         ),
       ),
@@ -172,21 +207,52 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
         ],
       ),
     );
-    if (result != null && result.isNotEmpty) {
+    // D5：允许清空（保存空字符串），不再强制非空。
+    if (result != null) {
       setState(() => onSave(result));
     }
   }
 
   Future<void> _editDate() async {
+    final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _report.reportDate,
-      firstDate: DateTime(2015),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(now.year, now.month, now.day),
     );
     if (picked != null) {
       setState(() => _report.reportDate = picked);
     }
+  }
+
+  /// D7：选择这份报告要关联的身体部位（或「自动」）。
+  Future<void> _editArea() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(
+              title: const Text('自动（按指标推导）'),
+              trailing: _area == null ? const Icon(Icons.check) : null,
+              onTap: () => Navigator.pop(context, ''),
+            ),
+            const Divider(height: 1),
+            for (final a in coreBodyAreaOrder)
+              ListTile(
+                title: Text(a),
+                trailing: _area == a ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(context, a),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    setState(() => _area = picked.isEmpty ? null : picked);
   }
 
   /// 放大查看原始报告图片（便于与识别结果逐项核对）。
@@ -199,15 +265,12 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
           children: [
             Center(
               child: InteractiveViewer(
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Image.memory(
-                    widget.imageBytes,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Center(
-                      child:
-                          Text('无法显示图片', style: TextStyle(color: Colors.white)),
-                    ),
+                child: Image.memory(
+                  widget.imageBytes,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Center(
+                    child:
+                        Text('无法显示图片', style: TextStyle(color: Colors.white)),
                   ),
                 ),
               ),
@@ -233,69 +296,84 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
       _toast('数据库未就绪，无法保存');
       return;
     }
+    // 家庭成员核对：姓名对不上当前档案则提醒；报告读到的性别/生日可补进档案资料。
+    final ok = await guardReportAgainstActiveProfile(
+      context,
+      ocrPatientName: _report.patientName,
+      ocrGender: _report.patientGender,
+      ocrBirthDate: _report.patientBirthDate,
+    );
+    if (!ok || !mounted) return;
     setState(() => _saving = true);
     try {
-      final reportId = await repo.insertReport(
-        hospitalName: _report.hospitalName,
-        reportDate: _report.reportDate,
-        reportType: _report.reportType,
-        sourceImagePath: _report.sourceImagePath,
-        rawText: _report.rawText, // 存库，但不打印到日志
-      );
       final areas = <String>{
-        if (widget.initialArea != null &&
-            coreBodyAreaOrder.contains(widget.initialArea))
-          widget.initialArea!,
+        if (_area != null) _area!,
       };
       final savedLines = <SavedMetricLine>[];
-      for (final m in _report.metrics) {
-        if (!m.isSelected) continue;
-        areas.add(bodyAreaForSystem(m.bodySystem));
-        savedLines.add(SavedMetricLine(
-          metricId: m.matchedMetricId ?? 'UNKNOWN',
-          name: m.canonicalName,
-          status: m.status,
-          value: m.numericValue ?? m.value,
-          unit: m.unit,
-          bodySystem: m.bodySystem,
-        ));
-        await repo.insertMetric(
-          metricId: m.matchedMetricId ?? 'UNKNOWN',
-          metricName: m.canonicalName,
-          value: m.numericValue ?? m.value,
-          rawValue: _rawValueText(m),
-          numericValue: m.numericValue ?? m.value,
-          unit: m.unit,
-          canonicalValue: m.numericValue ?? m.value,
-          canonicalUnit: m.unit.isEmpty ? null : m.unit,
-          referenceMin: m.referenceMin,
-          referenceMax: m.referenceMax,
-          referenceRangeRaw: m.referenceText.isEmpty ? null : m.referenceText,
-          sourceAbnormalFlag: m.originalStatus,
-          status: m.status,
-          bodySystem: m.bodySystem,
-          measuredAt: _report.reportDate,
-          sourceType: 'report_import',
-          rawName: m.rawName.isEmpty ? null : m.rawName,
-          matchType: m.matchedMetricId == null ? 'unmatched' : m.matchType,
-          recognitionConfidence: m.confidence,
-          verificationStatus: m.wasEdited ? 'user_modified' : 'user_confirmed',
-          notes: _buildNotes(m, reportId),
-          reportId: reportId,
+      // D2：报告 + 全部指标写在一个事务里，中途失败整体回滚，不留半条报告。
+      final reportId = await repo.runInTransaction<int>(() async {
+        final rid = await repo.insertReport(
+          hospitalName: _report.hospitalName,
+          reportDate: _report.reportDate,
+          reportType: _report.reportType,
+          sourceImagePath: _report.sourceImagePath,
+          rawText: _report.rawText, // 存库，但不打印到日志
         );
-      }
-      // 用户确认保存成功 → 报告状态置为 confirmed
-      await repo.setReportStatus(reportId, 'confirmed');
-      // 03：化验单的器官从指标自动推导并显式落表（多器官）。
-      if (areas.isNotEmpty) {
-        await repo.setReportOrgans(reportId, areas);
-      }
+        for (final m in _report.metrics) {
+          if (!m.isSelected) continue;
+          // 只有匹配上标准指标的才把这份报告关联到对应身体系统；未匹配的不关联
+          // （否则会额外带出一个「其他」系统，堆一堆不认识的指标）。
+          if (m.matchedMetricId != null) {
+            areas.add(bodyAreaForSystem(m.bodySystem));
+          }
+          savedLines.add(SavedMetricLine(
+            metricId: m.matchedMetricId ?? 'UNKNOWN',
+            name: m.canonicalName,
+            status: m.status,
+            value: m.numericValue ?? m.value,
+            unit: m.unit,
+            bodySystem: m.bodySystem,
+          ));
+          await repo.insertMetric(
+            metricId: m.matchedMetricId ?? 'UNKNOWN',
+            metricName: m.canonicalName,
+            value: m.numericValue ?? m.value,
+            rawValue: _rawValueText(m),
+            numericValue: m.numericValue ?? m.value,
+            unit: m.unit,
+            canonicalValue: m.numericValue ?? m.value,
+            canonicalUnit: m.unit.isEmpty ? null : m.unit,
+            referenceMin: m.referenceMin,
+            referenceMax: m.referenceMax,
+            referenceRangeRaw: m.referenceText.isEmpty ? null : m.referenceText,
+            sourceAbnormalFlag: m.originalStatus,
+            status: m.status,
+            bodySystem: m.bodySystem,
+            measuredAt: _report.reportDate,
+            sourceType: 'report_import',
+            rawName: m.rawName.isEmpty ? null : m.rawName,
+            matchType: m.matchedMetricId == null ? 'unmatched' : m.matchType,
+            recognitionConfidence: m.confidence,
+            verificationStatus:
+                m.wasEdited ? 'user_modified' : 'user_confirmed',
+            notes: _buildNotes(m, rid),
+            reportId: rid,
+          );
+        }
+        // 用户确认保存成功 → 报告状态置为 confirmed
+        await repo.setReportStatus(rid, 'confirmed');
+        // 03：化验单的器官从指标自动推导并显式落表（多器官）。
+        if (areas.isNotEmpty) {
+          await repo.setReportOrgans(rid, areas);
+        }
+        return rid;
+      });
       _saved = true;
       AnalyticsEvents.ocrCompleted(
           metricCount: savedLines.length, ok: true);
       if (!mounted) return;
       // 03（§17）：可能是某条待复查的结果 → 弹非破坏性关联确认。
-      await offerFollowUpLink(
+      final linkedFollowup = await offerFollowUpLink(
         context,
         reportAreas: areas,
         reportDate: _report.reportDate,
@@ -323,6 +401,7 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
           rawText: _report.rawText,
           dateFromOcr: _report.dateFromOcr,
           savedProfileName: profileName,
+          alreadyLinkedFollowup: linkedFollowup,
         ),
       ));
     } catch (e) {
@@ -424,109 +503,60 @@ class _MetricEditTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lowConfidence = metric.confidence < 0.8;
+    final unmatched = metric.matchedMetricId == null;
+    // D3：卡片默认只显示「名称 + 识别值 + 状态」；参考范围 / 所属 / 单位等
+    // 细节移进编辑器。只保留会影响用户决策的两个提醒（未匹配 / 低可信度）。
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Checkbox(
-              value: metric.isSelected,
-              onChanged: (v) {
-                metric.isSelected = v ?? false;
-                onChanged();
-              },
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    metric.canonicalName,
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary),
-                  ),
-                  if (metric.rawName.isNotEmpty &&
-                      metric.rawName != metric.canonicalName) ...[
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _edit(context), // D6：整行可点即进编辑
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+          child: Row(
+            children: [
+              Checkbox(
+                value: metric.isSelected,
+                onChanged: (v) {
+                  metric.isSelected = v ?? false;
+                  onChanged();
+                },
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      metric.canonicalName,
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary),
+                    ),
                     const SizedBox(height: 2),
                     Text(
-                      '原报告：${metric.rawName}',
+                      '${_valuesText(metric)} · ${metric.status}',
                       style: const TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary),
+                          fontSize: 13, color: AppColors.textSecondary),
                     ),
+                    if (unmatched || lowConfidence) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        [
+                          if (unmatched) '未匹配标准指标',
+                          if (lowConfidence) '识别可信度较低，请核对',
+                        ].join(' · '),
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.warning),
+                      ),
+                    ],
                   ],
-                  const SizedBox(height: 4),
-                  Text(
-                    _valuesText(metric),
-                    style: const TextStyle(
-                        fontSize: 14, color: AppColors.textSecondary),
-                  ),
-                  Text(
-                    '参考范围：${metric.referenceMin == null ? '—' : _fmt(metric.referenceMin!)} – ${metric.referenceMax == null ? '—' : _fmt(metric.referenceMax!)}',
-                    style: const TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
-                  ),
-                  Text(
-                    '状态：${metric.status} · 所属：${metric.bodySystem}',
-                    style: const TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
-                  ),
-                  // 匹配状态 + 字段缺失提示
-                  _matchStatusLine(metric),
-                  if (metric.unit.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Text('单位未识别',
-                          style: TextStyle(
-                              fontSize: 12, color: AppColors.warning)),
-                    ),
-                  if (metric.referenceMin == null &&
-                      metric.referenceMax == null)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Text('参考范围未识别',
-                          style: TextStyle(
-                              fontSize: 12, color: AppColors.warning)),
-                    ),
-                  if (metric.matchedMetricId == null)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Text(
-                        '未匹配标准指标',
-                        style: TextStyle(
-                            fontSize: 12, color: AppColors.insufficient),
-                      ),
-                    ),
-                  if (lowConfidence)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 4),
-                      child: Row(
-                        children: [
-                          Icon(Icons.warning_amber_rounded,
-                              size: 15, color: AppColors.warning),
-                          SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              '⚠ 识别可信度较低，请核对原报告',
-                              style: TextStyle(
-                                  fontSize: 12, color: AppColors.warning),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+                ),
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.edit_outlined,
-                  color: AppColors.textSecondary),
-              onPressed: () => _edit(context),
-            ),
-          ],
+              const Icon(Icons.chevron_right,
+                  size: 20, color: AppColors.textSecondary),
+            ],
+          ),
         ),
       ),
     );
@@ -542,30 +572,7 @@ class _MetricEditTile extends StatelessWidget {
       raw = _fmt(m.value);
     }
     final withUnit = m.unit.isEmpty ? raw : '$raw ${m.unit}';
-    return '识别结果：$withUnit';
-  }
-
-  Widget _matchStatusLine(RecognizedMetric m) {
-    final String label;
-    final Color color;
-    switch (m.matchType) {
-      case 'exact':
-      case 'alias':
-        label = '已匹配';
-        color = AppColors.normal;
-      case 'ai_suggested':
-        label = '建议匹配（请核对）';
-        color = AppColors.warning;
-      default:
-        label = '未匹配';
-        color = AppColors.insufficient;
-    }
-    return Padding(
-      padding: const EdgeInsets.only(top: 2),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 12, color: color, fontWeight: FontWeight.w500)),
-    );
+    return withUnit;
   }
 
   Future<void> _edit(BuildContext context) async {

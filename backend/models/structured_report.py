@@ -33,6 +33,10 @@ class StructuredMedicalReportModel(BaseModel):
     reportDate: Optional[str] = None     # ISO 日期或 YYYY-MM-DD；看不清为 null
     reportType: Optional[str] = None     # 血常规/生化/肝功能…，不确定为 其他检验
     patientName: Optional[str] = None    # 仅供核对，不作为身份
+    patientGender: Optional[str] = None  # 男/女；报告没写为 null。仅供预填档案资料
+    patientBirthDate: Optional[str] = None  # YYYY-MM-DD；只写年龄不反推，为 null
+    isMedical: bool = False              # 这张图的文字整体是不是医疗相关
+    imagingType: Optional[str] = None    # 受限 12 类之一（X光/CT/…/疫苗接种），判不准为 null
     rawOcrTextLength: int = 0            # 仅用于日志统计，不含内容
     metrics: list[Any] = Field(default_factory=list)  # 每项为 dict（见 _normalize_metric）
 

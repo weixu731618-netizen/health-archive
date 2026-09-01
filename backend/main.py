@@ -24,8 +24,10 @@ load_dotenv()
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from models.medical_report_map import map_medical_report
 from models.ocr_response import OcrResponse, WordItem
 from models.structured_report import normalize_metric
+from services.baidu_medical_report_service import recognize_lab_report
 from services.baidu_ocr_service import BaiduOcrError, recognize_image
 from services.deepseek_report_parser import DeepSeekParseError, parse_ocr_result
 
@@ -200,7 +202,8 @@ async def report_recognize(
     file: UploadFile = File(...),
     user: User | None = Depends(_ocr_user_dependency),
 ):
-    """OCR + DeepSeek 结构化：图片 -> 百度 OCR -> DeepSeek -> 统一 JSON。可选鉴权同 OCR 接口。"""
+    """化验单 -> 百度「医疗检验报告单识别」直出结构化；识别不出（非化验单）
+    -> 回退百度通用 OCR + DeepSeek。可选鉴权同 OCR 接口。"""
     _check_ocr_rate_limit(request)
     mime = file.content_type or ""
     image_bytes = await file.read()
@@ -208,6 +211,44 @@ async def report_recognize(
     _validate_image_bytes(mime, image_bytes)
 
     begin = time.time()
+
+    # —— 第一优先：百度「医疗检验报告单识别」，是化验单就直接结构化，跳过 DeepSeek ——
+    try:
+        med = recognize_lab_report(image_bytes)
+    except BaiduOcrError as e:
+        raise HTTPException(502, detail=e.message)
+    if med is not None:
+        mapped = map_medical_report(med)
+        mapped_metrics = [
+            m for m in mapped["metrics"]
+            if m.get("rawName")
+            and (m.get("numericValue") is not None or m.get("textValue"))
+        ]
+        if mapped_metrics:
+            duration_ms = int((time.time() - begin) * 1000)
+            logger.info(
+                "MedicalReportOCR success | items: %d | duration: %d ms",
+                len(mapped_metrics), duration_ms,
+            )
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "success": True,
+                    "hospitalName": mapped["hospitalName"],
+                    "reportDate": mapped["reportDate"],
+                    "reportType": mapped["reportType"],
+                    "patientName": mapped["patientName"],
+                    "patientGender": mapped["patientGender"],
+                    "patientBirthDate": mapped["patientBirthDate"],
+                    "isMedical": True,
+                    "imagingType": None,
+                    "rawText": mapped["rawText"],
+                    "metrics": mapped_metrics,
+                },
+            )
+        # 专用模型认出是「检验报告」但没抠出可用项 -> 继续走通用 OCR 回退。
+
+    # —— 回退：百度通用 OCR + DeepSeek ——
     try:
         words = recognize_image(image_bytes)
     except BaiduOcrError as e:
@@ -227,13 +268,24 @@ async def report_recognize(
         m for m in metrics
         if m.get("rawName") and (m.get("numericValue") is not None or m.get("textValue"))
     ]
-    if not metrics:
-        raise HTTPException(422, detail="未识别到可保存的检查指标，请确认图片是清晰的检验报告")
+    # 0 指标不是错误。客户端按下面的字段分流：
+    #   metrics 非空        -> 报告单（核对页）
+    #   imagingType 有值    -> 影像（图文报告页）
+    #   isMedical=False     -> 无法读取（不存）
+    #   否则               -> 人工确认页（存未关联记录 / 手动 / 丢弃）
+    raw_text = "\n".join(
+        str(w.get("text", "")).strip()
+        for w in words
+        if str(w.get("text", "")).strip()
+    )
 
     duration_ms = int((time.time() - begin) * 1000)
-    # 只记录计数与耗时，不记录健康内容
-    logger.info("OCR+LLM success | OCR lines: %d | metrics: %d | duration: %d ms",
-                len(words), len(metrics), duration_ms)
+    # 只记录计数与耗时，不记录健康内容（rawText 不进日志）
+    logger.info(
+        "OCR+LLM success | OCR lines: %d | metrics: %d | imagingType: %s | isMedical: %s | %d ms",
+        len(words), len(metrics), structured.get("imagingType"),
+        structured.get("isMedical"), duration_ms,
+    )
 
     return JSONResponse(
         status_code=200,
@@ -243,6 +295,11 @@ async def report_recognize(
             "reportDate": structured.get("reportDate"),
             "reportType": structured.get("reportType"),
             "patientName": structured.get("patientName"),
+            "patientGender": structured.get("patientGender"),
+            "patientBirthDate": structured.get("patientBirthDate"),
+            "isMedical": bool(structured.get("isMedical")),
+            "imagingType": structured.get("imagingType"),
+            "rawText": raw_text,
             "metrics": metrics,
         },
     )

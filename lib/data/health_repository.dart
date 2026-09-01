@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../services/followup_scheduler.dart';
+import '../utils/patient_name_match.dart';
 import 'app_database.dart';
 
 /// 展示层用的「当前档案资料」轻量视图（字段名沿用旧的 user_profile，减少页面改动）。
@@ -39,6 +40,11 @@ class HealthRepository {
   HealthRepository(this._db);
 
   static const int defaultProfileId = 1;
+
+  /// 把一组写操作放进一个事务里执行：任一步抛异常则整体回滚。
+  /// 用于「保存报告 + 批量写指标」这类必须全成功或全失败的场景。
+  Future<T> runInTransaction<T>(Future<T> Function() action) =>
+      _db.transaction(action);
 
   /// B1：当前正在查看 / 录入的人员档案 id。默认「本人」(1)。
   /// 由 UI（档案切换器）通过 [setActiveProfileId] 修改，并在 App 层持久化。
@@ -133,6 +139,25 @@ class HealthRepository {
         updatedAt: Value(DateTime.now()),
       ),
     );
+  }
+
+  /// 读某个档案「认识的真名」串（person_profiles.knownNames，逗号分隔）。
+  Future<String> getKnownNames(int profileId) async {
+    final p = await getPersonProfile(profileId);
+    return p?.knownNames ?? '';
+  }
+
+  /// 往某个档案的「认识的真名」里并入一个名字（宽松去重）。空名不写。
+  Future<void> addKnownName(int profileId, String name) async {
+    if (name.trim().isEmpty) return;
+    final current = await getKnownNames(profileId);
+    final next = appendKnownName(current, name);
+    if (next == current) return;
+    await (_db.update(_db.personProfiles)..where((t) => t.id.equals(profileId)))
+        .write(PersonProfilesCompanion(
+      knownNames: Value(next),
+      updatedAt: Value(DateTime.now()),
+    ));
   }
 
   /// 某个档案下所有报告的本地原图路径（删除成员前用来清理磁盘文件）。
@@ -602,6 +627,20 @@ class HealthRepository {
   Future<void> updateReportDate(int reportId, DateTime date) =>
       (_db.update(_db.medicalReports)..where((t) => t.id.equals(reportId)))
           .write(MedicalReportsCompanion(reportDate: Value(date)));
+
+  /// 用户在报告详情页修改医院 / 类型（F2）。传 null 的字段不动。
+  Future<void> updateReportInfo(
+    int reportId, {
+    String? hospitalName,
+    String? reportType,
+  }) =>
+      (_db.update(_db.medicalReports)..where((t) => t.id.equals(reportId)))
+          .write(MedicalReportsCompanion(
+        hospitalName:
+            hospitalName == null ? const Value.absent() : Value(hospitalName),
+        reportType:
+            reportType == null ? const Value.absent() : Value(reportType),
+      ));
 
   /// 当前档案下所有报告用过的标签（去重，按使用频次降序）。
   Future<List<String>> getDistinctReportTags() async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import 'ios_tap.dart';
 
 /// 根据数值状态文字返回对应的状态颜色。
 /// 支持的数值状态：正常 / 偏高 / 偏低 / 数据不足 / 需要关注 / 异常
@@ -157,15 +158,19 @@ class HealthStatusCard extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) {
-      return Card(child: content);
-    }
-    return Card(
-      child: InkWell(
+    final card = DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: content,
+        border: Border.all(color: const Color(0xFFE6EAED)),
       ),
+      child: content,
+    );
+    if (onTap == null) return card;
+    return IosTap(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: card,
     );
   }
 }

@@ -238,4 +238,57 @@ void main() {
     expect(kidney.summaryText, contains('1 份相关资料'));
     expect(kidney.summaryText, contains('1 项报告原标记'));
   });
+
+  test('F2 详情页编辑：updateReportInfo 只改传入的字段', () async {
+    final id = await repo.insertReport(
+      hospitalName: '旧医院',
+      reportDate: DateTime(2026, 8, 1),
+      reportType: '生化检查',
+    );
+
+    await repo.updateReportInfo(id, hospitalName: '新医院');
+    var r = await repo.getReportById(id);
+    expect(r!.hospitalName, '新医院');
+    expect(r.reportType, '生化检查'); // 未传，不动
+
+    await repo.updateReportInfo(id, reportType: '血常规');
+    r = await repo.getReportById(id);
+    expect(r!.hospitalName, '新医院');
+    expect(r.reportType, '血常规');
+  });
+
+  test('D2 runInTransaction：中途抛异常时整批写入回滚', () async {
+    await expectLater(
+      repo.runInTransaction(() async {
+        await repo.insertReport(
+          hospitalName: '半条报告',
+          reportDate: DateTime(2026, 8, 2),
+          reportType: '生化检查',
+        );
+        throw StateError('模拟写指标失败');
+      }),
+      throwsA(isA<StateError>()),
+    );
+    // 事务回滚：那条报告不应留在库里
+    expect(await repo.getAllReports(), isEmpty);
+  });
+
+  test('knownNames：首次为空，addKnownName 追加并宽松去重', () async {
+    await repo.ensureDefaultPersonProfile();
+    final pid = repo.activeProfileId;
+
+    expect(await repo.getKnownNames(pid), '');
+
+    await repo.addKnownName(pid, '张三');
+    expect(await repo.getKnownNames(pid), '张三');
+
+    await repo.addKnownName(pid, '张 三 '); // 宽松去重，不重复写
+    expect(await repo.getKnownNames(pid), '张三');
+
+    await repo.addKnownName(pid, '李四');
+    expect(await repo.getKnownNames(pid), '张三,李四');
+
+    await repo.addKnownName(pid, '   '); // 空名忽略
+    expect(await repo.getKnownNames(pid), '张三,李四');
+  });
 }

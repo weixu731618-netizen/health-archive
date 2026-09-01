@@ -96,12 +96,20 @@ class RecognizedMetric {
   }
 }
 
+/// 「未关联记录」的 reportType 标记：识别归不到任何已知类型、用户确认存下的
+/// 原图 + OCR 文字。不挂指标、不关联器官，记录页里单独一栏。
+const String kUnlinkedReportType = '未关联记录';
+
 /// 一份被识别的结构化检验报告
 class StructuredMedicalReport {
   String hospitalName; // 医院
   DateTime reportDate; // 检查日期
   String reportType; // 报告类型，如 生化检查
-  final String patientName; // 患者姓名
+  final String patientName; // 患者姓名（仅供核对 / 预填，不作身份）
+  final String patientGender; // 报告上的性别：男/女/空。仅供预填档案资料
+  final DateTime? patientBirthDate; // 报告上的出生日期，可空。仅供预填档案资料
+  final bool isMedical; // DeepSeek 判断：这张图的文字整体是不是医疗相关
+  final String imagingType; // 受限 12 类之一（X光/CT/…/疫苗接种）；判不准为空
   final List<RecognizedMetric> metrics; // 识别到的指标
   final String rawText; // 原始识别文本（全文，不进日志）
   final String? sourceImagePath; // 原始图片路径（可空，Web 无落盘）
@@ -115,6 +123,10 @@ class StructuredMedicalReport {
     DateTime? reportDate,
     this.reportType = '',
     this.patientName = '',
+    this.patientGender = '',
+    this.patientBirthDate,
+    this.isMedical = false,
+    this.imagingType = '',
     List<RecognizedMetric>? metrics,
     this.rawText = '',
     this.sourceImagePath,

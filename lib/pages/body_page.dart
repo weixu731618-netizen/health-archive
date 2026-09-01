@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
@@ -5,9 +6,9 @@ import '../main.dart';
 import '../models/body_area_health.dart';
 import '../models/chronic_condition_dictionary.dart';
 import '../models/metric_dictionary.dart';
-import '../models/report_followup.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
+import '../widgets/ios_tap.dart';
 import '../widgets/normal_items_toggle.dart';
 import '../widgets/profile_switcher.dart';
 import '../widgets/section_title.dart';
@@ -165,7 +166,18 @@ class _BodyPageState extends State<BodyPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('身体'),
-        actions: const [ProfileSwitcher()],
+        actions: [
+          IconButton(
+            tooltip: '提醒',
+            icon: const Icon(CupertinoIcons.alarm),
+            onPressed: () async {
+              await Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const RemindersPage()));
+              if (mounted) _load();
+            },
+          ),
+          const ProfileSwitcher(),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -205,11 +217,12 @@ class _BodyPageState extends State<BodyPage> {
                             children: [
                               const SectionTitle(title: '身体图谱'),
                               if (_statFilter != null)
-                                TextButton(
+                                CupertinoButton(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8),
+                                  minimumSize: const Size(0, 32),
                                   onPressed: () =>
                                       setState(() => _statFilter = null),
-                                  style: TextButton.styleFrom(
-                                      visualDensity: VisualDensity.compact),
                                   child: const Text('清除筛选',
                                       style: TextStyle(fontSize: 13)),
                                 ),
@@ -392,7 +405,7 @@ class _OverviewStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: InkWell(
+      child: IosTap(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
@@ -433,7 +446,7 @@ class _AreaListRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final line = _areaStatusLine(row);
-    return InkWell(
+    return IosTap(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 11),
@@ -461,9 +474,9 @@ class _AreaListRow extends StatelessWidget {
             Text(line.text,
                 style: const TextStyle(
                     fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(width: 2),
-            const Icon(Icons.chevron_right,
-                size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: 4),
+            const Icon(CupertinoIcons.chevron_forward,
+                size: 15, color: AppColors.textSecondary),
           ],
         ),
       ),
@@ -480,7 +493,7 @@ class _BodyEmptyState extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 40, 16, 96),
       children: [
-        const Icon(Icons.accessibility_new,
+        const Icon(CupertinoIcons.person_crop_circle,
             size: 48, color: AppColors.insufficient),
         const SizedBox(height: 16),
         const Text('还没有身体健康记录',
@@ -495,7 +508,7 @@ class _BodyEmptyState extends StatelessWidget {
             style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
         const SizedBox(height: 20),
         Center(
-          child: FilledButton(
+          child: CupertinoButton.filled(
             onPressed: onAdd,
             child: const Text('添加健康资料'),
           ),
@@ -654,7 +667,7 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
             : [
                 IconButton(
                   tooltip: '添加${_area.name}相关资料',
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(CupertinoIcons.add),
                   onPressed: () async {
                     await showAddDataSheet(context, contextArea: _area.name);
                     if (mounted) _reload();
@@ -667,19 +680,17 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
-            _SummaryCard(area: _area, isExample: widget.isExample),
-            if (!widget.isExample) ...[
-              if (_longTerm.isNotEmpty) ...[
-                const SectionTitle(title: '长期关注'),
-                _LongTermCard(names: _longTerm),
-              ],
-              const SectionTitle(title: '复查'),
-              _RecheckCard(
-                reminder: _recheck,
-                canSet: key != null,
-                onSet: key == null ? null : () => _openHistoryByEvidence(key),
-                onView: () => _openRecheck(key),
-              ),
+            _SummaryCard(
+              area: _area,
+              isExample: widget.isExample,
+              recheck: _recheck,
+              // 未设过 → 弹「多久后复查」；已设 → 去提醒页管理。
+              onRecheckTap:
+                  _recheck == null ? _setRecheckForArea : () => _openRecheck(key),
+            ),
+            if (!widget.isExample && _longTerm.isNotEmpty) ...[
+              const SectionTitle(title: '长期关注'),
+              _LongTermCard(names: _longTerm),
             ],
             const SectionTitle(title: '需关注问题'),
             if (_area.metrics.isEmpty)
@@ -760,7 +771,7 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
     groups.forEach((label, items) {
       if (showHeaders) {
         out.add(Padding(
-          padding: const EdgeInsets.only(top: 4, bottom: 8),
+          padding: const EdgeInsets.only(top: 4, bottom: 4),
           child: Text(
             label,
             style: const TextStyle(
@@ -771,11 +782,14 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
           ),
         ));
       }
-      for (final m in items) {
-        out.add(_RealMetricCard(
-            metric: m, onTap: () => _openHistoryByEvidence(m)));
-        out.add(const SizedBox(height: 12));
-      }
+      out.add(CupertinoListSection.insetGrouped(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        children: [
+          for (final m in items)
+            _RealMetricRow(
+                metric: m, onTap: () => _openHistoryByEvidence(m)),
+        ],
+      ));
     });
     return out;
   }
@@ -796,13 +810,48 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
   /// 查看 / 修改本部位的复查提醒：有关键指标就进它的历史页（复查设置在那里），
   /// 否则退回到提醒页。
   Future<void> _openRecheck(BodyAreaMetricEvidence? key) async {
-    if (key != null) {
-      await _openHistoryByEvidence(key);
-      return;
-    }
+    // 复查卡片一律去「提醒」页管理（标记已复查 / 改期 / 删）。
+    // 想看指标历史曲线用下面单独的「历史趋势」卡片，两者不再撞车。
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const RemindersPage()),
     );
+    if (mounted) _reload();
+  }
+
+  /// 在本页就地设一条「复查 <本系统>」提醒——不跳去指标历史页（那页又是一堆复查卡片）。
+  Future<void> _setRecheckForArea() async {
+    final repo = appRepository;
+    if (repo == null) return;
+    final months = await showCupertinoModalPopup<int>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('多久之后复查？'),
+        actions: [
+          for (final m in const [1, 3, 6, 12])
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, m),
+              child: Text('$m 个月后'),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    if (months == null) return;
+    final due = DateTime.now().add(Duration(days: months * 30));
+    await repo.insertReminder(
+      kind: 'recheck',
+      title: '复查 ${widget.area.name}',
+      detail: '${widget.area.name} · 手动设置',
+      dueDate: due,
+      sourceType: 'user',
+      areaName: widget.area.name,
+      recommendedDate: due,
+    );
+    await syncReminders();
     if (mounted) _reload();
   }
 }
@@ -811,7 +860,18 @@ class _SummaryCard extends StatelessWidget {
   final BodyAreaHealthSummary area;
   final bool isExample;
 
-  const _SummaryCard({required this.area, required this.isExample});
+  /// 本系统已设的复查提醒（没有则 null）。
+  final Reminder? recheck;
+
+  /// 点右上角复查控件：没设过 → 弹「多久后」选择；已设 → 去提醒页管理。
+  final VoidCallback? onRecheckTap;
+
+  const _SummaryCard({
+    required this.area,
+    required this.isExample,
+    this.recheck,
+    this.onRecheckTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -819,8 +879,42 @@ class _SummaryCard extends StatelessWidget {
         ? (isExample ? '示例数据' : '暂无数据')
         : formatDate(area.latestMeasuredAt!);
     final attention = area.abnormalCount == 0
-        ? '未发现异常指标置顶项'
-        : '${area.abnormalCount} 项异常指标需关注';
+        ? '未发现需关注指标'
+        : '${area.abnormalCount} 项指标需关注';
+
+    // 右上角：原来是「需关注」状态色块——但用户就是点了需关注进来的，重复。
+    // 换成复查控件：未设 → 「设复查」；已设 → 「复查 M-D」。
+    final r = recheck;
+    final recheckText = (r != null && r.dueDate != null)
+        ? '复查 ${r.dueDate!.month}-${r.dueDate!.day}'
+        : '设复查';
+    final recheckPill = isExample
+        ? null
+        : IosTap(
+            onTap: onRecheckTap,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(CupertinoIcons.calendar,
+                      size: 16, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  Text(recheckText,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary)),
+                ],
+              ),
+            ),
+          );
 
     return Card(
       child: Padding(
@@ -840,10 +934,7 @@ class _SummaryCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                StatusChip(
-                  text: area.status,
-                  color: valueStatusColor(area.status),
-                ),
+                if (recheckPill != null) recheckPill,
               ],
             ),
             const SizedBox(height: 12),
@@ -861,40 +952,35 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class _RealMetricCard extends StatelessWidget {
+class _RealMetricRow extends StatelessWidget {
   final BodyAreaMetricEvidence metric;
   final VoidCallback onTap;
 
-  const _RealMetricCard({required this.metric, required this.onTap});
+  const _RealMetricRow({required this.metric, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final hasRange = metric.referenceMin != null && metric.referenceMax != null;
     final dateText =
         metric.measuredAt == null ? '' : ' · ${formatDate(metric.measuredAt!)}';
-    return Card(
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          metric.name,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
+    return CupertinoListTile.notched(
+      title: Text(
+        metric.name,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
         ),
-        subtitle: Text(
-          '${metric.valueText}'
-          '${hasRange ? ' · 参考 ${_fmt(metric.referenceMin!)}–${_fmt(metric.referenceMax!)}' : ''}'
-          '$dateText',
-          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-        ),
-        trailing: StatusChip(
-          text: metric.status,
-          color: valueStatusColor(metric.status),
-        ),
-        onTap: onTap,
       ),
+      subtitle: Text(
+        '${metric.valueText}'
+        '${hasRange ? ' · 参考 ${_fmt(metric.referenceMin!)}–${_fmt(metric.referenceMax!)}' : ''}'
+        '$dateText',
+      ),
+      trailing: StatusChip(
+        text: metric.status,
+        color: valueStatusColor(metric.status),
+      ),
+      onTap: onTap,
     );
   }
 }
@@ -958,89 +1044,6 @@ class _ReportSourceCard extends StatelessWidget {
       subtitle: '点击查看这份报告',
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => ReportDetailPage(reportId: reportId)),
-      ),
-    );
-  }
-}
-
-/// 本部位的复查提醒卡片：有安排 → 显示下次复查日期 + 修改入口；
-/// 没安排但有关键指标 → 一个「设置复查提醒」按钮；否则不显示。
-class _RecheckCard extends StatelessWidget {
-  final Reminder? reminder;
-  final bool canSet;
-  final VoidCallback? onSet;
-  final VoidCallback onView;
-
-  const _RecheckCard({
-    required this.reminder,
-    required this.canSet,
-    required this.onSet,
-    required this.onView,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final r = reminder;
-    if (r != null && r.dueDate != null) {
-      final today = DateTime(
-          DateTime.now().year, DateTime.now().month, DateTime.now().day);
-      // 系统自动排的随访给 21 天宽限期，过了到期日但还在宽限期内不算「已逾期」。
-      final graceDays = r.kind == 'followup' ? 21 : 0;
-      final pastGrace = today
-          .isAfter(r.dueDate!.add(Duration(days: graceDays)));
-      // §1：这条复查如果来自某个长期关注（慢性病），在详情里说明关联，
-      // 但不把病名放进标题。
-      final condName = r.conditionCode == null
-          ? null
-          : findChronicCondition(r.conditionCode)?.name;
-      return Card(
-        child: ListTile(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          leading: const Icon(Icons.event_available_outlined,
-              color: AppColors.primary),
-          title: Text(pastGrace ? '复查已逾期' : '下次复查',
-              style: const TextStyle(fontSize: 15)),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${formatDate(r.dueDate!)} · ${recheckSourceLabel(r.sourceType)}',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: pastGrace
-                        ? AppColors.warning
-                        : AppColors.textSecondary),
-              ),
-              if (condName != null && condName.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text('关联长期关注：$condName',
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary)),
-                ),
-            ],
-          ),
-          trailing: const Text('修改',
-              style: TextStyle(fontSize: 13, color: AppColors.primary)),
-          onTap: onView,
-        ),
-      );
-    }
-    if (!canSet) {
-      return const _SourceNoteCard(text: '有异常指标时，可在指标历史页里设置复查提醒。');
-    }
-    return Card(
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: const Icon(Icons.add_alarm_outlined,
-            color: AppColors.primary),
-        title: const Text('设置复查提醒', style: TextStyle(fontSize: 15)),
-        subtitle: const Text('到期提醒你复查这个部位的相关指标',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-        trailing:
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-        onTap: onSet,
       ),
     );
   }

@@ -180,6 +180,10 @@ class PersonProfiles extends Table {
   DateTimeColumn get dateOfBirth => dateTime().nullable()();
   // B1：身高并入人员档案（此前只存在单行的 user_profile 表里）
   RealColumn get heightCm => real().nullable()();
+  /// 这个档案「认识的真实姓名」，逗号分隔。首次存报告时用 OCR 姓名自动填入，
+  /// 之后每次存报告拿 OCR 姓名与之比对，明显不一致才提醒（防止存错家庭成员）。
+  /// 用户在提醒里选「仍存这里」会把新名字并进来。空 = 还没记过，不比对。
+  TextColumn get knownNames => text().withDefault(const Constant(''))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 }
@@ -288,8 +292,9 @@ class AppDatabase extends _$AppDatabase {
   /// 慢病升级 步骤4：12→13（reminders 增加 condition_code / follow_up_key / auto_generated）。
   /// 慢病升级 步骤5：13→14（新增 encounters / allergies 表；medical_reports.encounter_id）。
   /// 03：14→15（新增 report_organs 表；reminders 增加 source_type / area_name / recommended_date）。
+  /// 上传合并：15→16（person_profiles 增加 known_names，用于报告姓名比对）。
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -423,6 +428,13 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(reminders, reminders.sourceType);
               await m.addColumn(reminders, reminders.areaName);
               await m.addColumn(reminders, reminders.recommendedDate);
+            }
+          }
+          if (from < 16) {
+            // from<6 时上面 createTable(personProfiles) 已按当前定义带上 known_names，
+            // 只有「已存在旧 person_profiles 表」才需要补列。
+            if (from >= 6) {
+              await m.addColumn(personProfiles, personProfiles.knownNames);
             }
           }
         },

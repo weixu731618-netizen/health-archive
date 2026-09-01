@@ -158,6 +158,96 @@ class SampleDataSeeder {
         detail: '每次 0.5g',
       );
     }
+
+    // —— 血常规（血液系统）——
+    final r4 = await repo.insertReport(
+      hospitalName: '深圳市人民医院',
+      reportDate: daysAgo(30),
+      reportType: '血常规',
+      recognitionStatus: 'confirmed',
+      rawText: '白细胞、红细胞、血红蛋白、血小板均在正常范围。',
+    );
+    await _addMetrics(repo, r4, daysAgo(30), {
+      'WBC': 6.1, 'RBC': 4.8, 'HGB': 148, 'PLT': 240, 'NEUT': 58, 'LYMPH': 32,
+    });
+
+    // —— 甲状腺功能（内分泌/代谢）+ 骨密度/维D（骨骼关节）+ 肿瘤标志物（其他）——
+    final r5 = await repo.insertReport(
+      hospitalName: '体检中心',
+      reportDate: daysAgo(20),
+      reportType: '甲状腺功能',
+      recognitionStatus: 'confirmed',
+      rawText: 'TSH、FT4 正常；骨密度 T 值 -1.2 骨量减少；维生素D 略低。CEA 正常。',
+    );
+    await _addMetrics(repo, r5, daysAgo(20), {
+      'TSH': 2.1, 'FT4': 15.5, 'BMD_T': -1.2, 'VITD': 22, 'CEA': 2.3,
+    });
+
+    // —— 图文/影像报告：给「化验查不到」的部位各挂一条 ——
+    Future<void> imaging(String type, String hospital, int ago,
+        Set<String> organs, String text) async {
+      final id = await repo.insertReport(
+        hospitalName: hospital,
+        reportDate: daysAgo(ago),
+        reportType: type,
+        recognitionStatus: 'confirmed',
+        rawText: text,
+      );
+      await repo.setReportOrgans(id, organs);
+    }
+
+    await imaging('CT', '深圳市人民医院', 60, {'呼吸系统'},
+        '胸部CT平扫：双肺纹理清晰，未见结节及实变。');
+    await imaging('彩超', '深圳市人民医院', 55, {'肝胆', '胰腺', '肾脏/泌尿'},
+        '上腹部彩超：肝、胆、胰、脾、双肾未见明显异常。');
+    await imaging('门诊病历', '社区健康服务中心', 50, {'消化系统'},
+        '胃镜：慢性非萎缩性胃炎，Hp 阴性。');
+    await imaging('彩超', '市第二人民医院', 45, {'心血管'},
+        '心脏彩超：左室射血分数 62%，各瓣膜未见异常。');
+    await imaging('门诊病历', '眼科医院', 40, {'眼睛'},
+        '眼底检查：双眼视网膜未见糖尿病视网膜病变。');
+    await imaging('门诊病历', '口腔医院', 35, {'口腔牙齿'},
+        '口腔检查：牙结石 II 度，建议洁牙。');
+    await imaging('门诊病历', '社区健康服务中心', 28, {'耳鼻喉'},
+        '耳鼻喉检查：双耳听力正常，鼻咽部未见异常。');
+    await imaging('MRI', '市第二人民医院', 22, {'骨骼关节'},
+        '颈椎MRI：C5/6 椎间盘轻度突出。');
+    await imaging('门诊病历', '皮肤病医院', 16, {'皮肤与足部'},
+        '皮肤科：足部皮肤干燥，无破溃，糖尿病足风险低。');
+    await imaging('彩超', '市第二人民医院', 12, {'生殖系统'},
+        '前列腺彩超：前列腺轻度增生，大小约 3.8×3.0×2.6cm。');
+
+    // —— 一条「未关联记录」（识别归不到类型时的兜底）——
+    await repo.insertReport(
+      hospitalName: '某医院',
+      reportDate: daysAgo(8),
+      reportType: '未关联记录',
+      recognitionStatus: 'confirmed',
+      rawText: '（识别出的文字，归不到已知类型，待整理）会诊意见：建议内分泌科随访。',
+    );
+
+    // —— 心率日常记录 ——
+    const hr = [78, 82, 76, 80, 74];
+    for (var i = 0; i < hr.length; i++) {
+      await repo.insertDaily(
+        type: 'heart_rate',
+        value1: hr[i].toDouble(),
+        unit: 'bpm',
+        measuredAt: daysAgo(i * 10 + 3),
+      );
+    }
+
+    // —— 复查提醒：内分泌/代谢，3 个月后 ——
+    final due = now.add(const Duration(days: 90));
+    await repo.insertReminder(
+      kind: 'recheck',
+      title: '复查 内分泌/代谢',
+      detail: '糖化血红蛋白偏高 · 手动设置',
+      dueDate: due,
+      sourceType: 'user',
+      areaName: '内分泌/代谢',
+      recommendedDate: due,
+    );
   }
 
   /// 按字典定义批量写入某份报告的指标：单位 / 参考范围 / 状态都取自 `METRIC_DICTIONARY`，

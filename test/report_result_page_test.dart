@@ -66,9 +66,9 @@ void main() {
     expect(find.text('肾脏/泌尿'), findsOneWidget);
     expect(find.text('1 项需要关注'), findsNWidgets(2));
     // 原件入口 + 长期价值提示
-    expect(find.text('原始报告已保存'), findsOneWidget);
     expect(find.textContaining('比较变化'), findsOneWidget);
-    expect(find.text('查看身体档案'), findsOneWidget);
+    expect(find.text('完成'), findsOneWidget);
+    expect(find.text('查看原始报告'), findsOneWidget);
   });
 
   testWidgets('报告含「复查」字样 → 结果页出现设置复查提醒入口', (tester) async {
@@ -99,6 +99,51 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('设置提醒'), findsOneWidget);
+  });
+
+  testWidgets('E5：报告写「无需复查」→ 不出现设置复查提醒入口', (tester) async {
+    tester.view.physicalSize = const Size(1200, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(MaterialApp(
+      home: ReportResultPage(
+        reportId: 4,
+        reportType: '甲状腺功能',
+        reportDate: DateTime(2026, 8, 20),
+        hospitalName: '',
+        metrics: const [],
+        areas: const {},
+        rawText: '结论：甲功正常，无需复查。',
+        dateFromOcr: true,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('设置提醒'), findsNothing);
+  });
+
+  testWidgets('E4：核对页已关联复查 → 结果页不再提示设置提醒', (tester) async {
+    tester.view.physicalSize = const Size(1200, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(MaterialApp(
+      home: ReportResultPage(
+        reportId: 5,
+        reportType: '甲状腺功能',
+        reportDate: DateTime(2026, 8, 20),
+        hospitalName: '',
+        metrics: const [],
+        areas: const {},
+        rawText: '建议 3 个月后复查甲功',
+        dateFromOcr: true,
+        alreadyLinkedFollowup: true,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('设置提醒'), findsNothing);
   });
 
   testWidgets('后端没给检查日期 → 提示确认日期', (tester) async {

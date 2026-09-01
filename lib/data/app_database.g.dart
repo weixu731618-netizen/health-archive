@@ -3925,6 +3925,14 @@ class $PersonProfilesTable extends PersonProfiles
   late final GeneratedColumn<double> heightCm = GeneratedColumn<double>(
       'height_cm', aliasedName, true,
       type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _knownNamesMeta =
+      const VerificationMeta('knownNames');
+  @override
+  late final GeneratedColumn<String> knownNames = GeneratedColumn<String>(
+      'known_names', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -3945,6 +3953,7 @@ class $PersonProfilesTable extends PersonProfiles
         sex,
         dateOfBirth,
         heightCm,
+        knownNames,
         createdAt,
         updatedAt
       ];
@@ -3987,6 +3996,12 @@ class $PersonProfilesTable extends PersonProfiles
       context.handle(_heightCmMeta,
           heightCm.isAcceptableOrUnknown(data['height_cm']!, _heightCmMeta));
     }
+    if (data.containsKey('known_names')) {
+      context.handle(
+          _knownNamesMeta,
+          knownNames.isAcceptableOrUnknown(
+              data['known_names']!, _knownNamesMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -4020,6 +4035,8 @@ class $PersonProfilesTable extends PersonProfiles
           .read(DriftSqlType.dateTime, data['${effectivePrefix}date_of_birth']),
       heightCm: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}height_cm']),
+      knownNames: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}known_names'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -4040,6 +4057,11 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
   final String? sex;
   final DateTime? dateOfBirth;
   final double? heightCm;
+
+  /// 这个档案「认识的真实姓名」，逗号分隔。首次存报告时用 OCR 姓名自动填入，
+  /// 之后每次存报告拿 OCR 姓名与之比对，明显不一致才提醒（防止存错家庭成员）。
+  /// 用户在提醒里选「仍存这里」会把新名字并进来。空 = 还没记过，不比对。
+  final String knownNames;
   final DateTime createdAt;
   final DateTime updatedAt;
   const PersonProfile(
@@ -4049,6 +4071,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
       this.sex,
       this.dateOfBirth,
       this.heightCm,
+      required this.knownNames,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -4066,6 +4089,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
     if (!nullToAbsent || heightCm != null) {
       map['height_cm'] = Variable<double>(heightCm);
     }
+    map['known_names'] = Variable<String>(knownNames);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -4083,6 +4107,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
       heightCm: heightCm == null && nullToAbsent
           ? const Value.absent()
           : Value(heightCm),
+      knownNames: Value(knownNames),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4098,6 +4123,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
       sex: serializer.fromJson<String?>(json['sex']),
       dateOfBirth: serializer.fromJson<DateTime?>(json['dateOfBirth']),
       heightCm: serializer.fromJson<double?>(json['heightCm']),
+      knownNames: serializer.fromJson<String>(json['knownNames']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -4112,6 +4138,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
       'sex': serializer.toJson<String?>(sex),
       'dateOfBirth': serializer.toJson<DateTime?>(dateOfBirth),
       'heightCm': serializer.toJson<double?>(heightCm),
+      'knownNames': serializer.toJson<String>(knownNames),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -4124,6 +4151,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
           Value<String?> sex = const Value.absent(),
           Value<DateTime?> dateOfBirth = const Value.absent(),
           Value<double?> heightCm = const Value.absent(),
+          String? knownNames,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       PersonProfile(
@@ -4133,6 +4161,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
         sex: sex.present ? sex.value : this.sex,
         dateOfBirth: dateOfBirth.present ? dateOfBirth.value : this.dateOfBirth,
         heightCm: heightCm.present ? heightCm.value : this.heightCm,
+        knownNames: knownNames ?? this.knownNames,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -4148,6 +4177,8 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
       dateOfBirth:
           data.dateOfBirth.present ? data.dateOfBirth.value : this.dateOfBirth,
       heightCm: data.heightCm.present ? data.heightCm.value : this.heightCm,
+      knownNames:
+          data.knownNames.present ? data.knownNames.value : this.knownNames,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4162,6 +4193,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
           ..write('sex: $sex, ')
           ..write('dateOfBirth: $dateOfBirth, ')
           ..write('heightCm: $heightCm, ')
+          ..write('knownNames: $knownNames, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4170,7 +4202,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
 
   @override
   int get hashCode => Object.hash(id, displayName, relationship, sex,
-      dateOfBirth, heightCm, createdAt, updatedAt);
+      dateOfBirth, heightCm, knownNames, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4181,6 +4213,7 @@ class PersonProfile extends DataClass implements Insertable<PersonProfile> {
           other.sex == this.sex &&
           other.dateOfBirth == this.dateOfBirth &&
           other.heightCm == this.heightCm &&
+          other.knownNames == this.knownNames &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4192,6 +4225,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
   final Value<String?> sex;
   final Value<DateTime?> dateOfBirth;
   final Value<double?> heightCm;
+  final Value<String> knownNames;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const PersonProfilesCompanion({
@@ -4201,6 +4235,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
     this.sex = const Value.absent(),
     this.dateOfBirth = const Value.absent(),
     this.heightCm = const Value.absent(),
+    this.knownNames = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -4211,6 +4246,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
     this.sex = const Value.absent(),
     this.dateOfBirth = const Value.absent(),
     this.heightCm = const Value.absent(),
+    this.knownNames = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
   })  : createdAt = Value(createdAt),
@@ -4222,6 +4258,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
     Expression<String>? sex,
     Expression<DateTime>? dateOfBirth,
     Expression<double>? heightCm,
+    Expression<String>? knownNames,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -4232,6 +4269,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
       if (sex != null) 'sex': sex,
       if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
       if (heightCm != null) 'height_cm': heightCm,
+      if (knownNames != null) 'known_names': knownNames,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -4244,6 +4282,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
       Value<String?>? sex,
       Value<DateTime?>? dateOfBirth,
       Value<double?>? heightCm,
+      Value<String>? knownNames,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt}) {
     return PersonProfilesCompanion(
@@ -4253,6 +4292,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
       sex: sex ?? this.sex,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       heightCm: heightCm ?? this.heightCm,
+      knownNames: knownNames ?? this.knownNames,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -4279,6 +4319,9 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
     if (heightCm.present) {
       map['height_cm'] = Variable<double>(heightCm.value);
     }
+    if (knownNames.present) {
+      map['known_names'] = Variable<String>(knownNames.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4297,6 +4340,7 @@ class PersonProfilesCompanion extends UpdateCompanion<PersonProfile> {
           ..write('sex: $sex, ')
           ..write('dateOfBirth: $dateOfBirth, ')
           ..write('heightCm: $heightCm, ')
+          ..write('knownNames: $knownNames, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -8805,6 +8849,7 @@ typedef $$PersonProfilesTableCreateCompanionBuilder = PersonProfilesCompanion
   Value<String?> sex,
   Value<DateTime?> dateOfBirth,
   Value<double?> heightCm,
+  Value<String> knownNames,
   required DateTime createdAt,
   required DateTime updatedAt,
 });
@@ -8816,6 +8861,7 @@ typedef $$PersonProfilesTableUpdateCompanionBuilder = PersonProfilesCompanion
   Value<String?> sex,
   Value<DateTime?> dateOfBirth,
   Value<double?> heightCm,
+  Value<String> knownNames,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
 });
@@ -8846,6 +8892,9 @@ class $$PersonProfilesTableFilterComposer
 
   ColumnFilters<double> get heightCm => $composableBuilder(
       column: $table.heightCm, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get knownNames => $composableBuilder(
+      column: $table.knownNames, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -8882,6 +8931,9 @@ class $$PersonProfilesTableOrderingComposer
   ColumnOrderings<double> get heightCm => $composableBuilder(
       column: $table.heightCm, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get knownNames => $composableBuilder(
+      column: $table.knownNames, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -8915,6 +8967,9 @@ class $$PersonProfilesTableAnnotationComposer
 
   GeneratedColumn<double> get heightCm =>
       $composableBuilder(column: $table.heightCm, builder: (column) => column);
+
+  GeneratedColumn<String> get knownNames => $composableBuilder(
+      column: $table.knownNames, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -8956,6 +9011,7 @@ class $$PersonProfilesTableTableManager extends RootTableManager<
             Value<String?> sex = const Value.absent(),
             Value<DateTime?> dateOfBirth = const Value.absent(),
             Value<double?> heightCm = const Value.absent(),
+            Value<String> knownNames = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -8966,6 +9022,7 @@ class $$PersonProfilesTableTableManager extends RootTableManager<
             sex: sex,
             dateOfBirth: dateOfBirth,
             heightCm: heightCm,
+            knownNames: knownNames,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -8976,6 +9033,7 @@ class $$PersonProfilesTableTableManager extends RootTableManager<
             Value<String?> sex = const Value.absent(),
             Value<DateTime?> dateOfBirth = const Value.absent(),
             Value<double?> heightCm = const Value.absent(),
+            Value<String> knownNames = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
           }) =>
@@ -8986,6 +9044,7 @@ class $$PersonProfilesTableTableManager extends RootTableManager<
             sex: sex,
             dateOfBirth: dateOfBirth,
             heightCm: heightCm,
+            knownNames: knownNames,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
