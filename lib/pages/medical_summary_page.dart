@@ -109,6 +109,11 @@ class _MedicalSummaryPageState extends State<MedicalSummaryPage> {
       appBar: AppBar(
         title: const Text('给医生看的摘要'),
         actions: [
+          IconButton(
+            tooltip: '重新生成',
+            icon: const Icon(CupertinoIcons.refresh),
+            onPressed: _busy || _loading ? null : _load,
+          ),
           if (s != null && !s.isEmpty)
             IconButton(
               tooltip: '分享文字',
@@ -134,11 +139,24 @@ class _MedicalSummaryPageState extends State<MedicalSummaryPage> {
               : Column(
                   children: [
                     Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
-                        child: RepaintBoundary(
-                          key: _boundaryKey,
-                          child: _SummaryCard(summary: s),
+                      child: RefreshIndicator.adaptive(
+                        onRefresh: _load,
+                        child: ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: [
+                            RepaintBoundary(
+                              key: _boundaryKey,
+                              child: _SummaryCard(summary: s),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              '摘要按当前档案实时生成。改了疾病史 / 用药 / 传了新报告后，'
+                              '下拉或点右上角刷新即可更新。',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary),
+                            ),
+                          ],
                         ),
                       ),
                     ),
