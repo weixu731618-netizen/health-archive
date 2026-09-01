@@ -9,6 +9,7 @@ import '../models/metric_dictionary.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 import '../widgets/ios_tap.dart';
 import '../widgets/normal_items_toggle.dart';
 import '../widgets/profile_switcher.dart';
@@ -650,27 +651,22 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
   @override
   Widget build(BuildContext context) {
     final key = _area.keyMetric;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_area.name),
-        actions: widget.isExample
-            ? null
-            : [
-                IconButton(
-                  tooltip: '添加${_area.name}相关资料',
-                  icon: const Icon(CupertinoIcons.add),
-                  onPressed: () async {
-                    await showAddDataSheet(context, contextArea: _area.name);
-                    if (mounted) _reload();
-                  },
-                ),
-              ],
-      ),
-      body: RefreshIndicator.adaptive(
-        onRefresh: _reload,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-          children: [
+    return IosLargeTitleScaffold(
+      title: _area.name,
+      onRefresh: _reload,
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+      trailing: widget.isExample
+          ? null
+          : CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(32, 32),
+              onPressed: () async {
+                await showAddDataSheet(context, contextArea: _area.name);
+                if (mounted) _reload();
+              },
+              child: const Icon(CupertinoIcons.add, size: 24),
+            ),
+      children: [
             _SummaryCard(
               area: _area,
               isExample: widget.isExample,
@@ -744,8 +740,6 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
             const SizedBox(height: 4),
             const _DisclaimerCard(),
           ],
-        ),
-      ),
     );
   }
 

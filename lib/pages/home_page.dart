@@ -8,6 +8,7 @@ import '../models/backup_nudge.dart';
 import '../models/body_area_health.dart';
 import '../utils/format.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 import '../widgets/profile_switcher.dart';
 import 'body_page.dart';
 import 'notification_center_page.dart';
@@ -719,22 +720,25 @@ class AttentionListPage extends StatelessWidget {
           )),
         ),
     ];
-    return Scaffold(
-      appBar: AppBar(title: const Text('待跟进')),
-      body: rows.isEmpty
-          ? const Center(
-              child: Text('当前没有需要关注的项目',
-                  style: TextStyle(color: AppColors.textSecondary)),
-            )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              children: [
-                HealthCard(
-                  padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
-                  child: Column(children: rows),
+    return IosLargeTitleScaffold(
+      title: '待跟进',
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+      children: rows.isEmpty
+          ? const [
+              Padding(
+                padding: EdgeInsets.only(top: 60),
+                child: Center(
+                  child: Text('当前没有需要关注的项目',
+                      style: TextStyle(color: AppColors.textSecondary)),
                 ),
-              ],
-            ),
+              )
+            ]
+          : [
+              HealthCard(
+                padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+                child: Column(children: rows),
+              ),
+            ],
     );
   }
 }

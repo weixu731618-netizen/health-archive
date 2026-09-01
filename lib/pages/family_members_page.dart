@@ -630,11 +630,10 @@ class _RelationshipPickerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final options = <String>[_kNoRelationship, ...kMemberRelationships];
-    return Scaffold(
-      appBar: AppBar(title: const Text('关系')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-        children: [
+    return IosLargeTitleScaffold(
+      title: '关系',
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+      children: [
           HealthCard(
             padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),
             child: Column(
@@ -654,7 +653,6 @@ class _RelationshipPickerPage extends StatelessWidget {
             ),
           ),
         ],
-      ),
     );
   }
 }

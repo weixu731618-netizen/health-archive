@@ -10,6 +10,7 @@ import '../models/metric_source.dart';
 import '../models/report_models.dart' show kUnlinkedReportType;
 import '../utils/format.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 import '../widgets/toast.dart';
 import '../widgets/ios_button.dart';
 import '../widgets/ios_tap.dart';
@@ -1341,44 +1342,39 @@ class _EntryDetailPageState extends State<EntryDetailPage> {
   @override
   Widget build(BuildContext context) {
     final e = widget.entry;
-    return Scaffold(
-      appBar: AppBar(title: Text(e.title)),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${e.source} · ${formatDate(e.measuredAt)}',
-                      style: const TextStyle(
-                          fontSize: 13, color: AppColors.textSecondary)),
-                  const SizedBox(height: 12),
-                  Text(e.title,
-                      style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text(e.subtitle,
-                      style: const TextStyle(
-                          fontSize: 16, color: AppColors.textSecondary)),
-                ],
-              ),
-            ),
+    return IosLargeTitleScaffold(
+      title: e.title,
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+      children: [
+        HealthCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${e.source} · ${formatDate(e.measuredAt)}',
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary)),
+              const SizedBox(height: 12),
+              Text(e.title,
+                  style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary)),
+              const SizedBox(height: 4),
+              Text(e.subtitle,
+                  style: const TextStyle(
+                      fontSize: 16, color: AppColors.textSecondary)),
+            ],
           ),
-          const SizedBox(height: 16),
-          IosButton.tinted('编辑', onPressed: _edit, expand: true),
-          const SizedBox(height: 8),
-          CupertinoButton(
-            onPressed: _delete,
-            child: const Text('删除',
-                style: TextStyle(fontSize: 16, color: AppColors.abnormal)),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        IosButton.tinted('编辑', onPressed: _edit, expand: true),
+        const SizedBox(height: 8),
+        CupertinoButton(
+          onPressed: _delete,
+          child: const Text('删除',
+              style: TextStyle(fontSize: 16, color: AppColors.abnormal)),
+        ),
+      ],
     );
   }
 

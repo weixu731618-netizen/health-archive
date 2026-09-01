@@ -12,6 +12,7 @@ import '../dev/sample_data_seeder.dart';
 import '../main.dart';
 import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 import '../utils/report_image_save.dart';
 
 /// 编译期开关：`--dart-define=SEED_ENABLED=true` 时，即使是 release 包也显示
@@ -207,11 +208,10 @@ class _PrivacyPageState extends State<PrivacyPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('数据与隐私')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-        children: [
+    return IosLargeTitleScaffold(
+      title: '数据与隐私',
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+      children: [
           const HealthSectionHeader('备份',
               padding: EdgeInsets.fromLTRB(4, 4, 4, 10)),
           _actionCard(
@@ -262,7 +262,6 @@ class _PrivacyPageState extends State<PrivacyPage> {
             ),
           ),
         ],
-      ),
     );
   }
 
