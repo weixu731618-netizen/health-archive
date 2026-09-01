@@ -272,28 +272,31 @@ class _RecordsPageState extends State<RecordsPage> {
                 largeTitle: const Text('记录'),
                 backgroundColor:
                     AppColors.background.withValues(alpha: 0.85),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!_searchOpen)
+                trailing: Material(
+                  type: MaterialType.transparency,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!_searchOpen)
+                        CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(32, 32),
+                          onPressed: _toggleSearch,
+                          child: Icon(CupertinoIcons.search,
+                              size: 22,
+                              color: _filter.query.isNotEmpty
+                                  ? AppColors.primary
+                                  : null),
+                        ),
                       CupertinoButton(
                         padding: EdgeInsets.zero,
                         minimumSize: const Size(32, 32),
-                        onPressed: _toggleSearch,
-                        child: Icon(CupertinoIcons.search,
-                            size: 22,
-                            color: _filter.query.isNotEmpty
-                                ? AppColors.primary
-                                : null),
+                        onPressed: _openAddMenu,
+                        child: const Icon(CupertinoIcons.add, size: 24),
                       ),
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(32, 32),
-                      onPressed: _openAddMenu,
-                      child: const Icon(CupertinoIcons.add, size: 24),
-                    ),
-                    const ProfileSwitcher(),
-                  ],
+                      const ProfileSwitcher(),
+                    ],
+                  ),
                 ),
               ),
               if (_searchOpen)

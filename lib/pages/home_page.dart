@@ -233,29 +233,45 @@ class _HomePageState extends State<HomePage> {
         _upcomingFollowups.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('首页'),
-        actions: [
-          _BellAction(
-            unread: _unread,
-            onTap: () => _push(const NotificationCenterPage()),
-          ),
-          const ProfileSwitcher(),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _kContentMaxWidth),
           child: RefreshIndicator.adaptive(
             onRefresh: _load,
-            child: _loading
-                ? ListView(children: const [
-                    SizedBox(height: 160),
-                    Center(child: CircularProgressIndicator()),
-                  ])
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-                    children: [
+            child: CustomScrollView(
+              slivers: [
+                CupertinoSliverNavigationBar(
+                  largeTitle: const Text('首页'),
+                  backgroundColor:
+                      AppColors.background.withValues(alpha: 0.85),
+                  trailing: Material(
+                    type: MaterialType.transparency,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _BellAction(
+                          unread: _unread,
+                          onTap: () =>
+                              _push(const NotificationCenterPage()),
+                        ),
+                        const ProfileSwitcher(),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_loading)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 120),
+                      child: Center(child: CupertinoActivityIndicator()),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
                       // 拍报告为第一优先级
                       _PrimaryAddCard(
                         onTap: () => _push(const ReportCapturePage()),
@@ -318,8 +334,11 @@ class _HomePageState extends State<HomePage> {
                             ],
                           ),
                         ),
-                    ],
+                      ]),
+                    ),
                   ),
+              ],
+            ),
           ),
         ),
       ),

@@ -164,47 +164,66 @@ class _BodyPageState extends State<BodyPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('身体'),
-        actions: [
-          IconButton(
-            tooltip: '提醒',
-            icon: const Icon(CupertinoIcons.alarm),
-            onPressed: () async {
-              await Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => const RemindersPage()));
-              if (mounted) _load();
-            },
-          ),
-          const ProfileSwitcher(),
-        ],
-      ),
+      backgroundColor: AppColors.background,
       body: RefreshIndicator.adaptive(
         onRefresh: _load,
-        child: _loading
-            ? const Center(child: Padding(
-                padding: EdgeInsets.all(48),
-                child: CircularProgressIndicator(),
-              ))
-            : _error != null
-                ? ListView(children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(_error!,
-                          style: const TextStyle(
-                              color: AppColors.textSecondary)),
+        child: CustomScrollView(
+          slivers: [
+            CupertinoSliverNavigationBar(
+              largeTitle: const Text('身体'),
+              backgroundColor:
+                  AppColors.background.withValues(alpha: 0.85),
+              trailing: Material(
+                type: MaterialType.transparency,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(32, 32),
+                      onPressed: () async {
+                        await Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const RemindersPage()));
+                        if (mounted) _load();
+                      },
+                      child: const Icon(CupertinoIcons.alarm, size: 22),
                     ),
-                  ])
-                : !_hasAnyRecord
-                    ? _BodyEmptyState(
-                        onAdd: () async {
-                          await showAddDataSheet(context);
-                          if (mounted) _load();
-                        },
-                      )
-                    : ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-                        children: [
+                    const ProfileSwitcher(),
+                  ],
+                ),
+              ),
+            ),
+            if (_loading)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 120),
+                  child: Center(child: CupertinoActivityIndicator()),
+                ),
+              )
+            else if (_error != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(_error!,
+                      style:
+                          const TextStyle(color: AppColors.textSecondary)),
+                ),
+              )
+            else if (!_hasAnyRecord)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _BodyEmptyState(
+                  onAdd: () async {
+                    await showAddDataSheet(context);
+                    if (mounted) _load();
+                  },
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
                           _OverviewCard(
                             rows: _rows,
                             selected: _statFilter,
@@ -240,8 +259,11 @@ class _BodyPageState extends State<BodyPage> {
                                 ],
                               ),
                             ),
-                        ],
+                        ]),
                       ),
+                ),
+              ],
+            ),
       ),
     );
   }
@@ -456,9 +478,11 @@ class _BodyEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 40, 16, 96),
-      children: [
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
         const Icon(CupertinoIcons.person_crop_circle,
             size: 48, color: AppColors.insufficient),
         const SizedBox(height: 16),
@@ -480,6 +504,7 @@ class _BodyEmptyState extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }
