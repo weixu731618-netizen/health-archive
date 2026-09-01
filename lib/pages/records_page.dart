@@ -105,7 +105,10 @@ class _RecordsPageState extends State<RecordsPage> {
         // 点开进 DailyHistoryPage 看曲线。dailies 已按时间倒序，首次出现即最新。
         final seenDailyTypes = <String>{};
         final entries = <RealEntry>[
-          for (final m in metrics) RealEntry.metric(m),
+          // 从报告里解析出来的指标（带 reportId）归属报告卡，不在「手动记录」里
+          // 重复列出；只保留手工单条录入的指标。
+          for (final m in metrics)
+            if (m.reportId == null) RealEntry.metric(m),
           for (final d in dailies)
             if (seenDailyTypes.add(d.type)) RealEntry.daily(d),
         ];
