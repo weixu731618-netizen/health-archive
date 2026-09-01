@@ -87,11 +87,16 @@ class _BodyPageState extends State<BodyPage> {
       final reminders = await repo.getActiveReminders();
       final diseases = await repo.getChronicDiseases();
 
-      // 每个部位当前有几个未完成的复查 / 随访任务。
+      // 每个部位有几个「该处理了」的复查 / 随访任务——只算已过期或 30 天内到期的。
+      // 排到几个月后的复查不该让器官显橙点（否则"设了复查反而更红"）。
+      final now = DateTime.now();
+      final soon = DateTime(now.year, now.month, now.day + 30);
       final followUpCountByArea = <String, int>{};
       for (final r in reminders) {
         if ((r.kind == 'recheck' || r.kind == 'followup') &&
-            r.completedAt == null) {
+            r.completedAt == null &&
+            r.dueDate != null &&
+            r.dueDate!.isBefore(soon)) {
           for (final area in _areasForReminder(r)) {
             followUpCountByArea.update(area, (v) => v + 1, ifAbsent: () => 1);
           }
@@ -655,17 +660,6 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
       title: _area.name,
       onRefresh: _reload,
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
-      trailing: widget.isExample
-          ? null
-          : CupertinoButton(
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(32, 32),
-              onPressed: () async {
-                await showAddDataSheet(context, contextArea: _area.name);
-                if (mounted) _reload();
-              },
-              child: const Icon(CupertinoIcons.add, size: 24),
-            ),
       children: [
             _SummaryCard(
               area: _area,
