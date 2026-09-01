@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../data/app_database.dart';
 import '../data/health_repository.dart';
@@ -9,6 +10,7 @@ import '../models/metric_source.dart';
 import '../models/report_models.dart' show kUnlinkedReportType;
 import '../utils/format.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/toast.dart';
 import '../widgets/ios_button.dart';
 import '../widgets/ios_tap.dart';
 import '../widgets/profile_switcher.dart';
@@ -178,7 +180,8 @@ class _RecordsPageState extends State<RecordsPage> {
       ),
       body: RefreshIndicator.adaptive(
         onRefresh: _load,
-        child: ListView(
+        child: SlidableAutoCloseBehavior(
+          child: ListView(
           // 底部多留一点空间，避免最后一项被悬浮的"添加"按钮挡住。
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
           children: [
@@ -340,11 +343,13 @@ class _RecordsPageState extends State<RecordsPage> {
                         _RealRow(
                           entry: item.entry!,
                           onTap: () => _openReal(context, item.entry!),
+                          onDelete: () => _deleteReal(item.entry!),
                         ),
                   ]),
                 ),
               ],
           ],
+          ),
         ),
       ),
     );
@@ -485,6 +490,42 @@ class _RecordsPageState extends State<RecordsPage> {
         _recordsOrganFilter = _organFilter;
       });
     }
+  }
+
+  /// 记录行左滑「删除」：手工录入指标 / 日常记录，带二次确认。
+  Future<void> _deleteReal(RealEntry entry) async {
+    final repo = appRepository;
+    if (repo == null) return;
+    final confirm = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: const Text('删除这条记录？'),
+        content: Text('「${entry.title}」将被删除，且无法恢复。'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      if (entry.metricId != null) {
+        await repo.deleteMetric(entry.metricId!);
+      } else if (entry.dailyId != null) {
+        await repo.deleteDaily(entry.dailyId!);
+      }
+      if (mounted) showToast(context, '已删除');
+    } catch (_) {
+      if (mounted) showToast(context, '删除失败，请重试');
+    }
+    if (mounted) _load();
   }
 
   Future<void> _editTags(MedicalReport report) async {
@@ -706,12 +747,30 @@ class _ReportRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final hospital =
         report.hospitalName.isEmpty ? '医院未知' : report.hospitalName;
-    return GestureDetector(
-      onLongPress: onEditTags, // 长按仍可改标签
-      child: HealthRow(
-        title: _summaryLine,
-        subtitle: '$hospital · ${formatDateShort(report.reportDate)}',
-        onTap: onTap,
+    return Slidable(
+      key: ValueKey('rec-report-${report.id}'),
+      groupTag: 'records',
+      endActionPane: ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.26,
+        children: [
+          SlidableAction(
+            onPressed: (_) => onEditTags(),
+            backgroundColor: AppColors.primary,
+            foregroundColor: CupertinoColors.white,
+            icon: CupertinoIcons.tag,
+            label: '标签',
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ],
+      ),
+      child: GestureDetector(
+        onLongPress: onEditTags, // 长按仍可改标签
+        child: HealthRow(
+          title: _summaryLine,
+          subtitle: '$hospital · ${formatDateShort(report.reportDate)}',
+          onTap: onTap,
+        ),
       ),
     );
   }
@@ -721,23 +780,47 @@ class _ReportRow extends StatelessWidget {
 class _RealRow extends StatelessWidget {
   final RealEntry entry;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
-  const _RealRow({required this.entry, required this.onTap});
+  const _RealRow({
+    required this.entry,
+    required this.onTap,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
     final sub = '${entry.subtitle} · ${formatDateShort(entry.measuredAt)}';
-    return HealthRow(
-      title: entry.title,
-      subtitle: sub,
-      trailing: entry.status.isEmpty
-          ? null
-          : Text(entry.status,
-              style: TextStyle(
-                  fontSize: 13,
-                  color: _statusColor(entry.status),
-                  fontWeight: FontWeight.w600)),
-      onTap: onTap,
+    return Slidable(
+      key: ValueKey('rec-real-${entry.metricId ?? 'd'}-${entry.dailyId ?? 'm'}'
+          '-${entry.measuredAt.millisecondsSinceEpoch}'),
+      groupTag: 'records',
+      endActionPane: ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.26,
+        children: [
+          SlidableAction(
+            onPressed: (_) => onDelete(),
+            backgroundColor: AppColors.abnormal,
+            foregroundColor: CupertinoColors.white,
+            icon: CupertinoIcons.delete,
+            label: '删除',
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ],
+      ),
+      child: HealthRow(
+        title: entry.title,
+        subtitle: sub,
+        trailing: entry.status.isEmpty
+            ? null
+            : Text(entry.status,
+                style: TextStyle(
+                    fontSize: 13,
+                    color: _statusColor(entry.status),
+                    fontWeight: FontWeight.w600)),
+        onTap: onTap,
+      ),
     );
   }
 }
