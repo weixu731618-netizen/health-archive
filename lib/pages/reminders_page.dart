@@ -135,8 +135,7 @@ class _RemindersPageState extends State<RemindersPage> {
                   HealthCard(
                     padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
                     child: Column(
-                        children:
-                            _withDividers([for (final r in followups) _reminderTile(r)])),
+                        children: [for (final r in followups) _reminderTile(r)]),
                   ),
                 ],
                 const HealthSectionHeader('复查提醒'),
@@ -146,8 +145,7 @@ class _RemindersPageState extends State<RemindersPage> {
                   HealthCard(
                     padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
                     child: Column(
-                        children:
-                            _withDividers([for (final r in rechecks) _reminderTile(r)])),
+                        children: [for (final r in rechecks) _reminderTile(r)]),
                   ),
                 const SizedBox(height: 12),
                 IosButton.tinted('新建复查提醒',
@@ -161,25 +159,10 @@ class _RemindersPageState extends State<RemindersPage> {
                   HealthCard(
                     padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
                     child: Column(
-                        children:
-                            _withDividers([for (final r in meds) _reminderTile(r)])),
+                        children: [for (final r in meds) _reminderTile(r)]),
                   ),
               ],
     );
-  }
-
-  /// 提醒行文字偏多（标题 + 到期 + 关联长期关注 + 建议），单靠留白不够分隔，
-  /// 在每两行之间插一条极细发丝线（不是每屏都有的常驻 Divider，只在这种
-  /// 高信息密度的列表里用）。
-  List<Widget> _withDividers(List<Widget> tiles) {
-    if (tiles.length <= 1) return tiles;
-    return [
-      for (var i = 0; i < tiles.length; i++) ...[
-        if (i > 0)
-          Container(height: 1, color: const Color(0xFFEBEBED)),
-        tiles[i],
-      ],
-    ];
   }
 
   Widget _reminderTile(Reminder r) {
