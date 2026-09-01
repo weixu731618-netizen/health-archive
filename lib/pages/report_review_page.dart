@@ -12,11 +12,13 @@ import '../models/body_area_health.dart';
 import '../models/report_models.dart';
 import '../services/analytics.dart';
 import '../utils/format.dart';
+import '../utils/image_storage.dart' show PickedReportImage;
 import '../utils/report_image_save.dart';
 import '../widgets/current_profile_badge.dart';
 import '../widgets/metric_selector.dart';
 import 'followup_match.dart';
 import 'report_profile_guard.dart';
+import 'report_recognition_flow.dart';
 import 'report_result_page.dart';
 
 /// 报告识别结果确认页：医院/日期/类型可改，指标可编辑、可取消勾选、低置信度提示。
@@ -55,12 +57,33 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
 
   int get _selectedCount => _report.metrics.where((m) => m.isSelected).length;
 
+  /// 「换种方式重新识别」时会把原图交给新的识别页，本页 dispose 不能删它。
+  bool _handedOff = false;
+
   @override
   void dispose() {
-    if (!_saved) {
+    if (!_saved && !_handedOff) {
       deleteManagedReportImage(_report.sourceImagePath);
     }
     super.dispose();
+  }
+
+  /// 专用模型把项目名读串了（如读到旁边一列）——用另一条更慢但更稳的
+  /// 通用OCR + DeepSeek 链路,拿原图重新识别一遍。
+  void _reRecognizeWithDeepseek() {
+    _handedOff = true; // 原图交给下一页,别在 dispose 里删
+    startReportRecognitionFlowPagesReplacing(
+      context,
+      [
+        PickedReportImage(
+          bytes: widget.imageBytes,
+          fileName: widget.imageFileName,
+          path: _report.sourceImagePath,
+        ),
+      ],
+      initialArea: widget.initialArea,
+      preferDeepseek: true,
+    );
   }
 
   @override
@@ -131,6 +154,19 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
               onChanged: () => setState(() {}),
             ),
             const SizedBox(height: 10),
+          ],
+          if (!_saving) ...[
+            const SizedBox(height: 8),
+            Center(
+              child: CupertinoButton(
+                onPressed: _reRecognizeWithDeepseek,
+                child: const Text(
+                  '项目名读得不对？换种方式重新识别（会慢一些）',
+                  style: TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary),
+                ),
+              ),
+            ),
           ],
         ],
       ),

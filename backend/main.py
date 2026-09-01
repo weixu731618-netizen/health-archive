@@ -200,10 +200,14 @@ async def report_ocr(
 async def report_recognize(
     request: Request,
     file: UploadFile = File(...),
+    prefer: str | None = None,
     user: User | None = Depends(_ocr_user_dependency),
 ):
     """化验单 -> 百度「医疗检验报告单识别」直出结构化；识别不出（非化验单）
-    -> 回退百度通用 OCR + DeepSeek。可选鉴权同 OCR 接口。"""
+    -> 回退百度通用 OCR + DeepSeek。可选鉴权同 OCR 接口。
+
+    prefer=deepseek：跳过专用「医疗检验报告单识别」，直接走 通用OCR + DeepSeek。
+    用于客户端核对页发现专用模型串列/读错时，用户手动「换种方式重新识别」。"""
     _check_ocr_rate_limit(request)
     mime = file.content_type or ""
     image_bytes = await file.read()
@@ -211,10 +215,11 @@ async def report_recognize(
     _validate_image_bytes(mime, image_bytes)
 
     begin = time.time()
+    force_deepseek = (prefer or "").strip().lower() == "deepseek"
 
     # —— 第一优先：百度「医疗检验报告单识别」，是化验单就直接结构化，跳过 DeepSeek ——
     try:
-        med = recognize_lab_report(image_bytes)
+        med = None if force_deepseek else recognize_lab_report(image_bytes)
     except BaiduOcrError as e:
         raise HTTPException(502, detail=e.message)
     if med is not None:

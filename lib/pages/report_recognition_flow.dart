@@ -36,10 +36,15 @@ Future<void> startReportRecognitionFlowPages(
   BuildContext context,
   List<PickedReportImage> pages, {
   String? initialArea,
+  bool preferDeepseek = false,
 }) {
   return Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (_) => _RecognizingPage(pages: pages, initialArea: initialArea),
+      builder: (_) => _RecognizingPage(
+        pages: pages,
+        initialArea: initialArea,
+        preferDeepseek: preferDeepseek,
+      ),
     ),
   );
 }
@@ -51,10 +56,15 @@ Future<void> startReportRecognitionFlowPagesReplacing(
   BuildContext context,
   List<PickedReportImage> pages, {
   String? initialArea,
+  bool preferDeepseek = false,
 }) {
   return Navigator.of(context).pushReplacement(
     MaterialPageRoute(
-      builder: (_) => _RecognizingPage(pages: pages, initialArea: initialArea),
+      builder: (_) => _RecognizingPage(
+        pages: pages,
+        initialArea: initialArea,
+        preferDeepseek: preferDeepseek,
+      ),
     ),
   );
 }
@@ -66,7 +76,15 @@ class _RecognizingPage extends StatefulWidget {
   /// 从器官详情页 `+` 进来时的「建议关联部位」，透传给下游页。
   final String? initialArea;
 
-  const _RecognizingPage({required this.pages, this.initialArea});
+  /// true = 跳过专用「医疗检验报告单识别」，直接走 通用OCR + DeepSeek。
+  /// 用户在核对页发现专用模型读错时「换种方式重新识别」用。
+  final bool preferDeepseek;
+
+  const _RecognizingPage({
+    required this.pages,
+    this.initialArea,
+    this.preferDeepseek = false,
+  });
 
   @override
   State<_RecognizingPage> createState() => _RecognizingPageState();
@@ -154,6 +172,7 @@ class _RecognizingPageState extends State<_RecognizingPage> {
           imageBytes: pages[i].bytes,
           imagePath: i == 0 ? first.path : null,
           fileName: pages[i].fileName,
+          preferDeepseek: widget.preferDeepseek,
         ));
       }
       final report = perPage.length == 1

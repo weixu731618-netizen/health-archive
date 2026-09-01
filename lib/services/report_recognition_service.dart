@@ -19,6 +19,7 @@ abstract class ReportRecognitionService {
     required Uint8List imageBytes,
     String? imagePath,
     required String fileName,
+    bool preferDeepseek,
   });
 }
 
@@ -30,6 +31,7 @@ class MockReportRecognitionService implements ReportRecognitionService {
     required Uint8List imageBytes,
     String? imagePath,
     required String fileName,
+    bool preferDeepseek = false,
   }) async {
     // 模拟识别耗时，给 UI 展示 loading 的时间
     await Future<void>.delayed(const Duration(milliseconds: 900));
@@ -200,12 +202,16 @@ class RemoteReportRecognitionService implements ReportRecognitionService {
     required Uint8List imageBytes,
     String? imagePath,
     required String fileName,
+    bool preferDeepseek = false,
   }) async {
     if (_apiBase.isEmpty) {
       throw StateError('识别后端未配置（REPORT_API_BASE）');
     }
 
-    final uri = Uri.parse('$_apiBase/api/report/recognize');
+    // preferDeepseek：核对页发现专用模型读错时，用户手动「换种方式重试」，
+    // 跳过专用「医疗检验报告单识别」，直接走 通用OCR + DeepSeek。
+    final uri = Uri.parse('$_apiBase/api/report/recognize'
+        '${preferDeepseek ? '?prefer=deepseek' : ''}');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(http.MultipartFile.fromBytes('file', imageBytes,
           filename: fileName,
