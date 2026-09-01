@@ -6,6 +6,7 @@ import '../data/app_database.dart';
 import '../main.dart';
 import '../models/backup_nudge.dart';
 import '../models/body_area_health.dart';
+import '../utils/attention_acks.dart';
 import '../utils/format.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_nav.dart';
@@ -81,6 +82,10 @@ class _HomePageState extends State<HomePage> {
       final reports = await repo.getAllReports();
       final reminders = await repo.getActiveReminders();
       final unread = await repo.actionableUnreadCount();
+      // 「待跟进」= 能清空的收件箱：某器官被点进详情页看过后，它的旧信号收起，
+      // 只有出现新信号才回来。身体页 / 提醒页照常常驻显示。
+      final acks =
+          await AttentionAcks.load(repo.activeProfileId, coreBodyAreaOrder);
 
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
@@ -107,11 +112,14 @@ class _HomePageState extends State<HomePage> {
 
       final overdue = [
         for (final r in followups)
-          if (r.dueDate!.isBefore(today)) r,
+          if (r.dueDate!.isBefore(today) && !_reminderAckedStale(r, acks)) r,
       ];
       final upcoming = [
         for (final r in followups)
-          if (!r.dueDate!.isBefore(today) && !r.dueDate!.isAfter(horizon)) r,
+          if (!r.dueDate!.isBefore(today) &&
+              !r.dueDate!.isAfter(horizon) &&
+              !_reminderAckedStale(r, acks))
+            r,
       ];
 
       // HealthAttention：身体部位的异常 / 需关注。首页只收「新的 / 变差的」——
@@ -119,7 +127,8 @@ class _HomePageState extends State<HomePage> {
       final attention = [
         for (final a in buildBodyAreaHealthFromMetrics(metrics)
             .where((a) => a.priorityRank <= 1))
-          if (_areaIsFreshAttention(a, metrics, now))
+          if (_areaIsFreshAttention(a, metrics, now) &&
+              !_attentionAckedStale(a, acks))
             _AttentionArea(area: a),
       ];
 
@@ -211,6 +220,28 @@ class _HomePageState extends State<HomePage> {
       }
     }
     return false;
+  }
+
+  /// 该异常部位是否「已看过且无新信号」——所有异常指标的测量时间都不晚于
+  /// 上次点进该器官详情页的时间。是 → 从待跟进收起（身体页照样标红）。
+  bool _attentionAckedStale(
+      BodyAreaHealthSummary a, Map<String, DateTime> acks) {
+    final ack = acks[a.name];
+    if (ack == null) return false;
+    return a.metrics
+        .where((m) => m.isAbnormal)
+        .every((m) => m.measuredAt != null && !m.measuredAt!.isAfter(ack));
+  }
+
+  /// 该复查/随访是否「已看过」——它关联的每个器官都在到期日之后被点进过详情页。
+  bool _reminderAckedStale(Reminder r, Map<String, DateTime> acks) {
+    if (r.dueDate == null) return false;
+    final areas = areasForReminder(r);
+    if (areas.isEmpty) return false;
+    return areas.every((area) {
+      final ack = acks[area];
+      return ack != null && !r.dueDate!.isAfter(ack);
+    });
   }
 
   /// 数值偏离参考范围的绝对量（在范围内为 0，缺范围为 null）。

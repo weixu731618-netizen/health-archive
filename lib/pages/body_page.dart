@@ -6,6 +6,7 @@ import '../main.dart';
 import '../models/body_area_health.dart';
 import '../models/chronic_condition_dictionary.dart';
 import '../models/metric_dictionary.dart';
+import '../utils/attention_acks.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
 import '../widgets/health_ui.dart';
@@ -306,6 +307,9 @@ Set<String> _areasForCondition(String? code) {
 
 /// 一条复查 / 随访提醒 → 受影响的身体部位集合。
 /// 先按 conditionCode 走字典；再用提醒标题里是否包含部位名兜底。
+/// 对外暴露给首页「待跟进」用（判断某复查提醒关联了哪些器官）。
+Set<String> areasForReminder(Reminder r) => _areasForReminder(r);
+
 Set<String> _areasForReminder(Reminder r) {
   final out = <String>{..._areasForCondition(r.conditionCode)};
   for (final area in coreBodyAreaOrder) {
@@ -553,6 +557,11 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
   void initState() {
     super.initState();
     _reload();
+    // 点进器官详情页 = 「我知道了」→ 首页「待跟进」里该器官的旧信号收起。
+    final repo = appRepository;
+    if (repo != null && !widget.isExample) {
+      AttentionAcks.ack(repo.activeProfileId, widget.area.name);
+    }
   }
 
   Future<void> _reload() async {
