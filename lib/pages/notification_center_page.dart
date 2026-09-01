@@ -45,37 +45,27 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
         _loading = false;
       });
     }
+    // 打开通知中心即视为「已看过」：本次仍显示未读圆点，返回首页后铃铛角标清零。
+    // 复查/服药这类是常驻待办（首页「待跟进」和「提醒」页管），铃铛角标只表示
+    // 「上次看过之后有没有新东西」，不该一直亮着。
+    await repo.markAllNotificationsRead();
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasUnread = _notifications.any((n) => n.readAt == null);
     return IosLargeTitleScaffold(
       title: '通知',
       onRefresh: _loading ? null : _load,
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (hasUnread)
-            CupertinoButton(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              minimumSize: const Size(0, 32),
-              onPressed: () async {
-                await appRepository?.markAllNotificationsRead();
-                _load();
-              },
-              child: const Text('全部已读', style: TextStyle(fontSize: 15)),
-            ),
-          if (_notifications.isNotEmpty)
-            CupertinoButton(
+      // 打开本页已自动全部标为已读，不再需要「全部已读」按钮。
+      trailing: _notifications.isEmpty
+          ? null
+          : CupertinoButton(
               padding: EdgeInsets.zero,
               minimumSize: const Size(32, 32),
               onPressed: _clearAll,
               child: const Icon(CupertinoIcons.trash, size: 22),
             ),
-        ],
-      ),
       children: _loading
           ? const [
               Padding(
