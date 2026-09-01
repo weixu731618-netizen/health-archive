@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -64,7 +65,7 @@ class _MetricSelectorSheetState extends State<MetricSelectorSheet> {
               onChanged: (v) => setState(() => _keyword = v.trim()),
               decoration: InputDecoration(
                 hintText: '搜索指标名称',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(CupertinoIcons.search),
                 isDense: true,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),

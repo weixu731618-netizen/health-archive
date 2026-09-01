@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../main.dart';
 
@@ -40,7 +40,7 @@ class _CurrentProfileBadgeState extends State<CurrentProfileBadge> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          const Icon(Icons.folder_shared_outlined,
+          const Icon(CupertinoIcons.folder,
               size: 15, color: AppColors.textSecondary),
           const SizedBox(width: 6),
           Text('当前档案：$name',

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -20,7 +21,7 @@ class HealthBenefitsPage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.card_giftcard_outlined,
+              Icon(CupertinoIcons.gift,
                   size: 48, color: AppColors.textSecondary),
               SizedBox(height: 16),
               Text(

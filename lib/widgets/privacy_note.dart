@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../main.dart';
 
@@ -21,7 +21,7 @@ class PrivacyNote extends StatelessWidget {
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lock_outline, size: 16, color: AppColors.primary),
+          Icon(CupertinoIcons.lock, size: 16, color: AppColors.primary),
           SizedBox(width: 8),
           Expanded(
             child: Text(

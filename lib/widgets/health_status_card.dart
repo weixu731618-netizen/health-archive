@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../main.dart';
 import 'health_ui.dart';
@@ -24,9 +24,9 @@ Color valueStatusColor(String status) {
 /// 根据趋势状态返回方向图标。
 /// 支持的数值状态：稳定 / 上升 / 持续上升 / 下降 / 持续下降
 IconData trendIcon(String trend) {
-  if (trend.contains('上升')) return Icons.trending_up;
-  if (trend.contains('下降')) return Icons.trending_down;
-  return Icons.trending_flat; // 稳定
+  if (trend.contains('上升')) return CupertinoIcons.arrow_up_right;
+  if (trend.contains('下降')) return CupertinoIcons.arrow_down_right;
+  return CupertinoIcons.arrow_right; // 稳定
 }
 
 /// 一个小型状态标签（圆角胶囊，文字 + 颜色）

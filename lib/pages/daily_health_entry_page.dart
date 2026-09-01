@@ -10,11 +10,11 @@ import '../widgets/health_ui.dart';
 import '../widgets/ios_button.dart';
 
 enum DailyEntryType {
-  weight('weight', '体重', Icons.monitor_weight_outlined, 'kg'),
-  waist('waist', '腰围', Icons.straighten, 'cm'),
-  bloodPressure('blood_pressure', '血压', Icons.speed, 'mmHg'),
-  bloodGlucose('blood_glucose', '血糖', Icons.water_drop_outlined, 'mmol/L'),
-  heartRate('heart_rate', '心率', Icons.favorite_border, 'bpm');
+  weight('weight', '体重', CupertinoIcons.gauge, 'kg'),
+  waist('waist', '腰围', CupertinoIcons.arrow_left_right, 'cm'),
+  bloodPressure('blood_pressure', '血压', CupertinoIcons.speedometer, 'mmHg'),
+  bloodGlucose('blood_glucose', '血糖', CupertinoIcons.drop, 'mmol/L'),
+  heartRate('heart_rate', '心率', CupertinoIcons.heart, 'bpm');
 
   final String dbType;
   final String label;
@@ -478,7 +478,7 @@ class _DailyEditPageState extends State<DailyEditPage> {
             const SizedBox(height: 16),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.calendar_today,
+              leading: const Icon(CupertinoIcons.calendar,
                   color: AppColors.textSecondary),
               title: const Text('测量日期',
                   style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
@@ -490,7 +490,7 @@ class _DailyEditPageState extends State<DailyEditPage> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading:
-                  const Icon(Icons.access_time, color: AppColors.textSecondary),
+                  const Icon(CupertinoIcons.clock, color: AppColors.textSecondary),
               title: const Text('测量时间',
                   style: TextStyle(fontSize: 15, color: AppColors.textPrimary)),
               trailing: Text(

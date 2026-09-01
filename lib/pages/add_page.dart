@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -73,25 +74,25 @@ class _AddDataSheet extends StatelessWidget {
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
             ),
             _AddRow(
-              icon: Icons.description_outlined,
+              icon: CupertinoIcons.doc_text,
               title: '拍报告 / 上传',
               subtitle: '化验单、影像、病历、处方都可以；自动识别、自动分类',
               onTap: () => Navigator.pop(context, _AddPick.lab),
             ),
             _AddRow(
-              icon: Icons.edit_note,
+              icon: CupertinoIcons.square_pencil,
               title: '手工录入',
               subtitle: '手动加一个化验指标',
               onTap: () => Navigator.pop(context, _AddPick.manual),
             ),
             _AddRow(
-              icon: Icons.favorite_border,
+              icon: CupertinoIcons.heart,
               title: '日常记录',
               subtitle: '体重 · 血压 · 血糖 · 心率',
               onTap: () => Navigator.pop(context, _AddPick.daily),
             ),
             _AddRow(
-              icon: Icons.medication_outlined,
+              icon: CupertinoIcons.capsule,
               title: '用药',
               subtitle: '药物 · 剂量 · 服药提醒',
               onTap: () => Navigator.pop(context, _AddPick.medication),
@@ -124,12 +125,12 @@ class _LabModeSheet extends StatelessWidget {
           ),
           ListTile(
             leading:
-                const Icon(Icons.camera_alt_outlined, color: AppColors.primary),
+                const Icon(CupertinoIcons.camera, color: AppColors.primary),
             title: const Text('拍照'),
             onTap: () => Navigator.pop(context, 'camera'),
           ),
           ListTile(
-            leading: const Icon(Icons.upload_file_outlined,
+            leading: const Icon(CupertinoIcons.cloud_upload,
                 color: AppColors.primary),
             title: const Text('从相册或文件选'),
             subtitle: const Text('图片或 PDF'),

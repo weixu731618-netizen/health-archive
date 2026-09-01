@@ -9,6 +9,7 @@ import '../models/metric_source.dart';
 import '../models/report_models.dart' show kUnlinkedReportType;
 import '../utils/format.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_button.dart';
 import '../widgets/ios_tap.dart';
 import '../widgets/profile_switcher.dart';
 import '../utils/records_filter.dart';
@@ -1237,19 +1238,12 @@ class _EntryDetailPageState extends State<EntryDetailPage> {
             ),
           ),
           const SizedBox(height: 16),
-          FilledButton.tonal(
-            onPressed: _edit,
-            style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14)),
-            child: const Text('编辑', style: TextStyle(fontSize: 16)),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton(
+          IosButton.tinted('编辑', onPressed: _edit, expand: true),
+          const SizedBox(height: 8),
+          CupertinoButton(
             onPressed: _delete,
-            style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                foregroundColor: AppColors.abnormal),
-            child: const Text('删除', style: TextStyle(fontSize: 16)),
+            child: const Text('删除',
+                style: TextStyle(fontSize: 16, color: AppColors.abnormal)),
           ),
         ],
       ),
@@ -1289,16 +1283,17 @@ class _EntryDetailPageState extends State<EntryDetailPage> {
   Future<void> _delete() async {
     final repo = appRepository;
     if (repo == null) return;
-    final bool? confirm = await showDialog<bool>(
+    final bool? confirm = await showCupertinoDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         title: const Text('确定删除这条健康记录吗？'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('取消'),
           ),
-          TextButton(
+          CupertinoDialogAction(
+            isDestructiveAction: true,
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('删除'),
           ),

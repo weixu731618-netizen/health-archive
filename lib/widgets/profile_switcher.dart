@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
@@ -127,10 +128,10 @@ class _ProfileSwitcherState extends State<ProfileSwitcher> {
                           fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                   ),
-                  const Icon(Icons.arrow_drop_down, size: 20),
+                  const Icon(CupertinoIcons.chevron_down, size: 20),
                 ],
               )
-            : const Icon(Icons.account_circle_outlined, size: 26),
+            : const Icon(CupertinoIcons.person_circle, size: 26),
       ),
     );
   }
@@ -181,7 +182,7 @@ class _ProfileMenuSheet extends StatelessWidget {
                   title: Text(p.displayName,
                       style: const TextStyle(fontSize: 16)),
                   trailing: p.id == activeId
-                      ? const Icon(Icons.check, color: AppColors.primary)
+                      ? const Icon(CupertinoIcons.check_mark, color: AppColors.primary)
                       : null,
                   onTap: () => Navigator.pop(
                       context, _MenuPick(_PickKind.profile, profileId: p.id)),
@@ -190,25 +191,25 @@ class _ProfileMenuSheet extends StatelessWidget {
               const SizedBox(height: 4),
             ],
             _ActionTile(
-              icon: Icons.folder_outlined,
+              icon: CupertinoIcons.folder,
               label: '健康资料',
               onTap: () =>
                   Navigator.pop(context, const _MenuPick(_PickKind.records)),
             ),
             _ActionTile(
-              icon: Icons.people_outline,
+              icon: CupertinoIcons.person_2,
               label: '家庭成员',
               onTap: () =>
                   Navigator.pop(context, const _MenuPick(_PickKind.family)),
             ),
             _ActionTile(
-              icon: Icons.shield_outlined,
+              icon: CupertinoIcons.shield,
               label: '数据与隐私',
               onTap: () =>
                   Navigator.pop(context, const _MenuPick(_PickKind.privacy)),
             ),
             _ActionTile(
-              icon: Icons.info_outline,
+              icon: CupertinoIcons.info,
               label: '关于健康档案',
               onTap: () =>
                   Navigator.pop(context, const _MenuPick(_PickKind.about)),
@@ -235,7 +236,7 @@ class _ActionTile extends StatelessWidget {
       leading: Icon(icon, color: AppColors.textSecondary),
       title: Text(label, style: const TextStyle(fontSize: 16)),
       trailing:
-          const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          const Icon(CupertinoIcons.chevron_forward, color: AppColors.textSecondary),
       onTap: onTap,
     );
   }

@@ -96,7 +96,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading:
-                const Icon(Icons.cake_outlined, color: AppColors.textSecondary),
+                const Icon(CupertinoIcons.gift, color: AppColors.textSecondary),
             title: const Text('出生日期'),
             trailing: Text(_birth == null ? '未填' : formatDate(_birth!),
                 style: const TextStyle(

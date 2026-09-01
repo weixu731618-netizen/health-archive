@@ -255,7 +255,7 @@ class _PrivacyCover extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.health_and_safety, size: 56, color: AppColors.primary),
+              Icon(CupertinoIcons.heart_circle, size: 56, color: AppColors.primary),
               SizedBox(height: 12),
               Text(
                 '健康档案',
