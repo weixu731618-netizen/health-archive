@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/ios_nav.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_button.dart';
 import '../services/notification_service.dart';
@@ -88,33 +89,39 @@ class _MedicationPageState extends State<MedicationPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('用药记录'),
-        actions: [
-          IconButton(
-            tooltip: '新增',
-            icon: const Icon(CupertinoIcons.add),
-            onPressed: () => _addOrEdit(),
-          ),
-        ],
+    return IosLargeTitleScaffold(
+      title: '用药记录',
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+      trailing: CupertinoButton(
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(32, 32),
+        onPressed: () => _addOrEdit(),
+        child: const Icon(CupertinoIcons.add, size: 24),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
+      children: _loading
+          ? const [
+              Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CupertinoActivityIndicator()),
+              )
+            ]
           : _items.isEmpty
-              ? const Center(
-                  child: Text('暂无用药记录，点右上角 + 添加',
-                      style: TextStyle(
-                          fontSize: 14, color: AppColors.textSecondary)))
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-                  children: [
-                    for (final m in _items) ...[
-                      _medCard(m),
-                      const SizedBox(height: 12),
-                    ],
+              ? const [
+                  Padding(
+                    padding: EdgeInsets.only(top: 60),
+                    child: Center(
+                      child: Text('暂无用药记录，点右上角 + 添加',
+                          style: TextStyle(
+                              fontSize: 14, color: AppColors.textSecondary)),
+                    ),
+                  )
+                ]
+              : [
+                  for (final m in _items) ...[
+                    _medCard(m),
+                    const SizedBox(height: 12),
                   ],
-                ),
+                ],
     );
   }
 

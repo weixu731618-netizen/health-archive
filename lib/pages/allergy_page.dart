@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/ios_nav.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_button.dart';
 import '../utils/format.dart';
@@ -72,33 +73,39 @@ class _AllergyPageState extends State<AllergyPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('过敏史'),
-        actions: [
-          IconButton(
-            tooltip: '新增',
-            icon: const Icon(CupertinoIcons.add),
-            onPressed: () => _addOrEdit(),
-          ),
-        ],
+    return IosLargeTitleScaffold(
+      title: '过敏史',
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+      trailing: CupertinoButton(
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(32, 32),
+        onPressed: () => _addOrEdit(),
+        child: const Icon(CupertinoIcons.add, size: 24),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
+      children: _loading
+          ? const [
+              Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CupertinoActivityIndicator()),
+              )
+            ]
           : _items.isEmpty
-              ? const Center(
-                  child: Text('暂无过敏史，点右上角 + 添加',
-                      style: TextStyle(
-                          fontSize: 14, color: AppColors.textSecondary)))
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-                  children: [
-                    for (final a in _items) ...[
-                      _allergyCard(a),
-                      const SizedBox(height: 12),
-                    ],
+              ? const [
+                  Padding(
+                    padding: EdgeInsets.only(top: 60),
+                    child: Center(
+                      child: Text('暂无过敏史，点右上角 + 添加',
+                          style: TextStyle(
+                              fontSize: 14, color: AppColors.textSecondary)),
+                    ),
+                  )
+                ]
+              : [
+                  for (final a in _items) ...[
+                    _allergyCard(a),
+                    const SizedBox(height: 12),
                   ],
-                ),
+                ],
     );
   }
 

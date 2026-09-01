@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../data/app_database.dart';
 import '../data/health_repository.dart';
 import '../main.dart';
+import '../widgets/ios_nav.dart';
 import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
 import '../utils/format.dart';
@@ -186,28 +187,31 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('家庭成员')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-              children: [
-                for (final p in _people) ...[
-                  _memberCard(p),
-                  const SizedBox(height: 12),
-                ],
-                _AddMemberCard(onTap: _busy ? null : _addMember),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(4, 14, 4, 4),
-                  child: Text(
-                    '每个成员的报告和健康数据相互独立。点选一个成员即可切换当前查看的档案。',
-                    style: TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
-                  ),
-                ),
+    return IosLargeTitleScaffold(
+      title: '家庭成员',
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+      children: _loading
+          ? const [
+              Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CupertinoActivityIndicator()),
+              )
+            ]
+          : [
+              for (final p in _people) ...[
+                _memberCard(p),
+                const SizedBox(height: 12),
               ],
-            ),
+              _AddMemberCard(onTap: _busy ? null : _addMember),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(4, 14, 4, 4),
+                child: Text(
+                  '每个成员的报告和健康数据相互独立。点选一个成员即可切换当前查看的档案。',
+                  style: TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary),
+                ),
+              ),
+            ],
     );
   }
 

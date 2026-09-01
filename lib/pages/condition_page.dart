@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/ios_nav.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_tap.dart';
 import '../models/chronic_condition_dictionary.dart';
@@ -142,13 +142,17 @@ class _ConditionPageState extends State<ConditionPage> {
     final others =
         _diseases.where((d) => (d.conditionCode ?? '').isEmpty).toList();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('慢性病')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-              children: [
+    return IosLargeTitleScaffold(
+      title: '慢性病',
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 32),
+      children: _loading
+          ? const [
+              Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Center(child: CupertinoActivityIndicator()),
+              )
+            ]
+          : [
                 const Padding(
                   padding: EdgeInsets.fromLTRB(4, 4, 4, 8),
                   child: Text(
@@ -205,7 +209,6 @@ class _ConditionPageState extends State<ConditionPage> {
                     ),
                   ),
               ],
-            ),
     );
   }
 }

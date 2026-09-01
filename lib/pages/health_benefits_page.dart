@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/ios_nav.dart';
 
 /// 「健康权益」占位页。
 ///
@@ -13,11 +13,11 @@ class HealthBenefitsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('健康权益')),
-      body: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
+    return const IosLargeTitleScaffold(
+      title: '健康权益',
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, 48, 16, 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -42,7 +42,7 @@ class HealthBenefitsPage extends StatelessWidget {
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }
