@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../data/app_database.dart';
 import '../data/health_repository.dart';
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
 import '../utils/format.dart';
 import '../utils/report_image_save.dart';
@@ -166,9 +167,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
   }
 
   void _toast(String s) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(s)));
+    showToast(context, s);
   }
 
   /// 列表副标题：关系 · 性别 · 年龄（关系为空、或与名字相同则省略）。

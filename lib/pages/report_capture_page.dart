@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 
 import '../main.dart';
+import '../widgets/health_ui.dart';
 import '../widgets/ios_button.dart';
 import '../models/body_area_health.dart';
 import '../utils/image_storage.dart';
@@ -99,26 +100,23 @@ class _ReportCapturePageState extends State<ReportCapturePage> {
                       fontSize: 13, color: AppColors.textSecondary)),
             ),
           const PrivacyNote(),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  if (_busy) ...[
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 12),
-                    const Text('正在打开相机…',
-                        style: TextStyle(
-                            fontSize: 14, color: AppColors.textSecondary)),
-                  ] else ...[
-                    const Icon(CupertinoIcons.camera,
-                        size: 56, color: AppColors.textSecondary),
-                    const SizedBox(height: 12),
-                    IosButton.filled('打开相机',
-                        icon: CupertinoIcons.camera, onPressed: _capture),
-                  ],
+          HealthCard(
+            child: Column(
+              children: [
+                if (_busy) ...[
+                  const CupertinoActivityIndicator(),
+                  const SizedBox(height: 12),
+                  const Text('正在打开相机…',
+                      style: TextStyle(
+                          fontSize: 14, color: AppColors.textSecondary)),
+                ] else ...[
+                  const Icon(CupertinoIcons.camera,
+                      size: 56, color: AppColors.textSecondary),
+                  const SizedBox(height: 12),
+                  IosButton.filled('打开相机',
+                      icon: CupertinoIcons.camera, onPressed: _capture),
                 ],
-              ),
+              ],
             ),
           ),
           if (_error != null) ...[
@@ -163,5 +161,5 @@ class _RecognitionLauncherState extends State<_RecognitionLauncher> {
 
   @override
   Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: CircularProgressIndicator()));
+      const Scaffold(body: Center(child: CupertinoActivityIndicator()));
 }

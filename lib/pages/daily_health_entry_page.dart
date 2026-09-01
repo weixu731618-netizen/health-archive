@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' as drift;
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../utils/format.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_button.dart';
@@ -311,17 +312,13 @@ class _DailyEntryFormPageState extends State<DailyEntryFormPage> {
     if (_saving) return; // 防止重复提交
     final v1 = double.tryParse(_value1Ctrl.text.trim());
     if (v1 == null || v1 <= 0) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('请输入有效的数值')));
+      showToast(context, '请输入有效的数值');
       return;
     }
     if (_type == DailyEntryType.bloodPressure) {
       final v2 = double.tryParse(_value2Ctrl.text.trim());
       if (v2 == null || v2 <= 0) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('请输入有效的舒张压')));
+        showToast(context, '请输入有效的舒张压');
         return;
       }
     }
@@ -367,9 +364,7 @@ class _DailyEntryFormPageState extends State<DailyEntryFormPage> {
       }
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('保存成功')));
+      showToast(context, '保存成功');
       Navigator.of(context).pop(true);
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -586,9 +581,7 @@ class _DailyEditPageState extends State<DailyEditPage> {
       );
       await repo.updateDaily(updated);
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('保存成功')));
+      showToast(context, '保存成功');
       Navigator.of(context).pop(true);
     } finally {
       if (mounted) setState(() => _saving = false);

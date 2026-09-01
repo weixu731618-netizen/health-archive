@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
 
 /// 云端备份 / 账号页（V0.5 匿名方案）。
@@ -55,9 +56,7 @@ class _CloudBackupPageState extends State<CloudBackupPage> {
   bool get _loggedIn => (_token ?? '').isNotEmpty;
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+    showToast(context, msg);
   }
 
   String get _shortId =>

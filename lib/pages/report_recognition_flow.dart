@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../widgets/ios_button.dart';
 import '../models/report_models.dart';
 import '../services/analytics.dart';
@@ -218,21 +219,20 @@ class _RecognizingPageState extends State<_RecognizingPage> {
   Future<void> _classifyPickImaging() async {
     final report = _pendingReport;
     if (report == null) return;
-    final picked = await showModalBottomSheet<String>(
+    final picked = await showCupertinoModalPopup<String>(
       context: context,
-      showDragHandle: true,
-      builder: (_) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Text('这是哪一类？',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('这是哪一类？'),
+        actions: [
+          for (final t in kImagingReportTypes)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, t),
+              child: Text(t),
             ),
-            for (final t in kImagingReportTypes)
-              ListTile(title: Text(t), onTap: () => Navigator.pop(context, t)),
-          ],
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('取消'),
         ),
       ),
     );
@@ -266,16 +266,12 @@ class _RecognizingPageState extends State<_RecognizingPage> {
       );
       _transferredImageOwnership = true;
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('已存为未关联记录')));
+        showToast(context, '已存为未关联记录');
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text('保存失败：$e')));
+        showToast(context, '保存失败：$e');
       }
     }
   }
@@ -300,7 +296,7 @@ class _RecognizingPageState extends State<_RecognizingPage> {
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CircularProgressIndicator(),
+                  const CupertinoActivityIndicator(radius: 15),
                   const SizedBox(height: 16),
                   Text(
                       _pageProgress.isEmpty
@@ -336,7 +332,7 @@ class _RecognizingPageState extends State<_RecognizingPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline,
+                    const Icon(CupertinoIcons.exclamationmark_circle,
                         size: 48, color: AppColors.textSecondary),
                     const SizedBox(height: 12),
                     const Text(

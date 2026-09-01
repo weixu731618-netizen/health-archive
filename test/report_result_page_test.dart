@@ -58,9 +58,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('已整理完成'), findsOneWidget);
-    expect(find.text('3 项'), findsOneWidget); // 识别指标
-    expect(find.text('1 项'), findsOneWidget); // 正常
-    expect(find.text('2 项'), findsOneWidget); // 需要关注
+    expect(find.text('识别指标'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget); // 识别指标
+    expect(find.text('1'), findsOneWidget); // 正常
+    expect(find.text('2'), findsOneWidget); // 需要关注
     // 涉及身体：电解质(钾,正常)已归并到肾脏/泌尿；肝胆 1 项异常(ALT)、肾脏/泌尿 1 项异常(肌酐)
     expect(find.text('肝胆'), findsOneWidget);
     expect(find.text('肾脏/泌尿'), findsOneWidget);

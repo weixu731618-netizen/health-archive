@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_button.dart';
 import '../models/body_area_health.dart';
@@ -303,9 +304,7 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
   }
 
   void _toast(String s) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(s)));
+    showToast(context, s);
   }
 
   String _recheckLabel() {
@@ -331,13 +330,11 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
             ),
           ),
           const PrivacyNote(),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: _image == null
+          HealthCard(
+            child: _image == null
                   ? Column(
                       children: [
-                        const Icon(Icons.image_outlined,
+                        const Icon(CupertinoIcons.photo,
                             size: 56, color: AppColors.textSecondary),
                         const SizedBox(height: 8),
                         const Text('拍照，或从相册选截图 / 从文件选 PDF',
@@ -386,7 +383,6 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
                         ),
                       ],
                     ),
-            ),
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
@@ -449,26 +445,20 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
                 setState(() => _recheckDays = null);
                 return;
               }
-              final days = await showModalBottomSheet<int>(
+              final days = await showCupertinoModalPopup<int>(
                 context: context,
-                showDragHandle: true,
-                builder: (_) => SafeArea(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Text('参考复查时间',
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600)),
+                builder: (ctx) => CupertinoActionSheet(
+                  title: const Text('参考复查时间'),
+                  actions: [
+                    for (final e in kRecheckIntervalOptions.entries)
+                      CupertinoActionSheetAction(
+                        onPressed: () => Navigator.pop(ctx, e.value),
+                        child: Text(e.key),
                       ),
-                      for (final e in kRecheckIntervalOptions.entries)
-                        ListTile(
-                          title: Text(e.key),
-                          onTap: () => Navigator.pop(context, e.value),
-                        ),
-                    ],
+                  ],
+                  cancelButton: CupertinoActionSheetAction(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('取消'),
                   ),
                 ),
               );
@@ -484,12 +474,7 @@ class _ImagingReportPageState extends State<ImagingReportPage> {
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w600)),
               const SizedBox(width: 8),
-              if (_ocrRunning)
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+              if (_ocrRunning) const CupertinoActivityIndicator(radius: 8),
             ],
           ),
           const SizedBox(height: 8),

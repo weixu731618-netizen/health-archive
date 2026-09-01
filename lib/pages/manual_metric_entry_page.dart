@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' as drift;
 import '../data/app_database.dart';
 import '../data/health_repository.dart';
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../models/metric_dictionary.dart';
 import '../utils/format.dart';
 import '../widgets/health_ui.dart';
@@ -267,11 +268,7 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
 
   /// 编辑模式下点击指标选择项的提示：不允许更换指标类型
   void _pickMetricBlocked() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(content: Text('编辑时不支持更换指标类型，请删除后重新新增')),
-      );
+    showToast(context, '编辑时不支持更换指标类型，请删除后重新新增');
   }
 
   Future<void> _pickDate() async {
@@ -283,9 +280,7 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
   Future<void> _save(BuildContext context) async {
     if (_saving) return; // 防止重复提交
     if (_definition == null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('请先选择指标')));
+      showToast(context, '请先选择指标');
       return;
     }
     if (!_formKey.currentState!.validate()) return;
@@ -337,9 +332,7 @@ class _ManualMetricEntryPageState extends State<ManualMetricEntryPage> {
       }
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('保存成功')));
+      showToast(context, '保存成功');
       Navigator.of(context).pop(true);
     } finally {
       if (mounted) setState(() => _saving = false);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../models/report_followup.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
@@ -354,9 +355,7 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
       if (confirm == true) {
         await repo.deleteMetric(m.id);
         if (!mounted) return;
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('已删除')));
+        showToast(context, '已删除');
       }
     }
     if (mounted) _load();

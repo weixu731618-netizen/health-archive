@@ -4,8 +4,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_button.dart';
+import '../widgets/ios_tap.dart';
 import '../models/body_area_health.dart';
 import '../models/report_models.dart';
 import '../services/analytics.dart';
@@ -71,59 +73,49 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
         children: [
           const CurrentProfileBadge(),
           // 报告信息卡（医院/日期/类型/关联部位 可改）
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _InfoField(
-                    label: '医院',
-                    value: report.hospitalName.isEmpty
-                        ? '未填写'
-                        : report.hospitalName,
-                    icon: Icons.local_hospital_outlined,
-                    onTap: () => _editText('医院', report.hospitalName,
-                        (v) => report.hospitalName = v),
-                  ),
-                  const Divider(height: 20),
-                  _InfoField(
-                    label: '检查日期',
-                    value: formatDate(report.reportDate),
-                    icon: Icons.calendar_today,
-                    onTap: _editDate,
-                  ),
-                  const Divider(height: 20),
-                  _InfoField(
-                    label: '报告类型',
-                    value: report.reportType.isEmpty
-                        ? '未填写'
-                        : report.reportType,
-                    icon: Icons.description_outlined,
-                    onTap: () => _editText('报告类型', report.reportType,
-                        (v) => report.reportType = v),
-                  ),
-                  const Divider(height: 20),
-                  _InfoField(
-                    label: '关联部位',
-                    value: _area ?? '自动（按指标）',
-                    icon: Icons.account_tree_outlined,
-                    onTap: _editArea,
-                  ),
-                ],
-              ),
+          HealthCard(
+            child: Column(
+              children: [
+                _InfoField(
+                  label: '医院',
+                  value: report.hospitalName.isEmpty
+                      ? '未填写'
+                      : report.hospitalName,
+                  onTap: () => _editText('医院', report.hospitalName,
+                      (v) => report.hospitalName = v),
+                ),
+                _InfoField(
+                  label: '检查日期',
+                  value: formatDate(report.reportDate),
+                  onTap: _editDate,
+                ),
+                _InfoField(
+                  label: '报告类型',
+                  value: report.reportType.isEmpty
+                      ? '未填写'
+                      : report.reportType,
+                  onTap: () => _editText('报告类型', report.reportType,
+                      (v) => report.reportType = v),
+                ),
+                _InfoField(
+                  label: '关联部位',
+                  value: _area ?? '自动（按指标）',
+                  onTap: _editArea,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.fromLTRB(4, 26, 4, 8),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     '识别到 ${report.metrics.length} 项指标',
                     style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
                         color: AppColors.textPrimary),
                   ),
                 ),
@@ -132,7 +124,6 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
               ],
             ),
           ),
-          const SizedBox(height: 8),
           for (int i = 0; i < report.metrics.length; i++) ...[
             _MetricEditTile(
               index: i,
@@ -228,26 +219,24 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
 
   /// D7：选择这份报告要关联的身体部位（或「自动」）。
   Future<void> _editArea() async {
-    final picked = await showModalBottomSheet<String>(
+    final picked = await showCupertinoModalPopup<String>(
       context: context,
-      showDragHandle: true,
-      builder: (_) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            ListTile(
-              title: const Text('自动（按指标推导）'),
-              trailing: _area == null ? const Icon(Icons.check) : null,
-              onTap: () => Navigator.pop(context, ''),
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('关联部位'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, ''),
+            child: Text(_area == null ? '✓ 自动（按指标推导）' : '自动（按指标推导）'),
+          ),
+          for (final a in coreBodyAreaOrder)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, a),
+              child: Text(_area == a ? '✓ $a' : a),
             ),
-            const Divider(height: 1),
-            for (final a in coreBodyAreaOrder)
-              ListTile(
-                title: Text(a),
-                trailing: _area == a ? const Icon(Icons.check) : null,
-                onTap: () => Navigator.pop(context, a),
-              ),
-          ],
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('取消'),
         ),
       ),
     );
@@ -279,7 +268,7 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
               top: 40,
               right: 16,
               child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
+                icon: const Icon(CupertinoIcons.xmark, color: Colors.white),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ),
@@ -438,51 +427,48 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+    showToast(context, msg);
   }
 }
 
 class _InfoField extends StatelessWidget {
   final String label;
   final String value;
-  final IconData icon;
   final VoidCallback onTap;
 
   const _InfoField({
     required this.label,
     required this.value,
-    required this.icon,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return IosTap(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: AppColors.textSecondary),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 72,
-            child: Text(label,
-                style: const TextStyle(
-                    fontSize: 14, color: AppColors.textSecondary)),
-          ),
-          Expanded(
-            child: Text(value,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary)),
-          ),
-          const Icon(Icons.edit_outlined,
-              size: 18, color: AppColors.textSecondary),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 76,
+              child: Text(label,
+                  style: const TextStyle(
+                      fontSize: 15, color: AppColors.textSecondary)),
+            ),
+            Expanded(
+              child: Text(value,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
+            ),
+            const SizedBox(width: 6),
+            const Icon(CupertinoIcons.pencil,
+                size: 15, color: AppColors.textSecondary),
+          ],
+        ),
       ),
     );
   }
@@ -506,58 +492,61 @@ class _MetricEditTile extends StatelessWidget {
     final unmatched = metric.matchedMetricId == null;
     // D3：卡片默认只显示「名称 + 识别值 + 状态」；参考范围 / 所属 / 单位等
     // 细节移进编辑器。只保留会影响用户决策的两个提醒（未匹配 / 低可信度）。
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _edit(context), // D6：整行可点即进编辑
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
-          child: Row(
-            children: [
-              Checkbox(
-                value: metric.isSelected,
-                onChanged: (v) {
-                  metric.isSelected = v ?? false;
-                  onChanged();
-                },
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      metric.canonicalName,
-                      style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${_valuesText(metric)} · ${metric.status}',
-                      style: const TextStyle(
-                          fontSize: 13, color: AppColors.textSecondary),
-                    ),
-                    if (unmatched || lowConfidence) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        [
-                          if (unmatched) '未匹配标准指标',
-                          if (lowConfidence) '识别可信度较低，请核对',
-                        ].join(' · '),
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.warning),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right,
-                  size: 20, color: AppColors.textSecondary),
-            ],
+    return HealthCard(
+      onTap: () => _edit(context), // D6：整行可点即进编辑
+      padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
+      child: Row(
+        children: [
+          IosTap(
+            onTap: () {
+              metric.isSelected = !metric.isSelected;
+              onChanged();
+            },
+            borderRadius: BorderRadius.circular(999),
+            child: Icon(
+              metric.isSelected
+                  ? CupertinoIcons.checkmark_circle_fill
+                  : CupertinoIcons.circle,
+              size: 24,
+              color: metric.isSelected
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+            ),
           ),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  metric.canonicalName,
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${_valuesText(metric)} · ${metric.status}',
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary),
+                ),
+                if (unmatched || lowConfidence) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    [
+                      if (unmatched) '未匹配标准指标',
+                      if (lowConfidence) '识别可信度较低，请核对',
+                    ].join(' · '),
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.warning),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -687,27 +676,27 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
               const SizedBox(height: 12),
             ],
             _smallLabel('指标名称'),
-            TextField(controller: _nameCtrl),
+            CupertinoTextField(controller: _nameCtrl),
             const SizedBox(height: 10),
             _smallLabel('数值'),
-            TextField(
+            CupertinoTextField(
               controller: _valueCtrl,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 10),
             _smallLabel('单位'),
-            TextField(controller: _unitCtrl),
+            CupertinoTextField(controller: _unitCtrl),
             const SizedBox(height: 10),
             _smallLabel('参考下限（选填）'),
-            TextField(
+            CupertinoTextField(
               controller: _minCtrl,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 10),
             _smallLabel('参考上限（选填）'),
-            TextField(
+            CupertinoTextField(
               controller: _maxCtrl,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
@@ -730,9 +719,7 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
   void _apply() {
     final value = double.tryParse(_valueCtrl.text.trim());
     if (value == null) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('请输入有效数值')));
+      showToast(context, '请输入有效数值');
       return;
     }
     final min = double.tryParse(_minCtrl.text.trim());

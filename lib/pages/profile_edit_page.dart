@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../utils/format.dart';
 
 /// 个人资料编辑页（MVP：昵称/性别/出生日期/身高）。
@@ -61,9 +62,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       heightCm: double.tryParse(_heightCtrl.text.trim()),
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('已保存')));
+    showToast(context, '已保存');
     Navigator.of(context).pop(true);
   }
 

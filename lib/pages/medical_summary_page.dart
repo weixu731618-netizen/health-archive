@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../utils/format.dart';
 import '../utils/medical_summary.dart';
 
@@ -88,9 +89,7 @@ class _MedicalSummaryPageState extends State<MedicalSummaryPage> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text('导出失败：$e')));
+        showToast(context, '导出失败：$e');
       }
     } finally {
       if (mounted) setState(() => _busy = false);

@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_button.dart';
 import '../widgets/ios_tap.dart';
@@ -166,9 +167,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       await _load();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('保存失败，请重试')));
+        showToast(context, '保存失败，请重试');
       }
     }
   }
@@ -191,9 +190,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       await _load();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('保存失败，请重试')));
+        showToast(context, '保存失败，请重试');
       }
     }
   }
@@ -211,15 +208,11 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     try {
       final shared = await shareReport(report);
       if (!shared && mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('该报告没有可导出的原图或文字')));
+        showToast(context, '该报告没有可导出的原图或文字');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('分享失败，请重试')));
+        showToast(context, '分享失败，请重试');
       }
     }
   }
@@ -255,16 +248,12 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         await syncReminders();
       } catch (_) {}
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('报告已删除')));
+        showToast(context, '报告已删除');
         Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('删除失败，请重试')));
+        showToast(context, '删除失败，请重试');
       }
     }
   }

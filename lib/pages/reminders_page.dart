@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_button.dart';
 import '../widgets/ios_tap.dart';
@@ -307,9 +308,7 @@ class _NewRecheckSheetState extends State<_NewRecheckSheet> {
                 onPressed: () {
                   final t = _titleCtrl.text.trim();
                   if (t.isEmpty) {
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(const SnackBar(content: Text('请填写提醒内容')));
+                    showToast(context, '请填写提醒内容');
                     return;
                   }
                   Navigator.of(context)

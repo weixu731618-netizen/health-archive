@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../dev/sample_data_seeder.dart';
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
 import '../utils/report_image_save.dart';
 
@@ -201,9 +202,7 @@ class _PrivacyPageState extends State<PrivacyPage> {
   }
 
   void _toast(String s) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(s)));
+    showToast(context, s);
   }
 
   @override

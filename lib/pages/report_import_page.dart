@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import '../widgets/health_ui.dart';
 import '../widgets/ios_button.dart';
 import '../models/body_area_health.dart';
 import '../utils/image_storage.dart';
@@ -91,13 +92,11 @@ class _ReportImportPageState extends State<ReportImportPage> {
             ),
           const PrivacyNote(),
           // 图片预览区域
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: _image == null
+          HealthCard(
+            child: _image == null
                   ? Column(
                       children: [
-                        const Icon(Icons.image_outlined,
+                        const Icon(CupertinoIcons.photo,
                             size: 56, color: AppColors.textSecondary),
                         const SizedBox(height: 8),
                         const Text('从相册选截图，或从文件选 PDF',
@@ -153,7 +152,6 @@ class _ReportImportPageState extends State<ReportImportPage> {
                         ),
                       ],
                     ),
-            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),

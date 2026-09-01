@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../main.dart';
+import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_button.dart';
 import '../models/body_area_health.dart';
@@ -180,34 +181,60 @@ class _ReportResultPageState extends State<ReportResultPage> {
               reportId: widget.reportId,
             ),
           ],
-          const SizedBox(height: 18),
-          const _SectionLabel('本次结果'),
-          _StatRow(label: '识别指标', value: '$_total 项', strong: true),
-          _StatRow(label: '正常', value: '$_normal 项'),
-          _StatRow(
-            label: '需要关注',
-            value: '$_abnormal 项',
-            valueColor: _abnormal > 0 ? AppColors.warning : null,
-            // E6：有需要关注的指标时，点这行去报告详情看是哪几项。
-            onTap: _abnormal > 0
-                ? () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) =>
-                        ReportDetailPage(reportId: widget.reportId)))
-                : null,
+          const HealthSectionHeader('本次结果'),
+          HealthCard(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                        child: StatBlock(value: '$_total', label: '识别指标')),
+                    Expanded(child: StatBlock(value: '$_normal', label: '正常')),
+                    Expanded(
+                      child: StatBlock(
+                        value: '$_abnormal',
+                        label: '需要关注',
+                        color: _abnormal > 0 ? AppColors.warning : null,
+                      ),
+                    ),
+                  ],
+                ),
+                // E6：有需要关注的指标时，点这行去报告详情看是哪几项。
+                if (_abnormal > 0) ...[
+                  const SizedBox(height: 4),
+                  HealthRow(
+                    title: '查看需要关注的 $_abnormal 项',
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) =>
+                            ReportDetailPage(reportId: widget.reportId))),
+                    trailing: const Icon(CupertinoIcons.chevron_forward,
+                        size: 16, color: AppColors.textSecondary),
+                  ),
+                ],
+              ],
+            ),
           ),
           if (_systems.isNotEmpty) ...[
-            const SizedBox(height: 18),
-            const _SectionLabel('涉及身体'),
-            for (final s in _systems)
-              _SystemRow(
-                name: s.name,
-                abnormal: s.abnormal,
-                onTap: () => _openArea(s.name),
+            const HealthSectionHeader('涉及身体'),
+            HealthCard(
+              child: Column(
+                children: [
+                  for (final s in _systems)
+                    HealthRow(
+                      title: s.name,
+                      subtitle: s.abnormal > 0
+                          ? '${s.abnormal} 项需要关注'
+                          : '本次无异常',
+                      onTap: () => _openArea(s.name),
+                      trailing: const Icon(CupertinoIcons.chevron_forward,
+                          size: 16, color: AppColors.textSecondary),
+                    ),
+                ],
               ),
+            ),
           ],
           if (compares.isNotEmpty) ...[
-            const SizedBox(height: 18),
-            const _SectionLabel('与历史对比'),
+            const HealthSectionHeader('与历史对比'),
             for (final c in compares)
               _CompareRow(
                 name: c.line.name,
@@ -291,29 +318,20 @@ class _ReportResultPageState extends State<ReportResultPage> {
   Future<void> _setRecheck() async {
     final repo = appRepository;
     if (repo == null) return;
-    final months = await showModalBottomSheet<int>(
+    final months = await showCupertinoModalPopup<int>(
       context: context,
-      showDragHandle: true,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('多久之后复查？',
-                    style:
-                        TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-              ),
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('多久之后复查？'),
+        actions: [
+          for (final m in const [1, 3, 6, 12])
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(ctx, m),
+              child: Text('$m 个月后'),
             ),
-            for (final m in const [1, 3, 6, 12])
-              ListTile(
-                title: Text('$m 个月后'),
-                onTap: () => Navigator.pop(context, m),
-              ),
-            const SizedBox(height: 8),
-          ],
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('取消'),
         ),
       ),
     );
@@ -346,9 +364,7 @@ class _ReportResultPageState extends State<ReportResultPage> {
       if (mounted) setState(() => _recheckSet = true);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('设置失败，请重试')));
+        showToast(context, '设置失败，请重试');
       }
     }
   }
@@ -380,7 +396,8 @@ class _Header extends StatelessWidget {
       children: [
         const Row(
           children: [
-            Icon(Icons.check_circle, color: AppColors.normal, size: 22),
+            Icon(CupertinoIcons.checkmark_circle_fill,
+                color: AppColors.normal, size: 22),
             SizedBox(width: 8),
             Text('已整理完成',
                 style: TextStyle(
@@ -417,92 +434,6 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text,
-            style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary)),
-      );
-}
-
-class _StatRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool strong;
-  final Color? valueColor;
-  final VoidCallback? onTap;
-  const _StatRow({
-    required this.label,
-    required this.value,
-    this.strong = false,
-    this.valueColor,
-    this.onTap,
-  });
-  @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 7),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: 14, color: AppColors.textPrimary)),
-              Row(
-                children: [
-                  Text(value,
-                      style: TextStyle(
-                          fontSize: strong ? 15 : 14,
-                          fontWeight:
-                              strong ? FontWeight.w700 : FontWeight.w500,
-                          color: valueColor ?? AppColors.textPrimary)),
-                  if (onTap != null)
-                    const Icon(Icons.chevron_right,
-                        size: 18, color: AppColors.textSecondary),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-}
-
-class _SystemRow extends StatelessWidget {
-  final String name;
-  final int abnormal;
-  final VoidCallback onTap;
-  const _SystemRow(
-      {required this.name, required this.abnormal, required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        dense: true,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: Text(name, style: const TextStyle(fontSize: 14)),
-        subtitle: Text(
-          abnormal > 0 ? '$abnormal 项需要关注' : '本次无异常',
-          style: TextStyle(
-              fontSize: 12,
-              color: abnormal > 0
-                  ? AppColors.warning
-                  : AppColors.textSecondary),
-        ),
-        trailing:
-            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
 class _CompareRow extends StatelessWidget {
   final String name;
   final String prevText;
@@ -516,15 +447,15 @@ class _CompareRow extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: HealthCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(name,
                 style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary)),
             const SizedBox(height: 4),
@@ -558,7 +489,7 @@ class _HintCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.timeline_outlined,
+            const Icon(CupertinoIcons.chart_bar_alt_fill,
                 size: 18, color: AppColors.primary),
             const SizedBox(width: 10),
             Expanded(
