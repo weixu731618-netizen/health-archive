@@ -128,7 +128,8 @@ void main() {
     expect(await db.select(db.reminders).get(), isEmpty);
   });
 
-  test('syncNotificationsFromReminders：复查落 1 行，服药按今天时间点落行，幂等', () async {
+  test('syncNotificationsFromReminders：只落复查/随访，服药不进 App 通知中心，幂等',
+      () async {
     await repo.ensureDefaultPersonProfile();
     final now = DateTime(2026, 8, 29, 12);
     await repo.insertReminder(
@@ -146,20 +147,19 @@ void main() {
     );
 
     final n1 = await repo.syncNotificationsFromReminders(now: now);
-    expect(n1, 3); // 1 复查 + 2 服药
+    expect(n1, 1); // 只有 1 复查；服药靠系统本地通知，不落 App 内
     final notes = await repo.getNotifications();
-    expect(notes, hasLength(3));
-    // 复查（8-20 09:00）和早上 08:00 那条已过时间 → 已标记送达
-    expect(notes.where((x) => x.deliveredAt != null).length, 2);
-    // 晚上 20:00 那条还没到 → 待提醒
-    expect(notes.where((x) => x.deliveredAt == null).length, 1);
+    expect(notes, hasLength(1));
+    expect(notes.single.category, 'recheck');
+    // 复查（8-20 09:00）已过时间 → 已标记送达
+    expect(notes.single.deliveredAt, isNotNull);
 
     // 再次调用不重复插入
     final n2 = await repo.syncNotificationsFromReminders(now: now);
     expect(n2, 0);
-    expect(await repo.getNotifications(), hasLength(3));
+    expect(await repo.getNotifications(), hasLength(1));
 
-    expect(await repo.unreadNotificationCount(), 2);
+    expect(await repo.unreadNotificationCount(), 1);
     await repo.markAllNotificationsRead();
     expect(await repo.unreadNotificationCount(), 0);
   });

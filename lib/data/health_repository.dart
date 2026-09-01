@@ -1310,8 +1310,17 @@ class HealthRepository {
   /// 再把已过计划时间但未标记送达的行标记为已送达。返回本次新建条数。
   Future<int> syncNotificationsFromReminders({DateTime? now}) async {
     final ref = now ?? DateTime.now();
-    final today = DateTime(ref.year, ref.month, ref.day);
     final reminders = await getActiveReminders();
+
+    // 服药提醒到点靠 iOS 系统本地通知（NotificationService.zonedSchedule），
+    // 不再往 App 内「通知中心」记账——每天每时间点一条会把复查通知淹没，且
+    // 到点提醒本身无可「处理」的内容。清掉历史遗留的服药通知行。
+    await (_db.delete(_db.notifications)
+          ..where((t) =>
+              t.profileId.equals(_activeProfileId) &
+              t.category.equals('medication')))
+        .go();
+
     final existing = await getNotifications(limit: 1000);
     var inserted = 0;
 
@@ -1335,26 +1344,6 @@ class HealthRepository {
             deliveredAt: when.isBefore(ref) ? when : null,
           );
           inserted++;
-        }
-      } else if (r.kind == 'medication') {
-        for (final raw in (r.dailyTimes ?? '').split(',')) {
-          final parts = raw.trim().split(':');
-          if (parts.length != 2) continue;
-          final h = int.tryParse(parts[0]);
-          final m = int.tryParse(parts[1]);
-          if (h == null || m == null) continue;
-          final when = DateTime(today.year, today.month, today.day, h, m);
-          if (!has(r.id, when)) {
-            await insertNotification(
-              reminderId: r.id,
-              category: 'medication',
-              title: '该服药：${r.title}',
-              body: r.detail,
-              scheduledFor: when,
-              deliveredAt: when.isBefore(ref) ? when : null,
-            );
-            inserted++;
-          }
         }
       }
     }
