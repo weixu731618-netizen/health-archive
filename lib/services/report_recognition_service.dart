@@ -262,12 +262,15 @@ StructuredMedicalReport structuredReportFromBackendJson(
       final value = _num(item['numericValue']) ?? _num(item['value']);
       final min = _num(item['referenceMin']);
       final max = _num(item['referenceMax']);
-      final status = (value != null && (min != null || max != null))
-          ? computeStatus(value, ReferenceRange(min: min, max: max))
-          : '未判断';
       final unit = normalizeUnit((item['unit'] ?? '').toString());
       final textValue = item['textValue']?.toString();
       final referenceText = (item['referenceText'] ?? '').toString();
+      // 先按数值+范围判;判不了(定性结果)再按文字判(阴性→正常 / 阳性→需关注)。
+      final status = (value != null && (min != null || max != null))
+          ? computeStatus(value, ReferenceRange(min: min, max: max))
+          : (computeQualitativeStatus(textValue,
+                  referenceText: referenceText) ??
+              '未判断');
       final hasResult =
           value != null || (textValue != null && textValue.trim().isNotEmpty);
       if (!hasResult) continue;

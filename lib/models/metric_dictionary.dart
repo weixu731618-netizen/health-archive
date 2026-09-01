@@ -131,6 +131,32 @@ String computeStatus(double? value, ReferenceRange? range) {
   return '未判断';
 }
 
+/// 定性结果（阴性 / 阳性 / +/- / 微量…）判定状态。
+/// 化验单的尿常规试纸项、部分免疫项没有数值,只有定性结果,[computeStatus]
+/// 会一律返回「未判断」——这里补一层文字判定。判不了返回 null(保持未判断)。
+///
+/// [textValue] 是识别到的结果文字;[referenceText] 是参考区间文字(常写「阴性」)。
+String? computeQualitativeStatus(String? textValue, {String referenceText = ''}) {
+  final t = (textValue ?? '').trim().toLowerCase().replaceAll(' ', '');
+  if (t.isEmpty) return null;
+
+  // 明确阳性 / 异常侧(含弱阳性、微量;'+'～'++++')
+  const positiveExact = ['+', '++', '+++', '++++', '(+)', '（+）', '+-', '±'];
+  const positiveContains = [
+    '阳性', '弱阳', '可疑', '微量', 'trace', 'positive', 'abnormal', '检出'
+  ];
+  // 明确阴性 / 正常侧
+  const negativeExact = ['-', '(-)', '（-）', '0'];
+  const negativeContains = ['阴性', '正常', 'negative', '未见', '未检出', 'normal'];
+
+  bool eq(List<String> list) => list.contains(t);
+  bool has(List<String> list) => list.any((k) => t.contains(k));
+
+  if (eq(positiveExact) || has(positiveContains)) return '需关注';
+  if (eq(negativeExact) || has(negativeContains)) return '正常';
+  return null;
+}
+
 /// 首批标准指标字典（目标 50~100 个；可继续追加）。
 // ignore: constant_identifier_names
 const List<MetricDefinition> METRIC_DICTIONARY = [

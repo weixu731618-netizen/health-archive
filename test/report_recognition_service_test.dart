@@ -57,7 +57,8 @@ void main() {
     expect(urineProtein.numericValue, isNull);
     expect(urineProtein.textValue, '阴性');
     expect(urineProtein.value, 0);
-    expect(urineProtein.status, '未判断');
+    // 定性结果「阴性」→ 正常（不再是「未判断」）。
+    expect(urineProtein.status, '正常');
 
     final crp = report.metrics[2];
     expect(crp.numericValue, 0.5);

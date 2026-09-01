@@ -42,4 +42,34 @@ void main() {
       expect(computeStatus(6.8, const ReferenceRange(min: null, max: null)), '未判断');
     });
   });
+
+  group('computeQualitativeStatus（定性结果）', () {
+    test('阴性 / 正常侧 → 正常', () {
+      expect(computeQualitativeStatus('阴性'), '正常');
+      expect(computeQualitativeStatus('阴性(-)'), '正常');
+      expect(computeQualitativeStatus('-'), '正常');
+      expect(computeQualitativeStatus('(-)'), '正常');
+      expect(computeQualitativeStatus('未见异常'), '正常');
+      expect(computeQualitativeStatus('Negative'), '正常');
+      expect(computeQualitativeStatus('正常'), '正常');
+    });
+
+    test('阳性 / 异常侧 → 需关注', () {
+      expect(computeQualitativeStatus('阳性'), '需关注');
+      expect(computeQualitativeStatus('弱阳性'), '需关注');
+      expect(computeQualitativeStatus('+'), '需关注');
+      expect(computeQualitativeStatus('++'), '需关注');
+      expect(computeQualitativeStatus('(+)'), '需关注');
+      expect(computeQualitativeStatus('微量'), '需关注');
+      expect(computeQualitativeStatus('Positive'), '需关注');
+    });
+
+    test('空 / 认不出 → null（保持未判断）', () {
+      expect(computeQualitativeStatus(null), isNull);
+      expect(computeQualitativeStatus(''), isNull);
+      expect(computeQualitativeStatus('  '), isNull);
+      expect(computeQualitativeStatus('12.5'), isNull);
+      expect(computeQualitativeStatus('见报告'), isNull);
+    });
+  });
 }
