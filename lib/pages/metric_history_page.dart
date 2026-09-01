@@ -9,6 +9,7 @@ import '../models/report_followup.dart';
 import '../utils/format.dart';
 import '../widgets/health_status_card.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 import 'manual_metric_entry_page.dart';
 import 'report_detail_page.dart';
 
@@ -77,15 +78,11 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('历史记录')),
-      body: RefreshIndicator.adaptive(
-        onRefresh: () async {
-          await _load();
-        },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-          children: [
+    return IosLargeTitleScaffold(
+      title: '历史记录',
+      onRefresh: _load,
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+      children: [
             // 顶部：指标名 + 当前值
             HealthCard(
               child: Column(
@@ -172,8 +169,6 @@ class _MetricHistoryPageState extends State<MetricHistoryPage> {
               ),
             ],
           ],
-        ),
-      ),
     );
   }
 

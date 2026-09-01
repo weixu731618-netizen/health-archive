@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 import '../main.dart';
 import '../utils/format.dart';
 import 'daily_health_entry_page.dart';
@@ -93,13 +94,11 @@ class _DailyHistoryPageState extends State<DailyHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('$_title · 历史')),
-      body: RefreshIndicator.adaptive(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-          children: [
+    return IosLargeTitleScaffold(
+      title: '$_title · 历史',
+      onRefresh: _load,
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+      children: [
             HealthCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,8 +174,6 @@ class _DailyHistoryPageState extends State<DailyHistoryPage> {
               ),
             ],
           ],
-        ),
-      ),
     );
   }
 

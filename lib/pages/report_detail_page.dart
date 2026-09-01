@@ -8,6 +8,7 @@ import '../data/app_database.dart';
 import '../main.dart';
 import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
+import '../widgets/ios_nav.dart';
 import '../widgets/ios_button.dart';
 import '../widgets/ios_tap.dart';
 import '../models/app_metadata.dart';
@@ -260,39 +261,34 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('报告详情'),
-        actions: [
-          if (_isImported && _report != null)
-            IconButton(
-              tooltip: '分享 / 导出原件',
-              icon: const Icon(CupertinoIcons.share),
+    return IosLargeTitleScaffold(
+      title: '报告详情',
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+      trailing: (_isImported && _report != null)
+          ? CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(32, 32),
               onPressed: _shareReport,
-            ),
-        ],
-      ),
-      body: _isImported ? _buildImported() : _buildPlaceholder(),
+              child: const Icon(CupertinoIcons.share, size: 22),
+            )
+          : null,
+      children: _isImported ? _buildImported() : [_buildPlaceholder()],
     );
   }
 
   Widget _buildPlaceholder() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Text(
-          '没有可显示的报告。请从首页「拍报告 / 导入报告」添加。',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-        ),
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(24, 80, 24, 24),
+      child: Text(
+        '没有可显示的报告。请从首页「拍报告 / 导入报告」添加。',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
       ),
     );
   }
 
-  Widget _buildImported() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-      children: [
+  List<Widget> _buildImported() {
+    return [
         if (_loading)
           const Padding(
             padding: EdgeInsets.all(48),
@@ -445,8 +441,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
             ),
           ),
         ],
-      ],
-    );
+      ];
   }
 
   bool _needsAttention(HealthMetric m) =>
