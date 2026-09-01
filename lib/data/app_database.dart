@@ -294,7 +294,7 @@ class AppDatabase extends _$AppDatabase {
   /// 03：14→15（新增 report_organs 表；reminders 增加 source_type / area_name / recommended_date）。
   /// 上传合并：15→16（person_profiles 增加 known_names，用于报告姓名比对）。
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -436,6 +436,28 @@ class AppDatabase extends _$AppDatabase {
             if (from >= 6) {
               await m.addColumn(personProfiles, personProfiles.knownNames);
             }
+          }
+          if (from < 17) {
+            // 修数据：早期百度报告解析把 "3.5--9.5" 这类双连字符区间的上限
+            // 读成了负数（reference_max = -9.5），导致 computeStatus 里
+            // value > max 恒成立，几乎每条导入指标都被判成「偏高」。
+            // ① 下限非负、上限为负、|上限| >= 下限 → 认定是符号误读，翻正。
+            await customStatement(
+              "UPDATE health_metrics SET reference_max = -reference_max "
+              "WHERE reference_min IS NOT NULL AND reference_max IS NOT NULL "
+              "AND reference_min >= 0 AND reference_max < 0 "
+              "AND (-reference_max) >= reference_min",
+            );
+            // ② 用修正后的范围重算数值型状态（定性/未判断的行 status 不动）。
+            await customStatement(
+              "UPDATE health_metrics SET status = CASE "
+              "WHEN value > reference_max THEN '偏高' "
+              "WHEN value < reference_min THEN '偏低' "
+              "ELSE '正常' END "
+              "WHERE reference_min IS NOT NULL AND reference_max IS NOT NULL "
+              "AND reference_max >= reference_min "
+              "AND status IN ('偏高', '偏低', '正常')",
+            );
           }
         },
       );

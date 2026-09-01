@@ -90,9 +90,18 @@ def _parse_ref(raw: str) -> tuple[Optional[float], Optional[float], Optional[str
     s = (raw or "").strip()
     if not s:
         return None, None, None
-    m = re.search(r"(-?\d+(?:\.\d+)?)\s*[-~—－]\s*(-?\d+(?:\.\d+)?)", s)
+    # 分隔符用 + 吞掉整串连字符：OCR 常把区间里的连字符读成两个（"3.5--9.5"），
+    # 旧写法会让下限后那个多出来的 "-" 被下一组当成负号，上限被读成 -9.5，
+    # 于是本地 computeStatus 里 value > max 恒成立，任何指标都判「偏高」。
+    m = re.search(r"(-?\d+(?:\.\d+)?)\s*[-~—－]+\s*(-?\d+(?:\.\d+)?)", s)
     if m:
-        return float(m.group(1)), float(m.group(2)), s
+        lo, hi = float(m.group(1)), float(m.group(2))
+        # 上限比下限还小、取绝对值后就落回正常，视作连字符被误读成负号
+        if hi < lo and abs(hi) >= lo:
+            hi = abs(hi)
+        if hi < lo:
+            lo, hi = hi, lo
+        return lo, hi, s
     m = re.search(r"[<≤]\s*(-?\d+(?:\.\d+)?)", s)
     if m:
         return None, float(m.group(1)), s

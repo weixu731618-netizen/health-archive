@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from models.medical_report_map import map_medical_report  # noqa: E402
+from models.medical_report_map import _parse_ref, map_medical_report  # noqa: E402
 from services.baidu_medical_report_service import _pairs_to_dict  # noqa: E402
 
 # 真实结构：words_result.Item 是「行的列表」，每行是 [{word_name, word}, ...]
@@ -85,3 +85,14 @@ def test_textual_item():
     assert bld["numericValue"] is None
     assert bld["textValue"] == "阴性"
     assert bld["referenceText"] == "阴性"
+
+
+def test_parse_ref_double_dash():
+    # OCR 常把区间连字符读成两个，旧写法会把上限读成负数 → 每项都判「偏高」
+    assert _parse_ref("3.5--9.5")[:2] == (3.5, 9.5)
+    assert _parse_ref("130--175")[:2] == (130.0, 175.0)
+    assert _parse_ref("3.5-9.5")[:2] == (3.5, 9.5)
+    assert _parse_ref("40－70")[:2] == (40.0, 70.0)
+    assert _parse_ref("<9.5")[:2] == (None, 9.5)
+    assert _parse_ref(">3.5")[:2] == (3.5, None)
+    assert _parse_ref("阴性") == (None, None, "阴性")

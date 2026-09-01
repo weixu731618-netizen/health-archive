@@ -190,6 +190,35 @@ void main() {
     expect(identical(mergeStructuredReports([only]), only), isTrue);
   });
 
+  test('参考上限被读成负数（"3.5--9.5" → referenceMax:-9.5）时纠回来，不再一律「偏高」',
+      () {
+    final report = structuredReportFromBackendJson({
+      'metrics': [
+        {
+          'rawName': '血红蛋白',
+          'numericValue': 142,
+          'unit': 'g/L',
+          'referenceMin': 130,
+          'referenceMax': -175,
+          'confidence': 0.99,
+        },
+        {
+          'rawName': '中性粒细胞百分比',
+          'numericValue': 17.4,
+          'unit': '%',
+          'referenceMin': 40,
+          'referenceMax': -75,
+          'confidence': 0.99,
+        },
+      ],
+    }, null);
+    // 142 在 130–175 内 → 正常（修复前会是「偏高」）
+    expect(report.metrics[0].status, '正常');
+    expect(report.metrics[0].referenceMax, 175);
+    // 17.4 低于 40 → 偏低（修复前会是「偏高」）
+    expect(report.metrics[1].status, '偏低');
+  });
+
   test('远程结构化空结果或无法匹配时不进入核对页', () {
     final empty = structuredReportFromBackendJson({'metrics': []}, null);
     expect(validateStructuredReportForReview(empty), contains('未识别到'));

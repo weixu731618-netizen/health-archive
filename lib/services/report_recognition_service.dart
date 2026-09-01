@@ -267,7 +267,13 @@ StructuredMedicalReport structuredReportFromBackendJson(
       final def = id == null ? null : findMetricDefinition(id);
       final value = _num(item['numericValue']) ?? _num(item['value']);
       final min = _num(item['referenceMin']);
-      final max = _num(item['referenceMax']);
+      var max = _num(item['referenceMax']);
+      // 旧后端把 "3.5--9.5" 这类双连字符区间的上限读成负数，会让 computeStatus
+      // 里 value > max 恒成立、每项都判「偏高」。上限比下限小、取绝对值后就正常
+      // → 视作符号误读，纠回来。
+      if (min != null && max != null && max < min && max.abs() >= min) {
+        max = max.abs();
+      }
       final unit = normalizeUnit((item['unit'] ?? '').toString());
       final textValue = item['textValue']?.toString();
       final referenceText = (item['referenceText'] ?? '').toString();
