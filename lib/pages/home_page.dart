@@ -381,22 +381,22 @@ class _PrimaryAddCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return HealthCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(13),
       child: const Row(
         children: [
-          _IconTile(CupertinoIcons.camera, size: 52),
-          SizedBox(width: 14),
+          _IconTile(CupertinoIcons.camera, size: 44),
+          SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('拍报告',
                     style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 17,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.2,
                         color: AppColors.textPrimary)),
-                SizedBox(height: 3),
+                SizedBox(height: 2),
                 Text('对着纸质报告拍照',
                     style: TextStyle(
                         fontSize: 13, color: AppColors.textSecondary)),
@@ -420,11 +420,11 @@ class _BigButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return HealthCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(13),
       child: Row(
         children: [
-          _IconTile(icon, size: 46),
-          const SizedBox(width: 14),
+          _IconTile(icon, size: 44),
+          const SizedBox(width: 13),
           Expanded(
             child: Text(label,
                 style: const TextStyle(

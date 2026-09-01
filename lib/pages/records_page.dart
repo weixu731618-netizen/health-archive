@@ -324,40 +324,64 @@ class _RecordsPageState extends State<RecordsPage> {
                     ),
                   ),
                 ),
-              // 类型胶囊 + 「筛选」——滚动时钉在导航栏下方。
+              // 类型胶囊（可横向滚动，右边缘渐隐）+ 固定在右侧的「筛选」——
+              // 滚动时整条钉在导航栏下方。
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _FilterBarHeader(
-                  child: Row(
+                  child: Stack(
                     children: [
-                      Expanded(
-                        child: ListView(
-                          key: const PageStorageKey('records-type-scroll'),
-                          scrollDirection: Axis.horizontal,
-                          padding: EdgeInsets.zero,
-                          children: [
-                            for (final (label, value) in _typeFilters) ...[
-                              _TypePill(
-                                label: label,
-                                selected: _typeFilter == value,
-                                onTap: () => setState(() {
-                                  _typeFilter =
-                                      _typeFilter == value ? 'all' : value;
-                                  _recordsTypeFilter = _typeFilter;
-                                }),
-                              ),
-                              const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 66),
+                        child: ShaderMask(
+                          shaderCallback: (rect) => const LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              Colors.white,
+                              Colors.white,
+                              Colors.transparent,
                             ],
-                          ],
+                            stops: [0.0, 0.9, 1.0],
+                          ).createShader(rect),
+                          blendMode: BlendMode.dstIn,
+                          child: ListView(
+                            key: const PageStorageKey('records-type-scroll'),
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.only(right: 16),
+                            children: [
+                              for (final (label, value) in _typeFilters) ...[
+                                _TypePill(
+                                  label: label,
+                                  selected: _typeFilter == value,
+                                  onTap: () => setState(() {
+                                    _typeFilter =
+                                        _typeFilter == value ? 'all' : value;
+                                    _recordsTypeFilter = _typeFilter;
+                                  }),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      _TypePill(
-                        label: _sheetActiveCount > 0
-                            ? '筛选·$_sheetActiveCount'
-                            : '筛选',
-                        selected: _sheetActiveCount > 0,
-                        onTap: _openFilterSheet,
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: Container(
+                          color: AppColors.background,
+                          padding: const EdgeInsets.only(left: 10, right: 16),
+                          alignment: Alignment.center,
+                          child: _TypePill(
+                            label: _sheetActiveCount > 0
+                                ? '筛选·$_sheetActiveCount'
+                                : '筛选',
+                            selected: _sheetActiveCount > 0,
+                            onTap: _openFilterSheet,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -588,7 +612,7 @@ class _FilterBarHeader extends SliverPersistentHeaderDelegate {
   final Widget child;
   const _FilterBarHeader({required this.child});
 
-  static const double _height = 46;
+  static const double _height = 52;
 
   @override
   double get minExtent => _height;
@@ -601,7 +625,8 @@ class _FilterBarHeader extends SliverPersistentHeaderDelegate {
     return Container(
       height: _height,
       color: AppColors.background,
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      // 右内边距交给内部的「筛选」容器处理,左 16。
+      padding: const EdgeInsets.fromLTRB(16, 8, 0, 8),
       child: child,
     );
   }

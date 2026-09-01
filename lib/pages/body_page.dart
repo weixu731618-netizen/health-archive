@@ -222,7 +222,7 @@ class _BodyPageState extends State<BodyPage> {
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 108),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                           _OverviewCard(
