@@ -114,7 +114,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 点右上角 + → 底部菜单浮出（复用首页那套添加菜单）
-    await tester.tap(find.byTooltip('新增记录'));
+    await tester.tap(find.byIcon(CupertinoIcons.add));
     await tester.pumpAndSettle();
     expect(find.text('添加健康数据'), findsOneWidget);
 

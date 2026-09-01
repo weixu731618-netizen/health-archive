@@ -157,198 +157,216 @@ class _RecordsPageState extends State<RecordsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('记录'),
-        actions: [
-          if (!_searchOpen)
-            IconButton(
-              tooltip: '搜索',
-              icon: Icon(
-                CupertinoIcons.search,
-                color: _filter.query.isNotEmpty ? AppColors.primary : null,
-              ),
-              onPressed: _toggleSearch,
+    final content = <Widget>[
+      if (_filterSummary != null) ...[
+        Row(
+          children: [
+            Expanded(
+              child: Text(_filterSummary!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary)),
             ),
-          IconButton(
-            tooltip: '新增记录',
-            icon: const Icon(CupertinoIcons.add),
-            onPressed: _openAddMenu,
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 28),
+              onPressed: _clearSheetFilters,
+              child: const Text('清除', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+      ],
+      if (_loading)
+        const Padding(
+          padding: EdgeInsets.only(top: 40),
+          child: Center(child: CupertinoActivityIndicator()),
+        )
+      else if (_error != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 24),
+          child: Text(_error!,
+              style: const TextStyle(color: AppColors.textSecondary)),
+        )
+      else if (_timeline.isEmpty)
+        (_filter.query.isNotEmpty ||
+                _filter.activeCount > 0 ||
+                _typeFilter != 'all' ||
+                _organFilter != null)
+            ? const Padding(
+                padding: EdgeInsets.only(top: 24, bottom: 8),
+                child: Text('没有符合条件的记录',
+                    style: TextStyle(
+                        fontSize: 14, color: AppColors.textSecondary)),
+              )
+            : Padding(
+                padding: const EdgeInsets.only(top: 24, bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '还没有健康记录',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      '检查报告、影像资料和手动记录都会保存在这里。',
+                      style: TextStyle(
+                          fontSize: 14, color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 14),
+                    CupertinoButton.filled(
+                      onPressed: _openAddMenu,
+                      child: const Text('添加第一条记录'),
+                    ),
+                  ],
+                ),
+              )
+      else
+        for (final block in _groupByMonth(_timeline)) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 20, 0, 8),
+            child: Text(
+              block.month,
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  color: AppColors.textPrimary),
+            ),
           ),
-          const ProfileSwitcher(),
+          HealthCard(
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+            child: Column(children: [
+              for (final item in block.items)
+                if (item.report != null)
+                  _ReportRow(
+                    report: item.report!,
+                    metricCount: _reportMetricCounts[item.report!.id] ?? 0,
+                    onTap: () => _openReport(context, item.report!),
+                    onEditTags: () => _editTags(item.report!),
+                  )
+                else
+                  _RealRow(
+                    entry: item.entry!,
+                    onTap: () => _openReal(context, item.entry!),
+                    onDelete: () => _deleteReal(item.entry!),
+                  ),
+            ]),
+          ),
         ],
-      ),
+    ];
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
       body: RefreshIndicator.adaptive(
         onRefresh: _load,
         child: SlidableAutoCloseBehavior(
-          child: ListView(
-          // 底部多留一点空间，避免最后一项被悬浮的"添加"按钮挡住。
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-          children: [
-            if (_searchOpen) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: CupertinoSearchTextField(
-                      controller: _searchCtrl,
-                      focusNode: _searchFocus,
-                      placeholder: '搜索医院、指标、报告内容、标签…',
-                      onChanged: (v) =>
-                          setState(() => _filter = _filter.copyWith(query: v)),
-                    ),
-                  ),
-                  CupertinoButton(
-                    padding: const EdgeInsets.only(left: 8),
-                    onPressed: _toggleSearch,
-                    child: const Text('取消'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-            ],
-            // 一行：资料类型胶囊（可横向滚动）+ 固定在右侧的「筛选」（器官 / 时间 / 标签 / 医院都收进去）。
-            SizedBox(
-              height: 34,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ListView(
-                      key: const PageStorageKey('records-type-scroll'),
-                      scrollDirection: Axis.horizontal,
+          child: CustomScrollView(
+            slivers: [
+              CupertinoSliverNavigationBar(
+                largeTitle: const Text('记录'),
+                backgroundColor:
+                    AppColors.background.withValues(alpha: 0.85),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!_searchOpen)
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(32, 32),
+                        onPressed: _toggleSearch,
+                        child: Icon(CupertinoIcons.search,
+                            size: 22,
+                            color: _filter.query.isNotEmpty
+                                ? AppColors.primary
+                                : null),
+                      ),
+                    CupertinoButton(
                       padding: EdgeInsets.zero,
+                      minimumSize: const Size(32, 32),
+                      onPressed: _openAddMenu,
+                      child: const Icon(CupertinoIcons.add, size: 24),
+                    ),
+                    const ProfileSwitcher(),
+                  ],
+                ),
+              ),
+              if (_searchOpen)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+                    child: Row(
                       children: [
-                        for (final (label, value) in _typeFilters) ...[
-                          _TypePill(
-                            label: label,
-                            selected: _typeFilter == value,
-                            // 再点一下选中的 → 回到「全部」。
-                            onTap: () => setState(() {
-                              _typeFilter =
-                                  _typeFilter == value ? 'all' : value;
-                              _recordsTypeFilter = _typeFilter; // 切 Tab 不丢
-                            }),
+                        Expanded(
+                          child: CupertinoSearchTextField(
+                            controller: _searchCtrl,
+                            focusNode: _searchFocus,
+                            placeholder: '搜索医院、指标、报告内容、标签…',
+                            onChanged: (v) => setState(() =>
+                                _filter = _filter.copyWith(query: v)),
                           ),
-                          const SizedBox(width: 8),
-                        ],
+                        ),
+                        CupertinoButton(
+                          padding: const EdgeInsets.only(left: 8),
+                          onPressed: _toggleSearch,
+                          child: const Text('取消'),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  _TypePill(
-                    label: _sheetActiveCount > 0
-                        ? '筛选·$_sheetActiveCount'
-                        : '筛选',
-                    selected: _sheetActiveCount > 0,
-                    onTap: _openFilterSheet,
+                ),
+              // 类型胶囊 + 「筛选」——滚动时钉在导航栏下方。
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _FilterBarHeader(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ListView(
+                          key: const PageStorageKey('records-type-scroll'),
+                          scrollDirection: Axis.horizontal,
+                          padding: EdgeInsets.zero,
+                          children: [
+                            for (final (label, value) in _typeFilters) ...[
+                              _TypePill(
+                                label: label,
+                                selected: _typeFilter == value,
+                                onTap: () => setState(() {
+                                  _typeFilter =
+                                      _typeFilter == value ? 'all' : value;
+                                  _recordsTypeFilter = _typeFilter;
+                                }),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      _TypePill(
+                        label: _sheetActiveCount > 0
+                            ? '筛选·$_sheetActiveCount'
+                            : '筛选',
+                        selected: _sheetActiveCount > 0,
+                        onTap: _openFilterSheet,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-            if (_filterSummary != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(_filterSummary!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.textSecondary)),
-                  ),
-                  CupertinoButton(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(0, 28),
-                    onPressed: _clearSheetFilters,
-                    child: const Text('清除', style: TextStyle(fontSize: 12)),
-                  ),
-                ],
+              SliverPadding(
+                // 底部多留一点空间，避免最后一项被悬浮的"添加"按钮挡住。
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate(content),
+                ),
               ),
             ],
-            const SizedBox(height: 12),
-            if (_loading)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_error != null)
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(_error!,
-                    style: const TextStyle(color: AppColors.textSecondary)),
-              )
-            else if (_timeline.isEmpty)
-              (_filter.query.isNotEmpty ||
-                      _filter.activeCount > 0 ||
-                      _typeFilter != 'all' ||
-                      _organFilter != null)
-                  ? const Padding(
-                      padding: EdgeInsets.only(bottom: 8),
-                      child: Text('没有符合条件的记录',
-                          style: TextStyle(
-                              fontSize: 14, color: AppColors.textSecondary)),
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '还没有健康记录',
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            '检查报告、影像资料和手动记录都会保存在这里。',
-                            style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textSecondary),
-                          ),
-                          const SizedBox(height: 14),
-                          CupertinoButton.filled(
-                            onPressed: _openAddMenu,
-                            child: const Text('添加第一条记录'),
-                          ),
-                        ],
-                      ),
-                    )
-            else
-              for (final block in _groupByMonth(_timeline)) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 20, 0, 8),
-                  child: Text(
-                    block.month,
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
-                        color: AppColors.textPrimary),
-                  ),
-                ),
-                HealthCard(
-                  padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
-                  child: Column(children: [
-                    for (final item in block.items)
-                      if (item.report != null)
-                        _ReportRow(
-                          report: item.report!,
-                          metricCount:
-                              _reportMetricCounts[item.report!.id] ?? 0,
-                          onTap: () => _openReport(context, item.report!),
-                          onEditTags: () => _editTags(item.report!),
-                        )
-                      else
-                        _RealRow(
-                          entry: item.entry!,
-                          onTap: () => _openReal(context, item.entry!),
-                          onDelete: () => _deleteReal(item.entry!),
-                        ),
-                  ]),
-                ),
-              ],
-          ],
           ),
         ),
       ),
@@ -558,6 +576,34 @@ class _MonthBlock {
   final String month;
   final List<_TimelineItem> items;
   _MonthBlock(this.month, this.items);
+}
+
+/// 类型胶囊行的 sliver 头：固定高度，滚动时钉在导航栏下方。
+/// 背景填成页面底色，避免下方内容透上来。
+class _FilterBarHeader extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  const _FilterBarHeader({required this.child});
+
+  static const double _height = 46;
+
+  @override
+  double get minExtent => _height;
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      height: _height,
+      color: AppColors.background,
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_FilterBarHeader oldDelegate) => true;
 }
 
 /// 记录页第一层「资料类型」筛选胶囊。无水波纹，选中态浅色填充 + 主色描边。
