@@ -20,6 +20,7 @@ import '../widgets/current_profile_badge.dart';
 import '../widgets/metric_selector.dart';
 import 'followup_match.dart';
 import 'report_profile_guard.dart';
+import 'report_detail_page.dart';
 import 'report_recognition_flow.dart';
 import 'report_result_page.dart';
 
@@ -58,6 +59,12 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
       : null;
 
   int get _selectedCount => _report.metrics.where((m) => m.isSelected).length;
+
+  bool get _hasExamContent =>
+      _report.examSummary != null && !_report.examSummary!.isEmpty;
+
+  /// 能否保存：勾了化验指标，或是带内容的体检报告（结论 / 各科所见 / 一般项目）。
+  bool get _canSave => _selectedCount > 0 || _hasExamContent;
 
   /// 勾选保存、但没匹配上核心指标、且超出参考范围的项——存下来但不参与器官
   /// 判定，这里给个提示别让用户以为漏了。
@@ -199,7 +206,7 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_selectedCount == 0 && !_saving)
+              if (!_canSave && !_saving)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 6),
                   child: Text(
@@ -207,11 +214,20 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
                     style: TextStyle(
                         fontSize: 12, color: AppColors.textSecondary),
                   ),
+                )
+              else if (_selectedCount == 0 && _hasExamContent && !_saving)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '未识别到化验指标，将只保存体检结论 / 各科所见 / 一般项目',
+                    style: TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
+                  ),
                 ),
               SizedBox(
                 width: double.infinity,
                 child: CupertinoButton.filled(
-                  onPressed: _saving || _selectedCount == 0 ? null : _save,
+                  onPressed: _saving || !_canSave ? null : _save,
                   child: _saving
                       ? const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -447,6 +463,14 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
         AnalyticsEvents.secondReportUploaded();
       }
       if (!mounted) return;
+      // 0 项化验的体检报告：结果页那套「识别 N 项 / 正常 M」没意义，直接进详情页
+      // （总检结论 / 各科所见 / 一般项目都在那里分块显示）。
+      if (savedLines.isEmpty && exam != null && !exam.isEmpty) {
+        Navigator.of(context).pushReplacement(MaterialPageRoute(
+          builder: (_) => ReportDetailPage(reportId: reportId),
+        ));
+        return;
+      }
       Navigator.of(context).pushReplacement(MaterialPageRoute(
         builder: (_) => ReportResultPage(
           reportId: reportId,
