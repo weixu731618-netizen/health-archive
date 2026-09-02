@@ -266,23 +266,33 @@ StructuredMedicalReport structuredReportFromBackendJson(
       final id = _matchBackendMetricId(item, rawName);
       final def = id == null ? null : findMetricDefinition(id);
       final value = _num(item['numericValue']) ?? _num(item['value']);
-      final min = _num(item['referenceMin']);
-      var max = _num(item['referenceMax']);
-      // 旧后端把 "3.5--9.5" 这类双连字符区间的上限读成负数，会让 computeStatus
-      // 里 value > max 恒成立、每项都判「偏高」。上限比下限小、取绝对值后就正常
-      // → 视作符号误读，纠回来。
-      if (min != null && max != null && max < min && max.abs() >= min) {
-        max = max.abs();
-      }
+      final (min, max) = _sanitizeRange(
+        _num(item['referenceMin']),
+        _num(item['referenceMax']),
+        def?.typicalRange,
+        value,
+      );
       final unit = normalizeUnit((item['unit'] ?? '').toString());
       final textValue = item['textValue']?.toString();
       final referenceText = (item['referenceText'] ?? '').toString();
+      final originalStatus = item['originalStatus']?.toString();
       // 先按数值+范围判;判不了(定性结果)再按文字判(阴性→正常 / 阳性→需关注)。
-      final status = (value != null && (min != null || max != null))
+      var status = (value != null && (min != null || max != null))
           ? computeStatus(value, ReferenceRange(min: min, max: max))
           : (computeQualitativeStatus(textValue,
                   referenceText: referenceText) ??
               '未判断');
+      // 化验单自己标了异常方向,而我们按解析出的范围算成正常/未判断,或方向正相反
+      // —— 多半是参考范围没读对,以化验单标注为准。缺标 / 标"正常"不据此翻判断。
+      var statusFromLabFlag = false;
+      if (value != null) {
+        final reconciled =
+            _reconcileWithLabFlag(status, _labFlagDirection(originalStatus));
+        if (reconciled != status) {
+          status = reconciled;
+          statusFromLabFlag = true;
+        }
+      }
       final hasResult =
           value != null || (textValue != null && textValue.trim().isNotEmpty);
       if (!hasResult) continue;
@@ -302,7 +312,8 @@ StructuredMedicalReport structuredReportFromBackendJson(
         referenceMax: max,
         referenceText: referenceText,
         status: status,
-        originalStatus: item['originalStatus']?.toString(),
+        originalStatus: originalStatus,
+        statusFromLabFlag: statusFromLabFlag,
         bodySystem: bodySystemForMetric(id, fallback: '其他'),
         confidence: _num(item['confidence']) ?? 0.0,
       ));
@@ -426,6 +437,80 @@ String? validateStructuredReportForReview(StructuredMedicalReport report) {
   }
 
   return null;
+}
+
+/// 参考范围清洗:上限必须大于下限。
+/// - 上限 <= 下限:先试取绝对值(OCR 把 "3.5-9.5" 读成 "3.5--9.5" → max=-9.5,
+///   取绝对值就对了);还不行就把范围整个丢掉。
+/// - 有匹配到的标准指标时,拿它的典型范围做数量级交叉验:解析出的范围中点比典型
+///   范围中点大/小 6 倍以上(通常是漏字或 g/L↔g/dL 单位错),**且实测值落在典型
+///   范围内**(说明错的是范围不是值),丢掉解析范围,改用典型范围判状态。报告原文
+///   范围文本仍照常显示,不受影响。
+(double?, double?) _sanitizeRange(
+    double? min, double? max, ReferenceRange? typical, double? value) {
+  var lo = min;
+  var hi = max;
+  if (lo != null && hi != null && hi <= lo) {
+    if (hi.abs() > lo) {
+      hi = hi.abs();
+    } else {
+      lo = null;
+      hi = null;
+    }
+  }
+  final tLo = typical?.min;
+  final tHi = typical?.max;
+  if (lo != null &&
+      hi != null &&
+      tLo != null &&
+      tHi != null &&
+      tLo > 0 &&
+      value != null &&
+      value >= tLo &&
+      value <= tHi) {
+    final ratio = ((lo + hi) / 2) / ((tLo + tHi) / 2);
+    if (ratio > 6 || ratio < 1 / 6) {
+      lo = tLo;
+      hi = tHi;
+    }
+  }
+  return (lo, hi);
+}
+
+/// 化验单标注 → 方向。认不出返回 null(含空、含"正常/阴性"归为 normal)。
+String? _labFlagDirection(String? flag) {
+  final f = (flag ?? '').trim().toLowerCase();
+  if (f.isEmpty) return null;
+  const high = ['↑', 'h', 'high', '偏高', '增高', '升高', '过高'];
+  const low = ['↓', 'l', 'low', '偏低', '降低', '减低', '过低'];
+  const abnormal = ['阳性', '+', '++', '+++', 'positive', '异常', 'abnormal'];
+  const normal = ['阴性', 'negative', '正常', 'normal'];
+  bool hit(List<String> ks) => ks.any((k) => f == k || f.contains(k));
+  if (hit(high)) return 'high';
+  if (hit(low)) return 'low';
+  if (hit(abnormal)) return 'abnormal';
+  if (hit(normal)) return 'normal';
+  return null;
+}
+
+/// 只在「我们算成正常/未判断但化验单标了异常」或「方向正相反」时改用化验单。
+/// 化验单标"正常"或没标,不据此翻我们的判断(缺标可能只是 OCR 漏了)。
+String _reconcileWithLabFlag(String computed, String? labDir) {
+  if (labDir == null) return computed;
+  final weak = computed == '正常' || computed == '未判断';
+  switch (labDir) {
+    case 'high':
+      if (weak || computed == '偏低') return '偏高';
+      return computed;
+    case 'low':
+      if (weak || computed == '偏高') return '偏低';
+      return computed;
+    case 'abnormal':
+      if (weak) return '需关注';
+      return computed;
+    default:
+      return computed;
+  }
 }
 
 String? _matchBackendMetricId(Map item, String rawName) {

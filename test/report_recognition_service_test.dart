@@ -219,6 +219,55 @@ void main() {
     expect(report.metrics[1].status, '偏低');
   });
 
+  test('化验单标注与按范围算出的状态冲突时，改用化验单标注', () {
+    final report = structuredReportFromBackendJson({
+      'metrics': [
+        {
+          // 范围没读准（当成 3.9–6.1），值 5.0 会算成"正常"，但化验单标了 ↑
+          'rawName': '空腹血糖',
+          'numericValue': 5.0,
+          'unit': 'mmol/L',
+          'referenceMin': 3.9,
+          'referenceMax': 6.1,
+          'originalStatus': '↑',
+          'confidence': 0.9,
+        },
+        {
+          // 化验单没标 → 不据此翻，保持按范围算的"正常"
+          'rawName': 'C反应蛋白',
+          'numericValue': 2.0,
+          'unit': 'mg/L',
+          'referenceMin': 0,
+          'referenceMax': 8,
+          'confidence': 0.9,
+        },
+      ],
+    }, null);
+    expect(report.metrics[0].status, '偏高');
+    expect(report.metrics[0].statusFromLabFlag, isTrue);
+    expect(report.metrics[1].status, '正常');
+    expect(report.metrics[1].statusFromLabFlag, isFalse);
+  });
+
+  test('参考范围数量级明显不对时，退回用标准指标的典型范围判定', () {
+    final report = structuredReportFromBackendJson({
+      'metrics': [
+        {
+          // 空腹血糖典型 3.9–6.1；这里范围被读成 39–61（差一个数量级）
+          'rawName': '空腹血糖',
+          'numericValue': 5.2,
+          'unit': 'mmol/L',
+          'referenceMin': 39,
+          'referenceMax': 61,
+          'confidence': 0.9,
+        },
+      ],
+    }, null);
+    expect(report.metrics[0].matchedMetricId, 'FPG');
+    // 用典型范围 3.9–6.1 判 → 5.2 正常（用错范围 39–61 会是"偏低"）
+    expect(report.metrics[0].status, '正常');
+  });
+
   test('远程结构化空结果或无法匹配时不进入核对页', () {
     final empty = structuredReportFromBackendJson({'metrics': []}, null);
     expect(validateStructuredReportForReview(empty), contains('未识别到'));

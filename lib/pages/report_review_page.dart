@@ -579,6 +579,14 @@ class _MetricEditTile extends StatelessWidget {
                         fontSize: 12, color: AppColors.warning),
                   ),
                 ],
+                if (metric.statusFromLabFlag) ...[
+                  const SizedBox(height: 3),
+                  const Text(
+                    '按化验单标注判定（参考范围可能未读准）',
+                    style: TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
               ],
             ),
           ),

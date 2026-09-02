@@ -684,7 +684,12 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
             ],
             const HealthSectionHeader('需关注问题'),
             if (_area.metrics.isEmpty)
-              const _EmptyDataCard()
+              _EmptyDataCard(
+                message: _extraOnlyReportIds.isEmpty
+                    ? '暂无可用于判断的检查指标'
+                    : '本部位有影像 / 图文记录（见下方历史报告），'
+                        '暂无可用于判断的关键化验指标',
+              )
             else if (widget.isExample)
               for (final m in _area.metrics) ...[
                 _EvidenceCard(metric: m),

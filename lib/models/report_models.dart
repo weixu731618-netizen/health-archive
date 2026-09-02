@@ -23,6 +23,7 @@ class RecognizedMetric {
   final String referenceText; // 原始参考范围文本，例如「9–50」
   String status; // 偏高 / 偏低 / 正常 / 未判断（本地按参考范围计算，见 computeStatus）
   String? originalStatus; // 报告上标注的原始异常标记（如 H / L / 偏高），仅供核对，不用于判定
+  bool statusFromLabFlag; // status 是否因与化验单标注冲突而改用了化验单标注（参考范围可能没读对）
   String bodySystem; // 所属身体系统
   final double confidence; // 0~1
   bool isSelected; // 是否勾选入库（默认 true）
@@ -50,6 +51,7 @@ class RecognizedMetric {
     this.referenceText = '',
     required this.status,
     this.originalStatus,
+    this.statusFromLabFlag = false,
     required this.bodySystem,
     required this.confidence,
     this.isSelected = true,
