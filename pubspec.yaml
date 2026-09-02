@@ -1,7 +1,7 @@
 name: health_archive
 description: 健康档案 - 个人健康管理 App（MVP）
 publish_to: 'none'
-version: 1.9.13+42
+version: 1.9.14+43
 
 environment:
   sdk: '>=3.6.0 <4.0.0'

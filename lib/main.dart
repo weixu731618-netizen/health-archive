@@ -306,7 +306,16 @@ class _MainShellState extends State<MainShell> {
 
   void _onTabRequested() {
     final v = activeTabNotifier.value;
-    if (v != _index && v >= 0 && v <= 2) setState(() => _index = v);
+    if (v == _index || v < 0 || v > 2) return;
+    // 只有 MainShell 本身是当前可见路由（上面没压着「健康资料」这类推入页）时
+    // 才切 Tab。否则一个残留的切换请求会在你返回时把底层 Tab 悄悄换掉。
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) {
+      // 把请求拉回当前 Tab，避免它一直停在别处，下次返回又触发。
+      activeTabNotifier.value = _index;
+      return;
+    }
+    setState(() => _index = v);
   }
 
   /// 每次切换 Tab 都重新构建对应页面，确保「记录」「身体」等页能加载到最新保存的数据。

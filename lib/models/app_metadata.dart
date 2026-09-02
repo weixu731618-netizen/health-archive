@@ -1,10 +1,10 @@
 class AppMetadata {
   const AppMetadata._();
 
-  static const String versionName = '1.9.13';
-  static const int versionCode = 42;
+  static const String versionName = '1.9.14';
+  static const int versionCode = 43;
   static const String buildLabel =
-      '空白体检表不再能保存：只有真的填了内容（总检结论 / 建议、一般项目数值、'
-      '或填了字的各科所见）才算，DeepSeek 硬编出的空栏目会被判为「没识别到可保存'
-      '的内容，请重拍或换一页」。后端提示词：空白栏目不补写「正常/未见异常」。';
+      '修 Tab 乱跳：从右上角小人 →「健康资料」→ 某类目 → 返回，会莫名跳到记录页'
+      '（首页「查看全部」的切 Tab 信号残留，返回时被误触发）。改成只有主页面在最'
+      '前台时才响应切 Tab。';
 }

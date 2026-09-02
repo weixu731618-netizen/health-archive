@@ -144,8 +144,8 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.9.13+42'), findsOneWidget);
-    expect(find.textContaining('空白体检表'), findsOneWidget);
+    expect(find.text('版本 1.9.14+43'), findsOneWidget);
+    expect(find.textContaining('修 Tab 乱跳'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {
