@@ -1,11 +1,11 @@
 class AppMetadata {
   const AppMetadata._();
 
-  static const String versionName = '1.9.2';
-  static const int versionCode = 31;
+  static const String versionName = '1.9.3';
+  static const int versionCode = 32;
   static const String buildLabel =
-      '识别更稳（第一层加固）：参考范围合理性校验（上限≤下限自动纠 / 数量级明显'
-      '不对时退回标准指标典型范围）；化验单自带 ↑/↓ 与按范围算的状态冲突时以化验单'
-      '为准并在核对页标注；某部位只有影像/图文记录时器官页文案改为「暂无关键化验'
-      '指标」而非「数据不足」。';
+      '核心指标词典扩充（Round 2）：75 → 110 条，补齐凝血 / 铁代谢 / 炎症 / 胰酶 / '
+      '甲状旁腺激素 / 常见肿瘤标志物；血常规绝对值项补上参考范围（百分比仍归非'
+      '核心）；肿瘤标志物与急性指标标记「仅提示不报警」（超范围只提示、不进需关注'
+      '红点，接线在后续版本）。';
 }

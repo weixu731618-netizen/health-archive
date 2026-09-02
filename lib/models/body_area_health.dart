@@ -175,6 +175,7 @@ String bodyAreaForSystem(String system) {
       return '心血管';
     case '血液':
     case '血液系统':
+    case '凝血': // 凝血功能随血液系统一起看
       return '血液系统';
     default:
       return '其他';

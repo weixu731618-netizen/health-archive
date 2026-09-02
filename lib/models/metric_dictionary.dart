@@ -22,6 +22,11 @@ class MetricDefinition {
   final ReferenceRange typicalRange; // 常见参考范围
   final List<String> aliases; // 附加别名（不含 canonicalName）
 
+  /// 仅提示、不报警：肿瘤标志物 / 急性指标（cTnI、D-二聚体、CK-MB、NT-proBNP 等）。
+  /// 超范围时器官详情页照常显示，但不进首页「需关注」红点、不自动生成复查提醒；
+  /// 措辞用「建议结合临床复查」。
+  final bool advisoryOnly;
+
   const MetricDefinition({
     required this.metricId,
     required this.metricName,
@@ -29,6 +34,7 @@ class MetricDefinition {
     required this.bodySystem,
     this.typicalRange = const ReferenceRange(),
     this.aliases = const [],
+    this.advisoryOnly = false,
   });
 
   /// 是否与原始名称匹配（用于本地匹配）。
@@ -228,7 +234,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     metricName: '天门冬氨酸氨基转移酶',
     unit: 'U/L',
     bodySystem: '肝脏',
-    typicalRange: ReferenceRange(min: 15, max: 40),
+    typicalRange: ReferenceRange(min: 8, max: 40),
     aliases: ['AST', 'GOT', '谷草转氨酶', '天门冬氨酸氨基转移酶'],
   ),
   MetricDefinition(
@@ -366,7 +372,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     metricName: '平均红细胞血红蛋白浓度',
     unit: 'g/L',
     bodySystem: '血液',
-    typicalRange: ReferenceRange(min: 320, max: 360),
+    typicalRange: ReferenceRange(min: 316, max: 354),
     aliases: ['MCHC', '平均血红蛋白浓度'],
   ),
   MetricDefinition(
@@ -379,38 +385,84 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
   ),
   MetricDefinition(
     metricId: 'NEUT',
-    metricName: '中性粒细胞',
+    metricName: '中性粒细胞绝对值',
     unit: '×10⁹/L',
     bodySystem: '血液',
-    aliases: ['NEUT', '中性粒细胞', '中性粒细胞计数', 'Neutrophil'],
+    typicalRange: ReferenceRange(min: 1.8, max: 6.3),
+    // 只放绝对值/计数说法；「中性粒细胞百分比 / 比率」是另一测量，归非核心。
+    aliases: [
+      'NEUT',
+      'NEUT#',
+      'NE#',
+      '中性粒细胞',
+      '中性粒细胞绝对值',
+      '中性粒细胞计数',
+      'Neutrophil'
+    ],
   ),
   MetricDefinition(
     metricId: 'LYMPH',
-    metricName: '淋巴细胞',
+    metricName: '淋巴细胞绝对值',
     unit: '×10⁹/L',
     bodySystem: '血液',
-    aliases: ['LYMPH', 'LY', '淋巴细胞', '淋巴细胞计数', 'Lymphocyte'],
+    typicalRange: ReferenceRange(min: 1.1, max: 3.2),
+    aliases: [
+      'LYMPH',
+      'LYMPH#',
+      'LY#',
+      '淋巴细胞',
+      '淋巴细胞绝对值',
+      '淋巴细胞计数',
+      'Lymphocyte'
+    ],
   ),
   MetricDefinition(
     metricId: 'MONO',
-    metricName: '单核细胞',
+    metricName: '单核细胞绝对值',
     unit: '×10⁹/L',
     bodySystem: '血液',
-    aliases: ['MONO', 'MO', '单核细胞', '单核细胞计数', 'Monocyte'],
+    typicalRange: ReferenceRange(min: 0.1, max: 0.6),
+    aliases: [
+      'MONO',
+      'MONO#',
+      'MO#',
+      '单核细胞',
+      '单核细胞绝对值',
+      '单核细胞计数',
+      'Monocyte'
+    ],
   ),
   MetricDefinition(
     metricId: 'EOS',
-    metricName: '嗜酸性粒细胞',
+    metricName: '嗜酸性粒细胞绝对值',
     unit: '×10⁹/L',
     bodySystem: '血液',
-    aliases: ['EOS', 'EO', '嗜酸性粒细胞', 'Eosinophil'],
+    typicalRange: ReferenceRange(min: 0.02, max: 0.52),
+    aliases: [
+      'EOS',
+      'EOS#',
+      'EO#',
+      '嗜酸性粒细胞',
+      '嗜酸性粒细胞绝对值',
+      '嗜酸细胞计数',
+      'Eosinophil'
+    ],
   ),
   MetricDefinition(
     metricId: 'BASO',
-    metricName: '嗜碱性粒细胞',
+    metricName: '嗜碱性粒细胞绝对值',
     unit: '×10⁹/L',
     bodySystem: '血液',
-    aliases: ['BASO', 'BA', '嗜碱性粒细胞', 'Basophil'],
+    typicalRange: ReferenceRange(min: 0, max: 0.06),
+    aliases: [
+      'BASO',
+      'BASO#',
+      'BA#',
+      '嗜碱性粒细胞',
+      '嗜碱性粒细胞绝对值',
+      '嗜碱细胞计数',
+      'Basophil'
+    ],
   ),
   // ===================== 电解质 =====================
   MetricDefinition(
@@ -671,6 +723,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     bodySystem: '心血管',
     typicalRange: ReferenceRange(max: 125),
     aliases: ['NT-proBNP', 'NTproBNP', 'proBNP', 'NT-pro-BNP'],
+    advisoryOnly: true,
   ),
   // —— 骨骼 ——
   MetricDefinition(
@@ -721,6 +774,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     bodySystem: '肝脏',
     typicalRange: ReferenceRange(max: 7),
     aliases: ['AFP', '甲胎球蛋白', 'Alpha-fetoprotein'],
+    advisoryOnly: true,
   ),
   // —— 肿瘤标志物 ——
   MetricDefinition(
@@ -730,6 +784,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     bodySystem: '肿瘤标志物',
     typicalRange: ReferenceRange(max: 5),
     aliases: ['CEA', '癌胚抗原'],
+    advisoryOnly: true,
   ),
   MetricDefinition(
     metricId: 'CA199',
@@ -738,6 +793,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     bodySystem: '肿瘤标志物',
     typicalRange: ReferenceRange(max: 37),
     aliases: ['CA19-9', 'CA199', '糖类抗原199'],
+    advisoryOnly: true,
   ),
   MetricDefinition(
     metricId: 'CA125',
@@ -746,6 +802,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     bodySystem: '肿瘤标志物',
     typicalRange: ReferenceRange(max: 35),
     aliases: ['CA-125', 'CA125'],
+    advisoryOnly: true,
   ),
   MetricDefinition(
     metricId: 'CA153',
@@ -754,6 +811,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     bodySystem: '肿瘤标志物',
     typicalRange: ReferenceRange(max: 25),
     aliases: ['CA15-3', 'CA153'],
+    advisoryOnly: true,
   ),
   MetricDefinition(
     metricId: 'PSA',
@@ -762,5 +820,306 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     bodySystem: '肿瘤标志物',
     typicalRange: ReferenceRange(max: 4),
     aliases: ['PSA', 'tPSA', '总PSA', '前列腺特异抗原'],
+    advisoryOnly: true,
+  ),
+
+  // ===================== 核心指标扩充（Round 2）=====================
+  // —— 肝脏 ——
+  MetricDefinition(
+    metricId: 'GLB',
+    metricName: '球蛋白',
+    unit: 'g/L',
+    bodySystem: '肝脏',
+    typicalRange: ReferenceRange(min: 20, max: 35),
+    aliases: ['GLB', '球蛋白', '血清球蛋白', 'Globulin'],
+  ),
+  MetricDefinition(
+    metricId: 'IBIL',
+    metricName: '间接胆红素',
+    unit: 'μmol/L',
+    bodySystem: '肝脏',
+    typicalRange: ReferenceRange(min: 0, max: 17),
+    aliases: ['IBIL', 'I-BIL', '间接胆红素', '非结合胆红素', 'Indirect Bilirubin'],
+  ),
+  MetricDefinition(
+    metricId: 'TBA',
+    metricName: '总胆汁酸',
+    unit: 'μmol/L',
+    bodySystem: '肝脏',
+    typicalRange: ReferenceRange(min: 0, max: 10),
+    aliases: ['TBA', '总胆汁酸', '胆汁酸', 'Total Bile Acid'],
+  ),
+  MetricDefinition(
+    metricId: 'AGRATIO',
+    metricName: '白球比',
+    unit: '',
+    bodySystem: '肝脏',
+    typicalRange: ReferenceRange(min: 1.2, max: 2.5),
+    aliases: ['A/G', '白球比', '白蛋白球蛋白比值', 'A/G比值'],
+  ),
+  // —— 肾脏 ——
+  MetricDefinition(
+    metricId: 'CYSC',
+    metricName: '胱抑素C',
+    unit: 'mg/L',
+    bodySystem: '肾脏',
+    typicalRange: ReferenceRange(min: 0.6, max: 1.0),
+    aliases: ['CysC', 'CYSC', '胱抑素C', '半胱氨酸蛋白酶抑制剂C', 'Cystatin C'],
+  ),
+  MetricDefinition(
+    metricId: 'CO2CP',
+    metricName: '二氧化碳结合力',
+    unit: 'mmol/L',
+    bodySystem: '肾脏',
+    typicalRange: ReferenceRange(min: 22, max: 29),
+    aliases: ['CO2CP', 'CO2-CP', '二氧化碳结合力', '总二氧化碳', 'TCO2'],
+  ),
+  // —— 血糖代谢 ——
+  MetricDefinition(
+    metricId: 'RPG',
+    metricName: '随机血糖',
+    unit: 'mmol/L',
+    bodySystem: '血糖代谢',
+    typicalRange: ReferenceRange(max: 11.1),
+    aliases: ['随机血糖', '餐后血糖', 'RPG', 'RBG', '随机葡萄糖'],
+  ),
+  MetricDefinition(
+    metricId: 'FRA',
+    metricName: '果糖胺',
+    unit: 'mmol/L',
+    bodySystem: '血糖代谢',
+    typicalRange: ReferenceRange(min: 122, max: 236),
+    aliases: ['果糖胺', 'FRA', 'FMN', 'Fructosamine'],
+  ),
+  // —— 心血管 ——
+  MetricDefinition(
+    metricId: 'NONHDLC',
+    metricName: '非高密度脂蛋白胆固醇',
+    unit: 'mmol/L',
+    bodySystem: '心血管',
+    typicalRange: ReferenceRange(max: 4.1),
+    aliases: ['non-HDL-C', '非高密度脂蛋白胆固醇', '非HDL胆固醇', 'nonHDL'],
+  ),
+  MetricDefinition(
+    metricId: 'CK',
+    metricName: '肌酸激酶',
+    unit: 'U/L',
+    bodySystem: '心血管',
+    typicalRange: ReferenceRange(min: 40, max: 200),
+    aliases: ['CK', 'CPK', '肌酸激酶', 'Creatine Kinase'],
+  ),
+  MetricDefinition(
+    metricId: 'CKMB',
+    metricName: '肌酸激酶同工酶',
+    unit: 'U/L',
+    bodySystem: '心血管',
+    typicalRange: ReferenceRange(max: 25),
+    aliases: ['CK-MB', 'CKMB', '肌酸激酶同工酶', 'CK-MB质量'],
+    advisoryOnly: true,
+  ),
+  MetricDefinition(
+    metricId: 'CTNI',
+    metricName: '肌钙蛋白I',
+    unit: 'ng/mL',
+    bodySystem: '心血管',
+    typicalRange: ReferenceRange(max: 0.04),
+    aliases: ['cTnI', 'CTNI', 'TnI', '肌钙蛋白I', 'Troponin I'],
+    advisoryOnly: true,
+  ),
+  // —— 甲状腺 ——
+  MetricDefinition(
+    metricId: 'TT3',
+    metricName: '总三碘甲状腺原氨酸',
+    unit: 'nmol/L',
+    bodySystem: '甲状腺',
+    typicalRange: ReferenceRange(min: 1.3, max: 3.1),
+    aliases: ['TT3', '总T3', '总三碘甲状腺原氨酸', 'T3'],
+  ),
+  MetricDefinition(
+    metricId: 'TT4',
+    metricName: '总甲状腺素',
+    unit: 'nmol/L',
+    bodySystem: '甲状腺',
+    typicalRange: ReferenceRange(min: 66, max: 181),
+    aliases: ['TT4', '总T4', '总甲状腺素', 'T4'],
+  ),
+  // —— 凝血 ——
+  MetricDefinition(
+    metricId: 'PT',
+    metricName: '凝血酶原时间',
+    unit: 's',
+    bodySystem: '凝血',
+    typicalRange: ReferenceRange(min: 11, max: 14),
+    aliases: ['PT', '凝血酶原时间', 'Prothrombin Time'],
+  ),
+  MetricDefinition(
+    metricId: 'INR',
+    metricName: '国际标准化比值',
+    unit: '',
+    bodySystem: '凝血',
+    typicalRange: ReferenceRange(min: 0.8, max: 1.2),
+    aliases: ['INR', '国际标准化比值', 'PT-INR'],
+  ),
+  MetricDefinition(
+    metricId: 'APTT',
+    metricName: '活化部分凝血活酶时间',
+    unit: 's',
+    bodySystem: '凝血',
+    typicalRange: ReferenceRange(min: 25, max: 37),
+    aliases: ['APTT', 'aPTT', '活化部分凝血活酶时间', '部分凝血活酶时间'],
+  ),
+  MetricDefinition(
+    metricId: 'FIB',
+    metricName: '纤维蛋白原',
+    unit: 'g/L',
+    bodySystem: '凝血',
+    typicalRange: ReferenceRange(min: 2, max: 4),
+    aliases: ['FIB', '纤维蛋白原', 'Fibrinogen'],
+  ),
+  MetricDefinition(
+    metricId: 'TT_COAG',
+    metricName: '凝血酶时间',
+    unit: 's',
+    bodySystem: '凝血',
+    typicalRange: ReferenceRange(min: 14, max: 21),
+    aliases: ['凝血酶时间', 'Thrombin Time'],
+  ),
+  MetricDefinition(
+    metricId: 'DDIMER',
+    metricName: 'D-二聚体',
+    unit: 'mg/L',
+    bodySystem: '凝血',
+    typicalRange: ReferenceRange(max: 0.5),
+    aliases: ['D-Dimer', 'DDIMER', 'D-二聚体', 'D二聚体', 'DD'],
+    advisoryOnly: true,
+  ),
+  // —— 铁 / 贫血（归血液）——
+  MetricDefinition(
+    metricId: 'SF',
+    metricName: '铁蛋白',
+    unit: 'μg/L',
+    bodySystem: '血液',
+    typicalRange: ReferenceRange(min: 30, max: 400),
+    aliases: ['SF', '铁蛋白', '血清铁蛋白', 'Ferritin'],
+  ),
+  MetricDefinition(
+    metricId: 'SI',
+    metricName: '血清铁',
+    unit: 'μmol/L',
+    bodySystem: '血液',
+    typicalRange: ReferenceRange(min: 10.6, max: 36.7),
+    aliases: ['SI', '血清铁', '铁', 'Iron', 'Fe'],
+  ),
+  MetricDefinition(
+    metricId: 'VB12',
+    metricName: '维生素B12',
+    unit: 'pg/mL',
+    bodySystem: '血液',
+    typicalRange: ReferenceRange(min: 180, max: 910),
+    aliases: ['VB12', 'B12', '维生素B12', '钴胺素', 'Vitamin B12'],
+  ),
+  MetricDefinition(
+    metricId: 'FOLATE',
+    metricName: '叶酸',
+    unit: 'ng/mL',
+    bodySystem: '血液',
+    typicalRange: ReferenceRange(min: 4),
+    aliases: ['叶酸', 'FA', 'Folate', 'Folic Acid'],
+  ),
+  MetricDefinition(
+    metricId: 'TSAT',
+    metricName: '转铁蛋白饱和度',
+    unit: '%',
+    bodySystem: '血液',
+    typicalRange: ReferenceRange(min: 20, max: 50),
+    aliases: ['TSAT', '转铁蛋白饱和度', '铁饱和度'],
+  ),
+  // —— 炎症（归血液）——
+  MetricDefinition(
+    metricId: 'CRP',
+    metricName: 'C反应蛋白',
+    unit: 'mg/L',
+    bodySystem: '血液',
+    typicalRange: ReferenceRange(max: 10),
+    aliases: ['CRP', 'C反应蛋白', 'C-Reactive Protein'],
+  ),
+  MetricDefinition(
+    metricId: 'ESR',
+    metricName: '红细胞沉降率',
+    unit: 'mm/h',
+    bodySystem: '血液',
+    typicalRange: ReferenceRange(max: 20),
+    aliases: ['ESR', '血沉', '红细胞沉降率', 'Erythrocyte Sedimentation Rate'],
+  ),
+  // —— 胰腺 ——
+  MetricDefinition(
+    metricId: 'AMY',
+    metricName: '淀粉酶',
+    unit: 'U/L',
+    bodySystem: '胰腺',
+    typicalRange: ReferenceRange(min: 35, max: 135),
+    aliases: ['AMY', '淀粉酶', '血淀粉酶', 'Amylase'],
+  ),
+  MetricDefinition(
+    metricId: 'LIP',
+    metricName: '脂肪酶',
+    unit: 'U/L',
+    bodySystem: '胰腺',
+    typicalRange: ReferenceRange(min: 13, max: 60),
+    aliases: ['LIP', '脂肪酶', 'Lipase'],
+  ),
+  // —— 骨 / 甲状旁腺 ——
+  MetricDefinition(
+    metricId: 'PTH',
+    metricName: '甲状旁腺激素',
+    unit: 'pg/mL',
+    bodySystem: '骨骼',
+    typicalRange: ReferenceRange(min: 15, max: 65),
+    aliases: ['PTH', 'iPTH', '甲状旁腺激素', '全段甲状旁腺激素', 'Parathyroid Hormone'],
+  ),
+  // —— 肿瘤标志物 ——
+  MetricDefinition(
+    metricId: 'FPSA',
+    metricName: '游离前列腺特异性抗原',
+    unit: 'ng/mL',
+    bodySystem: '肿瘤标志物',
+    aliases: ['fPSA', 'FPSA', '游离PSA', '游离前列腺特异性抗原', 'free PSA'],
+    advisoryOnly: true,
+  ),
+  MetricDefinition(
+    metricId: 'CYFRA211',
+    metricName: '细胞角蛋白19片段',
+    unit: 'ng/mL',
+    bodySystem: '肿瘤标志物',
+    typicalRange: ReferenceRange(max: 3.3),
+    aliases: ['CYFRA21-1', 'CYFRA211', '细胞角蛋白19片段', 'CK19片段'],
+    advisoryOnly: true,
+  ),
+  MetricDefinition(
+    metricId: 'NSE',
+    metricName: '神经元特异性烯醇化酶',
+    unit: 'ng/mL',
+    bodySystem: '肿瘤标志物',
+    typicalRange: ReferenceRange(max: 16.3),
+    aliases: ['NSE', '神经元特异性烯醇化酶', '神经元烯醇化酶'],
+    advisoryOnly: true,
+  ),
+  MetricDefinition(
+    metricId: 'SCC',
+    metricName: '鳞状细胞癌抗原',
+    unit: 'ng/mL',
+    bodySystem: '肿瘤标志物',
+    typicalRange: ReferenceRange(max: 1.5),
+    aliases: ['SCC', 'SCCA', '鳞状细胞癌抗原', '鳞癌抗原'],
+    advisoryOnly: true,
+  ),
+  MetricDefinition(
+    metricId: 'CA724',
+    metricName: '糖类抗原72-4',
+    unit: 'U/mL',
+    bodySystem: '肿瘤标志物',
+    typicalRange: ReferenceRange(max: 6.9),
+    aliases: ['CA72-4', 'CA724', '糖类抗原724'],
+    advisoryOnly: true,
   ),
 ];
