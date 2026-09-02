@@ -163,6 +163,8 @@ class _RecognizingPageState extends State<_RecognizingPage> {
 
       // 逐页识别；多页时 loading 文案带进度。任一页联网失败则整份失败。
       final svc = RemoteReportRecognitionService();
+      final matchCache =
+          await appRepository?.loadMetricMatchCache() ?? const <String, String>{};
       final perPage = <StructuredMedicalReport>[];
       for (var i = 0; i < pages.length; i++) {
         if (mounted && pages.length > 1) {
@@ -173,11 +175,26 @@ class _RecognizingPageState extends State<_RecognizingPage> {
           imagePath: i == 0 ? first.path : null,
           fileName: pages[i].fileName,
           preferDeepseek: widget.preferDeepseek,
+          matchCache: matchCache,
         ));
       }
       final report = perPage.length == 1
           ? perPage.first
           : mergeStructuredReports(perPage, sourceImagePath: first.path);
+      // DeepSeek 本轮归一化命中的写进缓存：同名下次直接用，不再调模型。
+      final repo = appRepository;
+      if (repo != null) {
+        for (final m in report.metrics) {
+          if (m.matchType == 'deepseek' && m.matchedMetricId != null) {
+            await repo.upsertMetricMatch(
+              rawDisplay: m.rawName,
+              canonicalId: m.matchedMetricId!,
+              source: 'deepseek',
+              confidence: m.confidence,
+            );
+          }
+        }
+      }
       if (!mounted) return;
       // 分流（从严到宽，全按后端 / DeepSeek 的结构化答案走，不靠客户端关键词猜）：
       //   ① 抽到化验指标        → 核对页（报告单）

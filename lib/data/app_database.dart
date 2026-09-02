@@ -249,6 +249,31 @@ class Notifications extends Table {
   DateTimeColumn get createdAt => dateTime()();
 }
 
+/// 指标名 → 核心指标的匹配缓存。识别时撞不上词典 / 已有缓存的项，交给后端
+/// DeepSeek 归一化，命中的写这里，同名的下次直接用、不再调模型、也不会两次跑
+/// 出不一样的结果。软性 UI 状态，进导出备份；丢了最多某项重新识别一次。
+class MetricMatchCache extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  /// 原始名归一化后的键（见 metric_dictionary 的 _norm；此处用等价规则）。
+  TextColumn get rawKey => text()();
+  TextColumn get rawDisplay => text()();
+  /// 指向核心词典条目的 metricId；为空时看 custom* 三列（用户自建，暂未启用）。
+  TextColumn get canonicalId => text().nullable()();
+  TextColumn get customName => text().nullable()();
+  TextColumn get customSystem => text().nullable()();
+  TextColumn get customUnit => text().nullable()();
+  /// deepseek（模型归一化）/ learned（用户核对页改对）/ manual（管理页手加）。
+  TextColumn get source => text().withDefault(const Constant('deepseek'))();
+  RealColumn get confidence => real().nullable()();
+  IntColumn get originReportId => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {rawKey},
+      ];
+}
+
 /// App 本地数据库主入口（跨端：Android / iOS / Web）
 @DriftDatabase(tables: [
   HealthMetrics,
@@ -263,6 +288,7 @@ class Notifications extends Table {
   Encounters,
   Allergies,
   ReportOrgans,
+  MetricMatchCache,
 ])
 class AppDatabase extends _$AppDatabase {
   /// 生产环境下使用 drift_flutter 提供的跨端数据库：
@@ -297,7 +323,7 @@ class AppDatabase extends _$AppDatabase {
   /// 03：14→15（新增 report_organs 表；reminders 增加 source_type / area_name / recommended_date）。
   /// 上传合并：15→16（person_profiles 增加 known_names，用于报告姓名比对）。
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -493,6 +519,9 @@ class AppDatabase extends _$AppDatabase {
                 }
               }
             }
+          }
+          if (from < 19) {
+            await m.createTable(metricMatchCache);
           }
         },
       );

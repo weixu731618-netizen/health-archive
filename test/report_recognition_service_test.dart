@@ -268,6 +268,42 @@ void main() {
     expect(report.metrics[0].status, '正常');
   });
 
+  test('匹配顺序：本地词典 > 归一化缓存 > 后端 DeepSeek 归一化 > 非核心', () {
+    final report = structuredReportFromBackendJson({
+      'metrics': [
+        // 本地词典能精确匹配 → 'exact'，即使缓存里给了别的 id 也不理会
+        {'rawName': 'ALT', 'numericValue': 30, 'unit': 'U/L'},
+        // 词典匹配不上，但缓存里有 → 'cache'
+        {'rawName': '深圳HR白蛋白', 'numericValue': 45, 'unit': 'g/L'},
+        // 词典、缓存都没有，后端本轮 DeepSeek 给了 id 且单位兼容 → 'deepseek'
+        {
+          'rawName': '血色素测定',
+          'numericValue': 140,
+          'unit': 'g/L',
+          'matchedMetricId': 'HGB',
+          'canonicalSource': 'deepseek',
+        },
+        // 同上但单位对不上 → 不采纳，落非核心
+        {
+          'rawName': '某激素',
+          'numericValue': 3,
+          'unit': 'kg',
+          'matchedMetricId': 'HGB',
+          'canonicalSource': 'deepseek',
+        },
+      ],
+    }, null, matchCache: {'深圳hr白蛋白': 'ALB', 'alt': 'AST'});
+
+    expect(report.metrics[0].matchedMetricId, 'ALT');
+    expect(report.metrics[0].matchType, 'exact');
+    expect(report.metrics[1].matchedMetricId, 'ALB');
+    expect(report.metrics[1].matchType, 'cache');
+    expect(report.metrics[2].matchedMetricId, 'HGB');
+    expect(report.metrics[2].matchType, 'deepseek');
+    expect(report.metrics[3].matchedMetricId, isNull);
+    expect(report.metrics[3].matchType, 'unmatched');
+  });
+
   test('远程结构化空结果或无法匹配时不进入核对页', () {
     final empty = structuredReportFromBackendJson({'metrics': []}, null);
     expect(validateStructuredReportForReview(empty), contains('未识别到'));

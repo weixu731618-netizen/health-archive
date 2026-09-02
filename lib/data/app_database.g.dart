@@ -7047,6 +7047,589 @@ class ReportOrgansCompanion extends UpdateCompanion<ReportOrgan> {
   }
 }
 
+class $MetricMatchCacheTable extends MetricMatchCache
+    with TableInfo<$MetricMatchCacheTable, MetricMatchCacheData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MetricMatchCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _rawKeyMeta = const VerificationMeta('rawKey');
+  @override
+  late final GeneratedColumn<String> rawKey = GeneratedColumn<String>(
+      'raw_key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _rawDisplayMeta =
+      const VerificationMeta('rawDisplay');
+  @override
+  late final GeneratedColumn<String> rawDisplay = GeneratedColumn<String>(
+      'raw_display', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _canonicalIdMeta =
+      const VerificationMeta('canonicalId');
+  @override
+  late final GeneratedColumn<String> canonicalId = GeneratedColumn<String>(
+      'canonical_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _customNameMeta =
+      const VerificationMeta('customName');
+  @override
+  late final GeneratedColumn<String> customName = GeneratedColumn<String>(
+      'custom_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _customSystemMeta =
+      const VerificationMeta('customSystem');
+  @override
+  late final GeneratedColumn<String> customSystem = GeneratedColumn<String>(
+      'custom_system', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _customUnitMeta =
+      const VerificationMeta('customUnit');
+  @override
+  late final GeneratedColumn<String> customUnit = GeneratedColumn<String>(
+      'custom_unit', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('deepseek'));
+  static const VerificationMeta _confidenceMeta =
+      const VerificationMeta('confidence');
+  @override
+  late final GeneratedColumn<double> confidence = GeneratedColumn<double>(
+      'confidence', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _originReportIdMeta =
+      const VerificationMeta('originReportId');
+  @override
+  late final GeneratedColumn<int> originReportId = GeneratedColumn<int>(
+      'origin_report_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        rawKey,
+        rawDisplay,
+        canonicalId,
+        customName,
+        customSystem,
+        customUnit,
+        source,
+        confidence,
+        originReportId,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'metric_match_cache';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<MetricMatchCacheData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('raw_key')) {
+      context.handle(_rawKeyMeta,
+          rawKey.isAcceptableOrUnknown(data['raw_key']!, _rawKeyMeta));
+    } else if (isInserting) {
+      context.missing(_rawKeyMeta);
+    }
+    if (data.containsKey('raw_display')) {
+      context.handle(
+          _rawDisplayMeta,
+          rawDisplay.isAcceptableOrUnknown(
+              data['raw_display']!, _rawDisplayMeta));
+    } else if (isInserting) {
+      context.missing(_rawDisplayMeta);
+    }
+    if (data.containsKey('canonical_id')) {
+      context.handle(
+          _canonicalIdMeta,
+          canonicalId.isAcceptableOrUnknown(
+              data['canonical_id']!, _canonicalIdMeta));
+    }
+    if (data.containsKey('custom_name')) {
+      context.handle(
+          _customNameMeta,
+          customName.isAcceptableOrUnknown(
+              data['custom_name']!, _customNameMeta));
+    }
+    if (data.containsKey('custom_system')) {
+      context.handle(
+          _customSystemMeta,
+          customSystem.isAcceptableOrUnknown(
+              data['custom_system']!, _customSystemMeta));
+    }
+    if (data.containsKey('custom_unit')) {
+      context.handle(
+          _customUnitMeta,
+          customUnit.isAcceptableOrUnknown(
+              data['custom_unit']!, _customUnitMeta));
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    }
+    if (data.containsKey('confidence')) {
+      context.handle(
+          _confidenceMeta,
+          confidence.isAcceptableOrUnknown(
+              data['confidence']!, _confidenceMeta));
+    }
+    if (data.containsKey('origin_report_id')) {
+      context.handle(
+          _originReportIdMeta,
+          originReportId.isAcceptableOrUnknown(
+              data['origin_report_id']!, _originReportIdMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {rawKey},
+      ];
+  @override
+  MetricMatchCacheData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MetricMatchCacheData(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      rawKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}raw_key'])!,
+      rawDisplay: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}raw_display'])!,
+      canonicalId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}canonical_id']),
+      customName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}custom_name']),
+      customSystem: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}custom_system']),
+      customUnit: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}custom_unit']),
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      confidence: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}confidence']),
+      originReportId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}origin_report_id']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $MetricMatchCacheTable createAlias(String alias) {
+    return $MetricMatchCacheTable(attachedDatabase, alias);
+  }
+}
+
+class MetricMatchCacheData extends DataClass
+    implements Insertable<MetricMatchCacheData> {
+  final int id;
+
+  /// 原始名归一化后的键（见 metric_dictionary 的 _norm；此处用等价规则）。
+  final String rawKey;
+  final String rawDisplay;
+
+  /// 指向核心词典条目的 metricId；为空时看 custom* 三列（用户自建，暂未启用）。
+  final String? canonicalId;
+  final String? customName;
+  final String? customSystem;
+  final String? customUnit;
+
+  /// deepseek（模型归一化）/ learned（用户核对页改对）/ manual（管理页手加）。
+  final String source;
+  final double? confidence;
+  final int? originReportId;
+  final DateTime createdAt;
+  const MetricMatchCacheData(
+      {required this.id,
+      required this.rawKey,
+      required this.rawDisplay,
+      this.canonicalId,
+      this.customName,
+      this.customSystem,
+      this.customUnit,
+      required this.source,
+      this.confidence,
+      this.originReportId,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['raw_key'] = Variable<String>(rawKey);
+    map['raw_display'] = Variable<String>(rawDisplay);
+    if (!nullToAbsent || canonicalId != null) {
+      map['canonical_id'] = Variable<String>(canonicalId);
+    }
+    if (!nullToAbsent || customName != null) {
+      map['custom_name'] = Variable<String>(customName);
+    }
+    if (!nullToAbsent || customSystem != null) {
+      map['custom_system'] = Variable<String>(customSystem);
+    }
+    if (!nullToAbsent || customUnit != null) {
+      map['custom_unit'] = Variable<String>(customUnit);
+    }
+    map['source'] = Variable<String>(source);
+    if (!nullToAbsent || confidence != null) {
+      map['confidence'] = Variable<double>(confidence);
+    }
+    if (!nullToAbsent || originReportId != null) {
+      map['origin_report_id'] = Variable<int>(originReportId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  MetricMatchCacheCompanion toCompanion(bool nullToAbsent) {
+    return MetricMatchCacheCompanion(
+      id: Value(id),
+      rawKey: Value(rawKey),
+      rawDisplay: Value(rawDisplay),
+      canonicalId: canonicalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(canonicalId),
+      customName: customName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customName),
+      customSystem: customSystem == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customSystem),
+      customUnit: customUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customUnit),
+      source: Value(source),
+      confidence: confidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(confidence),
+      originReportId: originReportId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originReportId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory MetricMatchCacheData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MetricMatchCacheData(
+      id: serializer.fromJson<int>(json['id']),
+      rawKey: serializer.fromJson<String>(json['rawKey']),
+      rawDisplay: serializer.fromJson<String>(json['rawDisplay']),
+      canonicalId: serializer.fromJson<String?>(json['canonicalId']),
+      customName: serializer.fromJson<String?>(json['customName']),
+      customSystem: serializer.fromJson<String?>(json['customSystem']),
+      customUnit: serializer.fromJson<String?>(json['customUnit']),
+      source: serializer.fromJson<String>(json['source']),
+      confidence: serializer.fromJson<double?>(json['confidence']),
+      originReportId: serializer.fromJson<int?>(json['originReportId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'rawKey': serializer.toJson<String>(rawKey),
+      'rawDisplay': serializer.toJson<String>(rawDisplay),
+      'canonicalId': serializer.toJson<String?>(canonicalId),
+      'customName': serializer.toJson<String?>(customName),
+      'customSystem': serializer.toJson<String?>(customSystem),
+      'customUnit': serializer.toJson<String?>(customUnit),
+      'source': serializer.toJson<String>(source),
+      'confidence': serializer.toJson<double?>(confidence),
+      'originReportId': serializer.toJson<int?>(originReportId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  MetricMatchCacheData copyWith(
+          {int? id,
+          String? rawKey,
+          String? rawDisplay,
+          Value<String?> canonicalId = const Value.absent(),
+          Value<String?> customName = const Value.absent(),
+          Value<String?> customSystem = const Value.absent(),
+          Value<String?> customUnit = const Value.absent(),
+          String? source,
+          Value<double?> confidence = const Value.absent(),
+          Value<int?> originReportId = const Value.absent(),
+          DateTime? createdAt}) =>
+      MetricMatchCacheData(
+        id: id ?? this.id,
+        rawKey: rawKey ?? this.rawKey,
+        rawDisplay: rawDisplay ?? this.rawDisplay,
+        canonicalId: canonicalId.present ? canonicalId.value : this.canonicalId,
+        customName: customName.present ? customName.value : this.customName,
+        customSystem:
+            customSystem.present ? customSystem.value : this.customSystem,
+        customUnit: customUnit.present ? customUnit.value : this.customUnit,
+        source: source ?? this.source,
+        confidence: confidence.present ? confidence.value : this.confidence,
+        originReportId:
+            originReportId.present ? originReportId.value : this.originReportId,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  MetricMatchCacheData copyWithCompanion(MetricMatchCacheCompanion data) {
+    return MetricMatchCacheData(
+      id: data.id.present ? data.id.value : this.id,
+      rawKey: data.rawKey.present ? data.rawKey.value : this.rawKey,
+      rawDisplay:
+          data.rawDisplay.present ? data.rawDisplay.value : this.rawDisplay,
+      canonicalId:
+          data.canonicalId.present ? data.canonicalId.value : this.canonicalId,
+      customName:
+          data.customName.present ? data.customName.value : this.customName,
+      customSystem: data.customSystem.present
+          ? data.customSystem.value
+          : this.customSystem,
+      customUnit:
+          data.customUnit.present ? data.customUnit.value : this.customUnit,
+      source: data.source.present ? data.source.value : this.source,
+      confidence:
+          data.confidence.present ? data.confidence.value : this.confidence,
+      originReportId: data.originReportId.present
+          ? data.originReportId.value
+          : this.originReportId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MetricMatchCacheData(')
+          ..write('id: $id, ')
+          ..write('rawKey: $rawKey, ')
+          ..write('rawDisplay: $rawDisplay, ')
+          ..write('canonicalId: $canonicalId, ')
+          ..write('customName: $customName, ')
+          ..write('customSystem: $customSystem, ')
+          ..write('customUnit: $customUnit, ')
+          ..write('source: $source, ')
+          ..write('confidence: $confidence, ')
+          ..write('originReportId: $originReportId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      rawKey,
+      rawDisplay,
+      canonicalId,
+      customName,
+      customSystem,
+      customUnit,
+      source,
+      confidence,
+      originReportId,
+      createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MetricMatchCacheData &&
+          other.id == this.id &&
+          other.rawKey == this.rawKey &&
+          other.rawDisplay == this.rawDisplay &&
+          other.canonicalId == this.canonicalId &&
+          other.customName == this.customName &&
+          other.customSystem == this.customSystem &&
+          other.customUnit == this.customUnit &&
+          other.source == this.source &&
+          other.confidence == this.confidence &&
+          other.originReportId == this.originReportId &&
+          other.createdAt == this.createdAt);
+}
+
+class MetricMatchCacheCompanion extends UpdateCompanion<MetricMatchCacheData> {
+  final Value<int> id;
+  final Value<String> rawKey;
+  final Value<String> rawDisplay;
+  final Value<String?> canonicalId;
+  final Value<String?> customName;
+  final Value<String?> customSystem;
+  final Value<String?> customUnit;
+  final Value<String> source;
+  final Value<double?> confidence;
+  final Value<int?> originReportId;
+  final Value<DateTime> createdAt;
+  const MetricMatchCacheCompanion({
+    this.id = const Value.absent(),
+    this.rawKey = const Value.absent(),
+    this.rawDisplay = const Value.absent(),
+    this.canonicalId = const Value.absent(),
+    this.customName = const Value.absent(),
+    this.customSystem = const Value.absent(),
+    this.customUnit = const Value.absent(),
+    this.source = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.originReportId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  MetricMatchCacheCompanion.insert({
+    this.id = const Value.absent(),
+    required String rawKey,
+    required String rawDisplay,
+    this.canonicalId = const Value.absent(),
+    this.customName = const Value.absent(),
+    this.customSystem = const Value.absent(),
+    this.customUnit = const Value.absent(),
+    this.source = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.originReportId = const Value.absent(),
+    required DateTime createdAt,
+  })  : rawKey = Value(rawKey),
+        rawDisplay = Value(rawDisplay),
+        createdAt = Value(createdAt);
+  static Insertable<MetricMatchCacheData> custom({
+    Expression<int>? id,
+    Expression<String>? rawKey,
+    Expression<String>? rawDisplay,
+    Expression<String>? canonicalId,
+    Expression<String>? customName,
+    Expression<String>? customSystem,
+    Expression<String>? customUnit,
+    Expression<String>? source,
+    Expression<double>? confidence,
+    Expression<int>? originReportId,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (rawKey != null) 'raw_key': rawKey,
+      if (rawDisplay != null) 'raw_display': rawDisplay,
+      if (canonicalId != null) 'canonical_id': canonicalId,
+      if (customName != null) 'custom_name': customName,
+      if (customSystem != null) 'custom_system': customSystem,
+      if (customUnit != null) 'custom_unit': customUnit,
+      if (source != null) 'source': source,
+      if (confidence != null) 'confidence': confidence,
+      if (originReportId != null) 'origin_report_id': originReportId,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  MetricMatchCacheCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? rawKey,
+      Value<String>? rawDisplay,
+      Value<String?>? canonicalId,
+      Value<String?>? customName,
+      Value<String?>? customSystem,
+      Value<String?>? customUnit,
+      Value<String>? source,
+      Value<double?>? confidence,
+      Value<int?>? originReportId,
+      Value<DateTime>? createdAt}) {
+    return MetricMatchCacheCompanion(
+      id: id ?? this.id,
+      rawKey: rawKey ?? this.rawKey,
+      rawDisplay: rawDisplay ?? this.rawDisplay,
+      canonicalId: canonicalId ?? this.canonicalId,
+      customName: customName ?? this.customName,
+      customSystem: customSystem ?? this.customSystem,
+      customUnit: customUnit ?? this.customUnit,
+      source: source ?? this.source,
+      confidence: confidence ?? this.confidence,
+      originReportId: originReportId ?? this.originReportId,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (rawKey.present) {
+      map['raw_key'] = Variable<String>(rawKey.value);
+    }
+    if (rawDisplay.present) {
+      map['raw_display'] = Variable<String>(rawDisplay.value);
+    }
+    if (canonicalId.present) {
+      map['canonical_id'] = Variable<String>(canonicalId.value);
+    }
+    if (customName.present) {
+      map['custom_name'] = Variable<String>(customName.value);
+    }
+    if (customSystem.present) {
+      map['custom_system'] = Variable<String>(customSystem.value);
+    }
+    if (customUnit.present) {
+      map['custom_unit'] = Variable<String>(customUnit.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (confidence.present) {
+      map['confidence'] = Variable<double>(confidence.value);
+    }
+    if (originReportId.present) {
+      map['origin_report_id'] = Variable<int>(originReportId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MetricMatchCacheCompanion(')
+          ..write('id: $id, ')
+          ..write('rawKey: $rawKey, ')
+          ..write('rawDisplay: $rawDisplay, ')
+          ..write('canonicalId: $canonicalId, ')
+          ..write('customName: $customName, ')
+          ..write('customSystem: $customSystem, ')
+          ..write('customUnit: $customUnit, ')
+          ..write('source: $source, ')
+          ..write('confidence: $confidence, ')
+          ..write('originReportId: $originReportId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7063,6 +7646,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $EncountersTable encounters = $EncountersTable(this);
   late final $AllergiesTable allergies = $AllergiesTable(this);
   late final $ReportOrgansTable reportOrgans = $ReportOrgansTable(this);
+  late final $MetricMatchCacheTable metricMatchCache =
+      $MetricMatchCacheTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7079,7 +7664,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         notifications,
         encounters,
         allergies,
-        reportOrgans
+        reportOrgans,
+        metricMatchCache
       ];
 }
 
@@ -10327,6 +10913,269 @@ typedef $$ReportOrgansTableProcessedTableManager = ProcessedTableManager<
     ),
     ReportOrgan,
     PrefetchHooks Function()>;
+typedef $$MetricMatchCacheTableCreateCompanionBuilder
+    = MetricMatchCacheCompanion Function({
+  Value<int> id,
+  required String rawKey,
+  required String rawDisplay,
+  Value<String?> canonicalId,
+  Value<String?> customName,
+  Value<String?> customSystem,
+  Value<String?> customUnit,
+  Value<String> source,
+  Value<double?> confidence,
+  Value<int?> originReportId,
+  required DateTime createdAt,
+});
+typedef $$MetricMatchCacheTableUpdateCompanionBuilder
+    = MetricMatchCacheCompanion Function({
+  Value<int> id,
+  Value<String> rawKey,
+  Value<String> rawDisplay,
+  Value<String?> canonicalId,
+  Value<String?> customName,
+  Value<String?> customSystem,
+  Value<String?> customUnit,
+  Value<String> source,
+  Value<double?> confidence,
+  Value<int?> originReportId,
+  Value<DateTime> createdAt,
+});
+
+class $$MetricMatchCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $MetricMatchCacheTable> {
+  $$MetricMatchCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rawKey => $composableBuilder(
+      column: $table.rawKey, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rawDisplay => $composableBuilder(
+      column: $table.rawDisplay, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get canonicalId => $composableBuilder(
+      column: $table.canonicalId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get customName => $composableBuilder(
+      column: $table.customName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get customSystem => $composableBuilder(
+      column: $table.customSystem, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get customUnit => $composableBuilder(
+      column: $table.customUnit, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get originReportId => $composableBuilder(
+      column: $table.originReportId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$MetricMatchCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $MetricMatchCacheTable> {
+  $$MetricMatchCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rawKey => $composableBuilder(
+      column: $table.rawKey, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rawDisplay => $composableBuilder(
+      column: $table.rawDisplay, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get canonicalId => $composableBuilder(
+      column: $table.canonicalId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get customName => $composableBuilder(
+      column: $table.customName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get customSystem => $composableBuilder(
+      column: $table.customSystem,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get customUnit => $composableBuilder(
+      column: $table.customUnit, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get originReportId => $composableBuilder(
+      column: $table.originReportId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MetricMatchCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MetricMatchCacheTable> {
+  $$MetricMatchCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get rawKey =>
+      $composableBuilder(column: $table.rawKey, builder: (column) => column);
+
+  GeneratedColumn<String> get rawDisplay => $composableBuilder(
+      column: $table.rawDisplay, builder: (column) => column);
+
+  GeneratedColumn<String> get canonicalId => $composableBuilder(
+      column: $table.canonicalId, builder: (column) => column);
+
+  GeneratedColumn<String> get customName => $composableBuilder(
+      column: $table.customName, builder: (column) => column);
+
+  GeneratedColumn<String> get customSystem => $composableBuilder(
+      column: $table.customSystem, builder: (column) => column);
+
+  GeneratedColumn<String> get customUnit => $composableBuilder(
+      column: $table.customUnit, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<double> get confidence => $composableBuilder(
+      column: $table.confidence, builder: (column) => column);
+
+  GeneratedColumn<int> get originReportId => $composableBuilder(
+      column: $table.originReportId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$MetricMatchCacheTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MetricMatchCacheTable,
+    MetricMatchCacheData,
+    $$MetricMatchCacheTableFilterComposer,
+    $$MetricMatchCacheTableOrderingComposer,
+    $$MetricMatchCacheTableAnnotationComposer,
+    $$MetricMatchCacheTableCreateCompanionBuilder,
+    $$MetricMatchCacheTableUpdateCompanionBuilder,
+    (
+      MetricMatchCacheData,
+      BaseReferences<_$AppDatabase, $MetricMatchCacheTable,
+          MetricMatchCacheData>
+    ),
+    MetricMatchCacheData,
+    PrefetchHooks Function()> {
+  $$MetricMatchCacheTableTableManager(
+      _$AppDatabase db, $MetricMatchCacheTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MetricMatchCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MetricMatchCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MetricMatchCacheTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> rawKey = const Value.absent(),
+            Value<String> rawDisplay = const Value.absent(),
+            Value<String?> canonicalId = const Value.absent(),
+            Value<String?> customName = const Value.absent(),
+            Value<String?> customSystem = const Value.absent(),
+            Value<String?> customUnit = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<double?> confidence = const Value.absent(),
+            Value<int?> originReportId = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              MetricMatchCacheCompanion(
+            id: id,
+            rawKey: rawKey,
+            rawDisplay: rawDisplay,
+            canonicalId: canonicalId,
+            customName: customName,
+            customSystem: customSystem,
+            customUnit: customUnit,
+            source: source,
+            confidence: confidence,
+            originReportId: originReportId,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String rawKey,
+            required String rawDisplay,
+            Value<String?> canonicalId = const Value.absent(),
+            Value<String?> customName = const Value.absent(),
+            Value<String?> customSystem = const Value.absent(),
+            Value<String?> customUnit = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<double?> confidence = const Value.absent(),
+            Value<int?> originReportId = const Value.absent(),
+            required DateTime createdAt,
+          }) =>
+              MetricMatchCacheCompanion.insert(
+            id: id,
+            rawKey: rawKey,
+            rawDisplay: rawDisplay,
+            canonicalId: canonicalId,
+            customName: customName,
+            customSystem: customSystem,
+            customUnit: customUnit,
+            source: source,
+            confidence: confidence,
+            originReportId: originReportId,
+            createdAt: createdAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MetricMatchCacheTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $MetricMatchCacheTable,
+    MetricMatchCacheData,
+    $$MetricMatchCacheTableFilterComposer,
+    $$MetricMatchCacheTableOrderingComposer,
+    $$MetricMatchCacheTableAnnotationComposer,
+    $$MetricMatchCacheTableCreateCompanionBuilder,
+    $$MetricMatchCacheTableUpdateCompanionBuilder,
+    (
+      MetricMatchCacheData,
+      BaseReferences<_$AppDatabase, $MetricMatchCacheTable,
+          MetricMatchCacheData>
+    ),
+    MetricMatchCacheData,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10355,4 +11204,6 @@ class $AppDatabaseManager {
       $$AllergiesTableTableManager(_db, _db.allergies);
   $$ReportOrgansTableTableManager get reportOrgans =>
       $$ReportOrgansTableTableManager(_db, _db.reportOrgans);
+  $$MetricMatchCacheTableTableManager get metricMatchCache =>
+      $$MetricMatchCacheTableTableManager(_db, _db.metricMatchCache);
 }

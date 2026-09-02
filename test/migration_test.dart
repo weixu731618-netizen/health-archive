@@ -25,6 +25,12 @@ void main() {
       expect(profile.displayName, '本人');
       expect(profile.createdAt, isA<DateTime>());
       expect(profile.updatedAt, isA<DateTime>());
+
+      // v19：新表 metric_match_cache 建出来，可读可写
+      expect(await repo.loadMetricMatchCache(), isEmpty);
+      await repo.upsertMetricMatch(
+          rawDisplay: '白细胞数目', canonicalId: 'WBC', source: 'learned');
+      expect((await repo.loadMetricMatchCache())['白细胞数目'], 'WBC');
     } finally {
       try {
         dir.deleteSync(recursive: true);

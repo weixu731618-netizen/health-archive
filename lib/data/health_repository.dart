@@ -971,6 +971,61 @@ class HealthRepository {
     return out;
   }
 
+  // ---------- 指标名归一化缓存（Round 3b·下）----------
+
+  /// 归一化 key：与 metric_dictionary 的 _norm 等价（去空白 / 横杠 / 括号 / 斜杠
+  /// + 转小写）。缓存查询用它，不做「去百分比 / 绝对值」这类语义裁剪。
+  static String normalizeMatchKey(String s) {
+    var out = s.trim().toLowerCase();
+    for (final ch in const [
+      ' ', '\t', '(', ')', '-', '－', '—', '＿', '_', '／', '/'
+    ]) {
+      out = out.replaceAll(ch, '');
+    }
+    return out;
+  }
+
+  /// 全部缓存：归一化 key → canonicalId（只返回指向核心词典的；custom* 暂不启用）。
+  Future<Map<String, String>> loadMetricMatchCache() async {
+    final rows = await _db.select(_db.metricMatchCache).get();
+    final out = <String, String>{};
+    for (final r in rows) {
+      final id = r.canonicalId;
+      if (id != null && id.isNotEmpty) out[r.rawKey] = id;
+    }
+    return out;
+  }
+
+  /// 写一条映射；同 rawKey 覆盖（后写的赢）。
+  Future<void> upsertMetricMatch({
+    required String rawDisplay,
+    required String canonicalId,
+    String source = 'deepseek',
+    double? confidence,
+    int? originReportId,
+  }) async {
+    final key = normalizeMatchKey(rawDisplay);
+    if (key.isEmpty || canonicalId.isEmpty) return;
+    await _db.into(_db.metricMatchCache).insert(
+          MetricMatchCacheCompanion.insert(
+            rawKey: key,
+            rawDisplay: rawDisplay.trim(),
+            canonicalId: Value(canonicalId),
+            source: Value(source),
+            confidence: Value(confidence),
+            originReportId: Value(originReportId),
+            createdAt: DateTime.now(),
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+  }
+
+  Future<List<MetricMatchCacheData>> getAllMetricMatches() =>
+      _db.select(_db.metricMatchCache).get();
+
+  Future<void> deleteMetricMatch(int id) =>
+      (_db.delete(_db.metricMatchCache)..where((t) => t.id.equals(id))).go();
+
   // ---------- 慢病升级 步骤4：随访计划自动排期 ----------
 
   /// 当前档案的随访提醒（kind='followup'），按到期日升序。
@@ -1593,6 +1648,21 @@ class HealthRepository {
             'areaName': r.areaName,
           },
       ],
+      'metricMatchCache': [
+        for (final r in await _db.select(_db.metricMatchCache).get())
+          {
+            'rawKey': r.rawKey,
+            'rawDisplay': r.rawDisplay,
+            'canonicalId': r.canonicalId,
+            'customName': r.customName,
+            'customSystem': r.customSystem,
+            'customUnit': r.customUnit,
+            'source': r.source,
+            'confidence': r.confidence,
+            'originReportId': r.originReportId,
+            'createdAt': iso(r.createdAt),
+          },
+      ],
     };
   }
 
@@ -1604,6 +1674,7 @@ class HealthRepository {
       await _db.delete(_db.dailyHealthRecords).go();
       await _db.delete(_db.medicalReports).go();
       await _db.delete(_db.reportOrgans).go();
+      await _db.delete(_db.metricMatchCache).go();
       await _db.delete(_db.diseases).go();
       await _db.delete(_db.medications).go();
       await _db.delete(_db.reminders).go();

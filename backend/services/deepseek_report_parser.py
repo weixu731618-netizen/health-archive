@@ -202,3 +202,67 @@ def parse_ocr_result(ocr_lines: list[dict]) -> dict:
         "imagingType": model.imagingType,
         "metrics": metrics,
     }
+
+
+_CANON_SYSTEM_PROMPT = '''你把检验报告里的项目名映射到给定的「标准指标清单」。
+规则：
+- 只在名字明确指同一项时才给 id；拿不准一律返回 null。
+- 百分比 / 比率 与 绝对值 / 计数 是不同的项，不要互相映射
+  （如「中性粒细胞百分比」不等于「中性粒细胞绝对值」）。
+- id 只能用清单里出现过的；清单里没有对应项就返回 null。
+- 不做任何医学判断。
+只输出 JSON：{"results":[{"raw":"原始名","id":"标准id或null","confidence":0到1的小数}]}'''
+
+
+def canonicalize_metric_names(
+    raw_names: list[str], candidates: list[dict]
+) -> list[dict]:
+    """把一批未匹配的项目名归一化到 candidates（[{id,name,unit?}]）里的标准 id。
+
+    返回 [{"rawName":..,"canonicalId":..,"confidence":..}]，只含给出了 id 的项。
+    任何失败（未配 key / 网络 / 非 JSON）都返回 []，绝不抛给上层。
+    """
+    names = [str(n).strip() for n in (raw_names or []) if str(n).strip()]
+    cands = [
+        {"id": str(c.get("id")), "name": str(c.get("name"))}
+        for c in (candidates or [])
+        if c.get("id") and c.get("name")
+    ]
+    if not names or not cands:
+        return []
+    payload = {
+        "model": DEEPSEEK_MODEL,
+        "messages": [
+            {"role": "system", "content": _CANON_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {"candidates": cands, "names": names}, ensure_ascii=False
+                ),
+            },
+        ],
+        "temperature": 0.0,
+        "response_format": {"type": "json_object"},
+    }
+    try:
+        content = _call_deepseek(payload)
+        data = json.loads(_clean_json(content))
+    except (DeepSeekParseError, json.JSONDecodeError, TypeError, KeyError):
+        return []
+    valid_ids = {c["id"] for c in cands}
+    out: list[dict] = []
+    for r in (data.get("results") or []) if isinstance(data, dict) else []:
+        if not isinstance(r, dict):
+            continue
+        raw = str(r.get("raw", "")).strip()
+        cid = r.get("id")
+        if not raw or not cid or str(cid) not in valid_ids:
+            continue
+        try:
+            conf = float(r.get("confidence", 0))
+        except (TypeError, ValueError):
+            conf = 0.0
+        out.append(
+            {"rawName": raw, "canonicalId": str(cid), "confidence": conf}
+        )
+    return out

@@ -15,11 +15,13 @@ import 'report_ocr_service.dart' show mediaTypeForImageFileName;
 /// 隐私约定：实现内不得把图片字节或报告全文打印到日志。
 abstract class ReportRecognitionService {
   /// 识别一张验单图片，返回结构化的检查指标。
+  /// [matchCache] 归一化名→canonicalId 的本地缓存，调用方从库里取好传进来。
   Future<StructuredMedicalReport> recognizeReport({
     required Uint8List imageBytes,
     String? imagePath,
     required String fileName,
     bool preferDeepseek,
+    Map<String, String> matchCache,
   });
 }
 
@@ -32,6 +34,7 @@ class MockReportRecognitionService implements ReportRecognitionService {
     String? imagePath,
     required String fileName,
     bool preferDeepseek = false,
+    Map<String, String> matchCache = const {},
   }) async {
     // 模拟识别耗时，给 UI 展示 loading 的时间
     await Future<void>.delayed(const Duration(milliseconds: 900));
@@ -203,6 +206,7 @@ class RemoteReportRecognitionService implements ReportRecognitionService {
     String? imagePath,
     required String fileName,
     bool preferDeepseek = false,
+    Map<String, String> matchCache = const {},
   }) async {
     if (_apiBase.isEmpty) {
       throw StateError('识别后端未配置（REPORT_API_BASE）');
@@ -215,7 +219,12 @@ class RemoteReportRecognitionService implements ReportRecognitionService {
     final request = http.MultipartRequest('POST', uri)
       ..files.add(http.MultipartFile.fromBytes('file', imageBytes,
           filename: fileName,
-          contentType: mediaTypeForImageFileName(fileName)));
+          contentType: mediaTypeForImageFileName(fileName)))
+      // 后端用它把没匹配上的项交给 DeepSeek 归一化到这些核心指标之一。
+      ..fields['dictionary'] = jsonEncode([
+        for (final d in METRIC_DICTIONARY)
+          {'id': d.metricId, 'name': d.metricName, 'unit': d.unit},
+      ]);
 
     http.Response response;
     try {
@@ -246,7 +255,8 @@ class RemoteReportRecognitionService implements ReportRecognitionService {
     // 0 指标不再当失败：可能是影像/病理/病历等图文报告。调用方按
     // report.metrics.isEmpty 决定进「结构化核对页」还是「图文报告」流程。
     // 真正的失败（网络 / 502 / 无文字）已在上面按状态码抛出。
-    return structuredReportFromBackendJson(body, imagePath);
+    return structuredReportFromBackendJson(body, imagePath,
+        matchCache: matchCache);
   }
 }
 
@@ -255,7 +265,8 @@ class RemoteReportRecognitionService implements ReportRecognitionService {
 /// 独立为顶层函数，便于测试真实后端返回的 numericValue/textValue/qualifier 等
 /// 字段不会在进入核对页前丢失。
 StructuredMedicalReport structuredReportFromBackendJson(
-    Map<String, dynamic> body, String? imagePath) {
+    Map<String, dynamic> body, String? imagePath,
+    {Map<String, String> matchCache = const {}}) {
   final metrics = <RecognizedMetric>[];
   final rawList = body['metrics'];
   if (rawList is List) {
@@ -263,7 +274,7 @@ StructuredMedicalReport structuredReportFromBackendJson(
       if (item is! Map) continue;
       final rawName = (item['rawName'] ?? '').toString();
       if (rawName.trim().isEmpty) continue;
-      final id = _matchBackendMetricId(item, rawName);
+      final (id, matchType) = _matchBackendMetricId(item, rawName, matchCache);
       final def = id == null ? null : findMetricDefinition(id);
       final value = _num(item['numericValue']) ?? _num(item['value']);
       final (min, max) = _sanitizeRange(
@@ -300,7 +311,7 @@ StructuredMedicalReport structuredReportFromBackendJson(
       metrics.add(RecognizedMetric(
         rawName: rawName,
         matchedMetricId: id,
-        matchType: id != null ? 'exact' : 'unmatched',
+        matchType: matchType,
         canonicalName:
             def?.metricName ?? (item['canonicalName'] ?? rawName).toString(),
         value: value ?? 0,
@@ -516,18 +527,56 @@ String _reconcileWithLabFlag(String computed, String? labDir) {
   }
 }
 
-String? _matchBackendMetricId(Map item, String rawName) {
+/// 匹配顺序：本地词典精确/别名 → 归一化缓存（deepseek/learned 上次的结果）→
+/// 后端本轮给的 matchedMetricId（DeepSeek 归一化，需单位兼容）→ 非核心。
+/// 返回 (metricId 或 null, matchType)。
+(String?, String) _matchBackendMetricId(
+    Map item, String rawName, Map<String, String> matchCache) {
+  for (final candidate in _metricNameCandidates(item, rawName)) {
+    final id = matchMetricId(candidate);
+    if (id != null) return (id, 'exact');
+  }
+
+  final cached = matchCache[_normKey(rawName)];
+  if (cached != null && findMetricDefinition(cached) != null) {
+    return (cached, 'cache');
+  }
+
   final modelId = item['matchedMetricId']?.toString().trim();
   if (modelId != null && modelId.isNotEmpty) {
     final def = findMetricDefinition(modelId);
-    if (def != null) return def.metricId;
+    if (def != null) {
+      final fromDeepseek =
+          item['canonicalSource']?.toString() == 'deepseek';
+      // DeepSeek 本轮的归一化：单位对不上就不采纳（宁可当非核心，也别挂错指标）。
+      if (fromDeepseek) {
+        final unit = normalizeUnit((item['unit'] ?? '').toString());
+        if (_unitsCompatible(unit, def.unit)) return (def.metricId, 'deepseek');
+      } else {
+        return (def.metricId, 'exact');
+      }
+    }
   }
+  return (null, 'unmatched');
+}
 
-  for (final candidate in _metricNameCandidates(item, rawName)) {
-    final id = matchMetricId(candidate);
-    if (id != null) return id;
+/// 与 metric_dictionary._norm / HealthRepository.normalizeMatchKey 等价。
+String _normKey(String s) {
+  var out = s.trim().toLowerCase();
+  for (final ch in const [
+    ' ', '\t', '(', ')', '-', '－', '—', '＿', '_', '／', '/'
+  ]) {
+    out = out.replaceAll(ch, '');
   }
-  return null;
+  return out;
+}
+
+/// 单位是否大致兼容：任一为空 → 放行；相等 / 一个包含另一个 → 放行；否则拒。
+bool _unitsCompatible(String a, String b) {
+  final x = a.trim().toLowerCase().replaceAll(' ', '');
+  final y = b.trim().toLowerCase().replaceAll(' ', '');
+  if (x.isEmpty || y.isEmpty) return true;
+  return x == y || x.contains(y) || y.contains(x);
 }
 
 Iterable<String> _metricNameCandidates(Map item, String rawName) sync* {
@@ -539,7 +588,8 @@ Iterable<String> _metricNameCandidates(Map item, String rawName) sync* {
 
   add(rawName);
   add(item['canonicalName']?.toString());
-  add(item['matchedMetricId']?.toString());
+  // item['matchedMetricId'] 不当名字候选——它由 _matchBackendMetricId 显式处理
+  // （DeepSeek 归一化的要过单位校验、标 'deepseek'、写缓存）。
 
   final bracket = RegExp(r'[（(]([^）)]+)[）)]');
   for (final m in bracket.allMatches(rawName)) {

@@ -21,7 +21,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+import json as _json
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 
 from models.medical_report_map import map_medical_report
@@ -29,7 +30,11 @@ from models.ocr_response import OcrResponse, WordItem
 from models.structured_report import normalize_metric
 from services.baidu_medical_report_service import recognize_lab_report
 from services.baidu_ocr_service import BaiduOcrError, recognize_image
-from services.deepseek_report_parser import DeepSeekParseError, parse_ocr_result
+from services.deepseek_report_parser import (
+    DeepSeekParseError,
+    canonicalize_metric_names,
+    parse_ocr_result,
+)
 
 # V0.5：云备份 / 认证——v1 精简版默认不启用（见下方 ENABLE_CLOUD_BACKUP）。
 # 只做 import，不代表一定会挂载路由/建表/查库。
@@ -196,11 +201,49 @@ async def report_ocr(
     )
 
 
+def _apply_canonicalization(metrics: list[dict], dictionary_json: str | None):
+    """把 metrics 里 matchedMetricId 为空的项交给 DeepSeek 归一化到 dictionary
+    （客户端传来的 [{id,name,unit}]）里的标准 id。就地改 metrics，返回
+    (命中数, 耗时ms)。任何失败都不改动、不抛。"""
+    if not dictionary_json:
+        return 0, 0
+    try:
+        candidates = _json.loads(dictionary_json)
+        if not isinstance(candidates, list):
+            return 0, 0
+    except (ValueError, TypeError):
+        return 0, 0
+    pending = [
+        m for m in metrics
+        if not str(m.get("matchedMetricId") or "").strip()
+        and str(m.get("rawName") or "").strip()
+        and (m.get("numericValue") is not None or m.get("textValue"))
+    ]
+    if not pending:
+        return 0, 0
+    raw_names = list({str(m["rawName"]).strip() for m in pending})
+    _t = time.time()
+    results = canonicalize_metric_names(raw_names, candidates)
+    took = int((time.time() - _t) * 1000)
+    by_raw = {r["rawName"]: r for r in results if r.get("confidence", 0) >= 0.85}
+    hit = 0
+    for m in pending:
+        r = by_raw.get(str(m["rawName"]).strip())
+        if not r:
+            continue
+        m["matchedMetricId"] = r["canonicalId"]
+        m["canonicalSource"] = "deepseek"
+        m["canonicalConfidence"] = r["confidence"]
+        hit += 1
+    return hit, took
+
+
 @app.post("/api/report/recognize")
 async def report_recognize(
     request: Request,
     file: UploadFile = File(...),
     prefer: str | None = None,
+    dictionary: str | None = Form(None),
     user: User | None = Depends(_ocr_user_dependency),
 ):
     """化验单 -> 百度「医疗检验报告单识别」直出结构化；识别不出（非化验单）
@@ -237,10 +280,15 @@ async def report_recognize(
             and (m.get("numericValue") is not None or m.get("textValue"))
         ]
         if mapped_metrics:
+            t_canon_hit, t_canon_ms = _apply_canonicalization(
+                mapped_metrics, dictionary
+            )
             duration_ms = int((time.time() - begin) * 1000)
             logger.info(
-                "MedicalReportOCR success | items: %d | med: %d ms | total: %d ms",
-                len(mapped_metrics), t_med_ms, duration_ms,
+                "MedicalReportOCR success | items: %d | canon: %d/%d ms | "
+                "med: %d ms | total: %d ms",
+                len(mapped_metrics), t_canon_hit, t_canon_ms,
+                t_med_ms, duration_ms,
             )
             return JSONResponse(
                 status_code=200,
@@ -284,6 +332,7 @@ async def report_recognize(
         m for m in metrics
         if m.get("rawName") and (m.get("numericValue") is not None or m.get("textValue"))
     ]
+    t_canon_hit, t_canon_ms = _apply_canonicalization(metrics, dictionary)
     # 0 指标不是错误。客户端按下面的字段分流：
     #   metrics 非空        -> 报告单（核对页）
     #   imagingType 有值    -> 影像（图文报告页）
@@ -300,10 +349,10 @@ async def report_recognize(
     # med: 专用模型这次也试过但没用上时的耗时；ocr/llm: 通用OCR、DeepSeek 各自耗时。
     logger.info(
         "OCR+LLM success | lines: %d | metrics: %d | imagingType: %s | isMedical: %s "
-        "| med: %d ms | ocr: %d ms | llm: %d ms | total: %d ms",
+        "| med: %d ms | ocr: %d ms | llm: %d ms | canon: %d/%d ms | total: %d ms",
         len(words), len(metrics), structured.get("imagingType"),
         structured.get("isMedical"),
-        t_med_ms, t_ocr_ms, t_llm_ms, duration_ms,
+        t_med_ms, t_ocr_ms, t_llm_ms, t_canon_hit, t_canon_ms, duration_ms,
     )
 
     return JSONResponse(

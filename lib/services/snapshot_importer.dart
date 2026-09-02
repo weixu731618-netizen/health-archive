@@ -40,6 +40,7 @@ class SnapshotImporter {
         await _importAllergies(repo, snapshot['allergies']);
         await _importReminders(repo, snapshot['reminders']);
         await _importReportOrgans(repo, snapshot['reportOrgans'], reportIdMap);
+        await _importMetricMatchCache(repo, snapshot['metricMatchCache']);
       });
     } catch (e) {
       return '恢复过程中出现错误，部分数据可能未恢复：$e';
@@ -336,6 +337,33 @@ class SnapshotImporter {
       } catch (_) {
         // 单条失败跳过
       }
+    }
+  }
+
+  /// 指标名归一化缓存（deepseek / learned / manual 映射）。丢了最多某项重新
+  /// 识别一次，所以单条失败静默跳过。
+  static Future<void> _importMetricMatchCache(
+      HealthRepository repo, dynamic list) async {
+    if (list is! List) return;
+    for (final item in list) {
+      if (item is! Map) continue;
+      final canonicalId = item['canonicalId']?.toString();
+      final rawDisplay = item['rawDisplay']?.toString();
+      if (canonicalId == null ||
+          canonicalId.isEmpty ||
+          rawDisplay == null ||
+          rawDisplay.isEmpty) {
+        continue;
+      }
+      try {
+        await repo.upsertMetricMatch(
+          rawDisplay: rawDisplay,
+          canonicalId: canonicalId,
+          source: (item['source'] ?? 'deepseek').toString(),
+          confidence: _toDouble(item['confidence']),
+          originReportId: _toInt(item['originReportId']),
+        );
+      } catch (_) {}
     }
   }
 
