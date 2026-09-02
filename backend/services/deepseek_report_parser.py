@@ -54,8 +54,10 @@ examSummary：这份内容属于**健康体检报告**（哪怕只是其中一�
 ② 一个或多个科室的查体所见（内科 / 外科 / 眼科 / 耳鼻喉 / 口腔 / 妇科 / 外科等）；
 ③ 总检 / 主检结论或健康建议。都没有则填 null。
 conclusion = 总检 / 主检结论那段话原文（没有就 null）；advice = 医生分条建议的每一条；
-departments = 各科室检查所见，name 用科室名、finding 用原文所见，正常也照写
-（如“未见明显异常”）；general = 一般项目里的数值，报告没有的填 null。
+departments = 各科室检查所见，name 用科室名、finding 用**报告上实际印出来的原文**；
+**空白 / 没填写的栏目不要补写“正常”“未见异常”**——只有报告确实写了才收，否则该科室
+不出现。整张是空白 / 未填写的体检表模板 → examSummary 返回 null。
+general = 一般项目里的数值，报告没有的填 null。
 **化验室的检验项目仍然放进 metrics，不要重复放进 examSummary。**
 patientGender 只在报告明确写了性别时填 男/女，否则 null；
 patientBirthDate 只在报告明确写了出生日期时填 YYYY-MM-DD，只写了“年龄”不要反推，返回 null。

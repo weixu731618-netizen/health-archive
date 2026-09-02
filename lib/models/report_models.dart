@@ -188,6 +188,26 @@ class ExamSummary {
       departments.isEmpty &&
       general.isEmpty;
 
+  /// 是否有**实际内容**（不是空白体检表被硬编出来的空栏目）：
+  /// 总检结论 / 建议、或一般项目数值、或真的填了字的科室所见。
+  bool get hasSubstance {
+    final c = conclusion?.trim() ?? '';
+    if (c.isNotEmpty && !_isFiller(c)) return true;
+    if (advice.any((a) => a.trim().isNotEmpty && !_isFiller(a))) return true;
+    if (!general.isEmpty) return true;
+    return departments
+        .any((d) => d.finding.trim().isNotEmpty && !_isFiller(d.finding));
+  }
+
+  static bool _isFiller(String s) {
+    final t = s.trim().replaceAll(RegExp(r'[\s（）()【】\[\]—\-_/、,。.]'), '');
+    return t.isEmpty ||
+        const {
+          '未填写', '待填', '空白', '空', '无', '略', '暂无', '见报告', '详见报告',
+          '未做', '未查', '弃查', 'na', 'n/a', '/',
+        }.contains(t.toLowerCase());
+  }
+
   factory ExamSummary.fromJson(Map j) => ExamSummary(
         conclusion: (j['conclusion'] as String?)?.trim().isEmpty ?? true
             ? null

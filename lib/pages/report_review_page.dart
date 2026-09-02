@@ -61,9 +61,10 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
   int get _selectedCount => _report.metrics.where((m) => m.isSelected).length;
 
   bool get _hasExamContent =>
-      _report.examSummary != null && !_report.examSummary!.isEmpty;
+      _report.examSummary != null && _report.examSummary!.hasSubstance;
 
-  /// 能否保存：勾了化验指标，或是带内容的体检报告（结论 / 各科所见 / 一般项目）。
+  /// 能否保存：勾了化验指标，或是**真的填了内容**的体检报告
+  /// （总检结论 / 建议、一般项目数值、或填了字的各科所见）——空白体检表存不了。
   bool get _canSave => _selectedCount > 0 || _hasExamContent;
 
   /// 勾选保存、但没匹配上核心指标、且超出参考范围的项——存下来但不参与器官
@@ -180,8 +181,7 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
             const SizedBox(height: 4),
             _NonCoreAbnormalNote(metrics: _nonCoreAbnormal),
           ],
-          if (_report.examSummary != null &&
-              !_report.examSummary!.isEmpty) ...[
+          if (_hasExamContent) ...[
             const SizedBox(height: 16),
             _ExamSummaryPreview(exam: _report.examSummary!),
           ],
@@ -207,11 +207,13 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (!_canSave && !_saving)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 6),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
                   child: Text(
-                    '请至少勾选一项要保存的指标',
-                    style: TextStyle(
+                    _report.metrics.isEmpty
+                        ? '没识别到可保存的内容，请重拍或换一页'
+                        : '请至少勾选一项要保存的指标',
+                    style: const TextStyle(
                         fontSize: 12, color: AppColors.textSecondary),
                   ),
                 )
@@ -383,7 +385,7 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
           reportType: _report.reportType,
           sourceImagePath: _report.sourceImagePath,
           rawText: _report.rawText, // 存库，但不打印到日志
-          examSummary: (exam != null && !exam.isEmpty)
+          examSummary: (exam != null && exam.hasSubstance)
               ? jsonEncode(exam.toJson())
               : null,
         );
@@ -465,7 +467,7 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
       if (!mounted) return;
       // 0 项化验的体检报告：结果页那套「识别 N 项 / 正常 M」没意义，直接进详情页
       // （总检结论 / 各科所见 / 一般项目都在那里分块显示）。
-      if (savedLines.isEmpty && exam != null && !exam.isEmpty) {
+      if (savedLines.isEmpty && exam != null && exam.hasSubstance) {
         Navigator.of(context).pushReplacement(MaterialPageRoute(
           builder: (_) => ReportDetailPage(reportId: reportId),
         ));

@@ -201,8 +201,10 @@ class _RecognizingPageState extends State<_RecognizingPage> {
       //   ② imagingType 有值    → 图文报告页（影像），类型已定
       //   ③ isMedical=否 / 无文字 → 无法读取，不存
       //   ④ 其余（是医疗内容但不属于任何已知类型）→ 人工确认页
-      // 有化验指标，或是体检报告（带总检结论 / 各科所见）→ 核对页。
-      if (report.metrics.isNotEmpty || report.examSummary != null) {
+      // 有化验指标，或是**真的填了内容**的体检报告 → 核对页。
+      // 空白体检表被 DeepSeek 硬编出空栏目的（examSummary 非空但无实质）不算。
+      if (report.metrics.isNotEmpty ||
+          (report.examSummary?.hasSubstance ?? false)) {
         _transferredImageOwnership = true;
         await Navigator.of(context).pushReplacement(MaterialPageRoute(
           builder: (_) => ReportReviewPage(

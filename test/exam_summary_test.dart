@@ -69,4 +69,33 @@ void main() {
     }, null);
     expect(lab.examSummary, isNull);
   });
+
+  test('hasSubstance：空白体检表（空/占位栏目）不算有内容', () {
+    expect(
+        ExamSummary.fromJson({
+          'departments': [
+            {'name': '内科', 'finding': '未填写'},
+            {'name': '外科', 'finding': '—'},
+          ],
+        }).hasSubstance,
+        isFalse);
+    // 真填了字的查体所见 → 有内容
+    expect(
+        ExamSummary.fromJson({
+          'departments': [
+            {'name': '内科', 'finding': '心律齐，未闻及杂音'},
+          ],
+        }).hasSubstance,
+        isTrue);
+    // 只有总检结论 / 建议 → 有内容
+    expect(
+        ExamSummary.fromJson({'conclusion': '血脂偏高，建议复查'}).hasSubstance,
+        isTrue);
+    // 只有一般项目数值 → 有内容
+    expect(
+        ExamSummary.fromJson({
+          'general': {'systolic': 130, 'diastolic': 85}
+        }).hasSubstance,
+        isTrue);
+  });
 }
