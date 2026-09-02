@@ -436,6 +436,7 @@ class HealthRepository {
     String recognitionStatus = 'review', // V0.4B：识别后进入确认阶段；确认保存后置 confirmed
     String? conditionCode,
     int? encounterId,
+    String? examSummary,
   }) async {
     await ensureDefaultPersonProfile();
     return _db.into(_db.medicalReports).insert(
@@ -450,6 +451,7 @@ class HealthRepository {
             recognitionStatus: Value(recognitionStatus),
             conditionCode: Value(conditionCode),
             encounterId: Value(encounterId),
+            examSummary: Value(examSummary),
             createdAt: DateTime.now(),
           ),
         );
@@ -1591,6 +1593,7 @@ class HealthRepository {
             'recognitionStatus': r.recognitionStatus,
             'conditionCode': r.conditionCode,
             'encounterId': r.encounterId,
+            'examSummary': r.examSummary,
             'metricCount': metricCountByReport[r.id] ?? 0,
           },
       ],

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -14,7 +15,8 @@ import '../widgets/ios_tap.dart';
 import '../models/app_metadata.dart';
 import '../models/body_area_health.dart';
 import '../models/danger_signals.dart';
-import '../models/report_models.dart' show kUnlinkedReportType;
+import '../models/report_models.dart'
+    show ExamSummary, kUnlinkedReportType;
 import '../utils/file_image.dart';
 import '../utils/format.dart';
 import '../utils/report_export.dart';
@@ -383,6 +385,9 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               ],
             ),
           ),
+          if (_exam != null && !_exam!.isEmpty) ...[
+            _ExamSummaryView(exam: _exam!),
+          ],
           if ((_report?.rawText ?? '').trim().isNotEmpty) ...[
             const HealthSectionHeader('报告结论'),
             HealthCard(
@@ -454,6 +459,18 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
   /// 异常/需关注的指标：始终展示在前；正常（含未判断）的可折叠。
   List<DangerSignal> get _dangerSignals => dangerSignalsForMetrics(_metrics);
+
+  /// 体检报告的结构化附加块（总检结论 / 建议 / 各科所见 / 一般项目）。
+  ExamSummary? get _exam {
+    final raw = _report?.examSummary;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final j = jsonDecode(raw);
+      return j is Map ? ExamSummary.fromJson(j) : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   List<HealthMetric> get _attentionMetrics {
     final list = _metrics.where(_needsAttention).toList();
@@ -779,6 +796,103 @@ class _DangerSignalCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 体检报告详情：总检结论 + 建议 + 各科所见 + 一般项目。
+class _ExamSummaryView extends StatelessWidget {
+  final ExamSummary exam;
+  const _ExamSummaryView({required this.exam});
+
+  @override
+  Widget build(BuildContext context) {
+    final g = exam.general;
+    String n(double v) =>
+        v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+    final generalBits = <String>[
+      if (g.heightCm != null) '身高 ${n(g.heightCm!)}',
+      if (g.weightKg != null) '体重 ${n(g.weightKg!)}',
+      if (g.bmi != null) 'BMI ${n(g.bmi!)}',
+      if (g.waistCm != null) '腰围 ${n(g.waistCm!)}',
+      if (g.systolic != null && g.diastolic != null)
+        '血压 ${n(g.systolic!)}/${n(g.diastolic!)}',
+      if (g.pulse != null) '脉搏 ${n(g.pulse!)}',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (exam.conclusion != null || exam.advice.isNotEmpty) ...[
+          const HealthSectionHeader('总检结论'),
+          HealthCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (exam.conclusion != null)
+                  Text(exam.conclusion!,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: AppColors.textPrimary)),
+                if (exam.advice.isNotEmpty) ...[
+                  if (exam.conclusion != null) const SizedBox(height: 10),
+                  const Text('建议',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary)),
+                  const SizedBox(height: 4),
+                  for (final a in exam.advice)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 3),
+                      child: Text('· $a',
+                          style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.4,
+                              color: AppColors.textSecondary)),
+                    ),
+                ],
+              ],
+            ),
+          ),
+        ],
+        if (generalBits.isNotEmpty) ...[
+          const HealthSectionHeader('一般项目'),
+          HealthCard(
+            child: Text(generalBits.join('　　'),
+                style: const TextStyle(
+                    fontSize: 14, height: 1.6, color: AppColors.textPrimary)),
+          ),
+        ],
+        if (exam.departments.isNotEmpty) ...[
+          const HealthSectionHeader('各科所见'),
+          HealthCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < exam.departments.length; i++) ...[
+                  if (i > 0)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Divider(height: 1),
+                    ),
+                  Text(exam.departments[i].name,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(exam.departments[i].finding,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: AppColors.textSecondary)),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

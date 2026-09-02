@@ -369,5 +369,6 @@ async def report_recognize(
             "imagingType": structured.get("imagingType"),
             "rawText": raw_text,
             "metrics": metrics,
+            "examSummary": structured.get("examSummary"),
         },
     )

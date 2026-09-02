@@ -1869,6 +1869,12 @@ class $MedicalReportsTable extends MedicalReports
   late final GeneratedColumn<int> encounterId = GeneratedColumn<int>(
       'encounter_id', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _examSummaryMeta =
+      const VerificationMeta('examSummary');
+  @override
+  late final GeneratedColumn<String> examSummary = GeneratedColumn<String>(
+      'exam_summary', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -1888,6 +1894,7 @@ class $MedicalReportsTable extends MedicalReports
         tags,
         conditionCode,
         encounterId,
+        examSummary,
         createdAt
       ];
   @override
@@ -1963,6 +1970,12 @@ class $MedicalReportsTable extends MedicalReports
           encounterId.isAcceptableOrUnknown(
               data['encounter_id']!, _encounterIdMeta));
     }
+    if (data.containsKey('exam_summary')) {
+      context.handle(
+          _examSummaryMeta,
+          examSummary.isAcceptableOrUnknown(
+              data['exam_summary']!, _examSummaryMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -2000,6 +2013,8 @@ class $MedicalReportsTable extends MedicalReports
           .read(DriftSqlType.string, data['${effectivePrefix}condition_code']),
       encounterId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}encounter_id']),
+      examSummary: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}exam_summary']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
     );
@@ -2023,6 +2038,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
   final String tags;
   final String? conditionCode;
   final int? encounterId;
+  final String? examSummary;
   final DateTime createdAt;
   const MedicalReport(
       {required this.id,
@@ -2036,6 +2052,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
       required this.tags,
       this.conditionCode,
       this.encounterId,
+      this.examSummary,
       required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2058,6 +2075,9 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
     }
     if (!nullToAbsent || encounterId != null) {
       map['encounter_id'] = Variable<int>(encounterId);
+    }
+    if (!nullToAbsent || examSummary != null) {
+      map['exam_summary'] = Variable<String>(examSummary);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -2084,6 +2104,9 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
       encounterId: encounterId == null && nullToAbsent
           ? const Value.absent()
           : Value(encounterId),
+      examSummary: examSummary == null && nullToAbsent
+          ? const Value.absent()
+          : Value(examSummary),
       createdAt: Value(createdAt),
     );
   }
@@ -2103,6 +2126,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
       tags: serializer.fromJson<String>(json['tags']),
       conditionCode: serializer.fromJson<String?>(json['conditionCode']),
       encounterId: serializer.fromJson<int?>(json['encounterId']),
+      examSummary: serializer.fromJson<String?>(json['examSummary']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -2121,6 +2145,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
       'tags': serializer.toJson<String>(tags),
       'conditionCode': serializer.toJson<String?>(conditionCode),
       'encounterId': serializer.toJson<int?>(encounterId),
+      'examSummary': serializer.toJson<String?>(examSummary),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -2137,6 +2162,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
           String? tags,
           Value<String?> conditionCode = const Value.absent(),
           Value<int?> encounterId = const Value.absent(),
+          Value<String?> examSummary = const Value.absent(),
           DateTime? createdAt}) =>
       MedicalReport(
         id: id ?? this.id,
@@ -2153,6 +2179,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
         conditionCode:
             conditionCode.present ? conditionCode.value : this.conditionCode,
         encounterId: encounterId.present ? encounterId.value : this.encounterId,
+        examSummary: examSummary.present ? examSummary.value : this.examSummary,
         createdAt: createdAt ?? this.createdAt,
       );
   MedicalReport copyWithCompanion(MedicalReportsCompanion data) {
@@ -2179,6 +2206,8 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
           : this.conditionCode,
       encounterId:
           data.encounterId.present ? data.encounterId.value : this.encounterId,
+      examSummary:
+          data.examSummary.present ? data.examSummary.value : this.examSummary,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -2197,6 +2226,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
           ..write('tags: $tags, ')
           ..write('conditionCode: $conditionCode, ')
           ..write('encounterId: $encounterId, ')
+          ..write('examSummary: $examSummary, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -2215,6 +2245,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
       tags,
       conditionCode,
       encounterId,
+      examSummary,
       createdAt);
   @override
   bool operator ==(Object other) =>
@@ -2231,6 +2262,7 @@ class MedicalReport extends DataClass implements Insertable<MedicalReport> {
           other.tags == this.tags &&
           other.conditionCode == this.conditionCode &&
           other.encounterId == this.encounterId &&
+          other.examSummary == this.examSummary &&
           other.createdAt == this.createdAt);
 }
 
@@ -2246,6 +2278,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
   final Value<String> tags;
   final Value<String?> conditionCode;
   final Value<int?> encounterId;
+  final Value<String?> examSummary;
   final Value<DateTime> createdAt;
   const MedicalReportsCompanion({
     this.id = const Value.absent(),
@@ -2259,6 +2292,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
     this.tags = const Value.absent(),
     this.conditionCode = const Value.absent(),
     this.encounterId = const Value.absent(),
+    this.examSummary = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   MedicalReportsCompanion.insert({
@@ -2273,6 +2307,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
     this.tags = const Value.absent(),
     this.conditionCode = const Value.absent(),
     this.encounterId = const Value.absent(),
+    this.examSummary = const Value.absent(),
     required DateTime createdAt,
   })  : hospitalName = Value(hospitalName),
         reportDate = Value(reportDate),
@@ -2290,6 +2325,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
     Expression<String>? tags,
     Expression<String>? conditionCode,
     Expression<int>? encounterId,
+    Expression<String>? examSummary,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -2304,6 +2340,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
       if (tags != null) 'tags': tags,
       if (conditionCode != null) 'condition_code': conditionCode,
       if (encounterId != null) 'encounter_id': encounterId,
+      if (examSummary != null) 'exam_summary': examSummary,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -2320,6 +2357,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
       Value<String>? tags,
       Value<String?>? conditionCode,
       Value<int?>? encounterId,
+      Value<String?>? examSummary,
       Value<DateTime>? createdAt}) {
     return MedicalReportsCompanion(
       id: id ?? this.id,
@@ -2333,6 +2371,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
       tags: tags ?? this.tags,
       conditionCode: conditionCode ?? this.conditionCode,
       encounterId: encounterId ?? this.encounterId,
+      examSummary: examSummary ?? this.examSummary,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -2373,6 +2412,9 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
     if (encounterId.present) {
       map['encounter_id'] = Variable<int>(encounterId.value);
     }
+    if (examSummary.present) {
+      map['exam_summary'] = Variable<String>(examSummary.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -2393,6 +2435,7 @@ class MedicalReportsCompanion extends UpdateCompanion<MedicalReport> {
           ..write('tags: $tags, ')
           ..write('conditionCode: $conditionCode, ')
           ..write('encounterId: $encounterId, ')
+          ..write('examSummary: $examSummary, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -8454,6 +8497,7 @@ typedef $$MedicalReportsTableCreateCompanionBuilder = MedicalReportsCompanion
   Value<String> tags,
   Value<String?> conditionCode,
   Value<int?> encounterId,
+  Value<String?> examSummary,
   required DateTime createdAt,
 });
 typedef $$MedicalReportsTableUpdateCompanionBuilder = MedicalReportsCompanion
@@ -8469,6 +8513,7 @@ typedef $$MedicalReportsTableUpdateCompanionBuilder = MedicalReportsCompanion
   Value<String> tags,
   Value<String?> conditionCode,
   Value<int?> encounterId,
+  Value<String?> examSummary,
   Value<DateTime> createdAt,
 });
 
@@ -8515,6 +8560,9 @@ class $$MedicalReportsTableFilterComposer
 
   ColumnFilters<int> get encounterId => $composableBuilder(
       column: $table.encounterId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get examSummary => $composableBuilder(
+      column: $table.examSummary, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -8566,6 +8614,9 @@ class $$MedicalReportsTableOrderingComposer
   ColumnOrderings<int> get encounterId => $composableBuilder(
       column: $table.encounterId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get examSummary => $composableBuilder(
+      column: $table.examSummary, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
@@ -8612,6 +8663,9 @@ class $$MedicalReportsTableAnnotationComposer
   GeneratedColumn<int> get encounterId => $composableBuilder(
       column: $table.encounterId, builder: (column) => column);
 
+  GeneratedColumn<String> get examSummary => $composableBuilder(
+      column: $table.examSummary, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
@@ -8654,6 +8708,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
             Value<String> tags = const Value.absent(),
             Value<String?> conditionCode = const Value.absent(),
             Value<int?> encounterId = const Value.absent(),
+            Value<String?> examSummary = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
           }) =>
               MedicalReportsCompanion(
@@ -8668,6 +8723,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
             tags: tags,
             conditionCode: conditionCode,
             encounterId: encounterId,
+            examSummary: examSummary,
             createdAt: createdAt,
           ),
           createCompanionCallback: ({
@@ -8682,6 +8738,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
             Value<String> tags = const Value.absent(),
             Value<String?> conditionCode = const Value.absent(),
             Value<int?> encounterId = const Value.absent(),
+            Value<String?> examSummary = const Value.absent(),
             required DateTime createdAt,
           }) =>
               MedicalReportsCompanion.insert(
@@ -8696,6 +8753,7 @@ class $$MedicalReportsTableTableManager extends RootTableManager<
             tags: tags,
             conditionCode: conditionCode,
             encounterId: encounterId,
+            examSummary: examSummary,
             createdAt: createdAt,
           ),
           withReferenceMapper: (p0) => p0

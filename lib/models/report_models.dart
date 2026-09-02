@@ -103,6 +103,117 @@ class RecognizedMetric {
 const String kUnlinkedReportType = '未关联记录';
 
 /// 一份被识别的结构化检验报告
+/// 体检报告结构化的「非化验」部分：总检结论 / 建议 / 各科所见 / 一般项目。
+/// 化验数字仍走 [RecognizedMetric]；这里只装文字块和一般项目的数值。
+class ExamGeneralItems {
+  final double? heightCm;
+  final double? weightKg;
+  final double? bmi;
+  final double? waistCm;
+  final double? systolic;
+  final double? diastolic;
+  final double? pulse;
+
+  const ExamGeneralItems({
+    this.heightCm,
+    this.weightKg,
+    this.bmi,
+    this.waistCm,
+    this.systolic,
+    this.diastolic,
+    this.pulse,
+  });
+
+  bool get isEmpty =>
+      heightCm == null &&
+      weightKg == null &&
+      bmi == null &&
+      waistCm == null &&
+      systolic == null &&
+      diastolic == null &&
+      pulse == null;
+
+  static double? _n(dynamic v) => v is num ? v.toDouble() : null;
+
+  factory ExamGeneralItems.fromJson(Map j) => ExamGeneralItems(
+        heightCm: _n(j['heightCm']),
+        weightKg: _n(j['weightKg']),
+        bmi: _n(j['bmi']),
+        waistCm: _n(j['waistCm']),
+        systolic: _n(j['systolic']),
+        diastolic: _n(j['diastolic']),
+        pulse: _n(j['pulse']),
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (heightCm != null) 'heightCm': heightCm,
+        if (weightKg != null) 'weightKg': weightKg,
+        if (bmi != null) 'bmi': bmi,
+        if (waistCm != null) 'waistCm': waistCm,
+        if (systolic != null) 'systolic': systolic,
+        if (diastolic != null) 'diastolic': diastolic,
+        if (pulse != null) 'pulse': pulse,
+      };
+}
+
+class ExamDepartmentFinding {
+  final String name;
+  final String finding;
+  const ExamDepartmentFinding({required this.name, required this.finding});
+
+  factory ExamDepartmentFinding.fromJson(Map j) => ExamDepartmentFinding(
+        name: (j['name'] ?? '').toString(),
+        finding: (j['finding'] ?? '').toString(),
+      );
+
+  Map<String, dynamic> toJson() => {'name': name, 'finding': finding};
+}
+
+class ExamSummary {
+  final String? conclusion;
+  final List<String> advice;
+  final List<ExamDepartmentFinding> departments;
+  final ExamGeneralItems general;
+
+  const ExamSummary({
+    this.conclusion,
+    this.advice = const [],
+    this.departments = const [],
+    this.general = const ExamGeneralItems(),
+  });
+
+  bool get isEmpty =>
+      (conclusion == null || conclusion!.trim().isEmpty) &&
+      advice.isEmpty &&
+      departments.isEmpty &&
+      general.isEmpty;
+
+  factory ExamSummary.fromJson(Map j) => ExamSummary(
+        conclusion: (j['conclusion'] as String?)?.trim().isEmpty ?? true
+            ? null
+            : (j['conclusion'] as String).trim(),
+        advice: [
+          for (final a in (j['advice'] as List? ?? const []))
+            if (a is String && a.trim().isNotEmpty) a.trim()
+        ],
+        departments: [
+          for (final d in (j['departments'] as List? ?? const []))
+            if (d is Map) ExamDepartmentFinding.fromJson(d)
+        ].where((d) => d.name.isNotEmpty && d.finding.isNotEmpty).toList(),
+        general: j['general'] is Map
+            ? ExamGeneralItems.fromJson(j['general'] as Map)
+            : const ExamGeneralItems(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (conclusion != null) 'conclusion': conclusion,
+        if (advice.isNotEmpty) 'advice': advice,
+        if (departments.isNotEmpty)
+          'departments': [for (final d in departments) d.toJson()],
+        if (!general.isEmpty) 'general': general.toJson(),
+      };
+}
+
 class StructuredMedicalReport {
   String hospitalName; // 医院
   DateTime reportDate; // 检查日期
@@ -115,6 +226,9 @@ class StructuredMedicalReport {
   final List<RecognizedMetric> metrics; // 识别到的指标
   final String rawText; // 原始识别文本（全文，不进日志）
   final String? sourceImagePath; // 原始图片路径（可空，Web 无落盘）
+
+  /// 体检报告才有：总检结论 / 建议 / 各科所见 / 一般项目。普通化验单为 null。
+  final ExamSummary? examSummary;
 
   /// 检查日期是否来自识别结果。false 表示后端没给出、当前用的是上传当天的日期，
   /// 结果页会提示用户确认（§21）。
@@ -132,6 +246,7 @@ class StructuredMedicalReport {
     List<RecognizedMetric>? metrics,
     this.rawText = '',
     this.sourceImagePath,
+    this.examSummary,
     bool? dateFromOcr,
   }) : reportDate = reportDate ?? DateTime.now(),
        dateFromOcr = dateFromOcr ?? (reportDate != null),

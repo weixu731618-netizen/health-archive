@@ -44,7 +44,16 @@ JSON Schema（metric 的 value 用 numericValue/textValue/qualifier 组合表达
 "numericValue":number|null,"textValue":"string"|null,"qualifier":"string"|null,
 "unit":"string"|null,"referenceMin":number|null,"referenceMax":number|null,
 "referenceText":"string"|null,"originalStatus":"string"|null,"bodySystem":"string"|null,
-"confidence":number}]}
+"confidence":number}],
+"examSummary":{"conclusion":"string"|null,"advice":["string",...],
+"departments":[{"name":"string","finding":"string"}],
+"general":{"heightCm":number|null,"weightKg":number|null,"bmi":number|null,
+"waistCm":number|null,"systolic":number|null,"diastolic":number|null,"pulse":number|null}}|null}
+examSummary：**只有当这份明显是健康体检报告（多个科室检查 + 总检 / 主检结论）时才填，
+否则 null**。conclusion = 总检 / 主检结论那段话原文；advice = 医生分条建议的每一条；
+departments = 各科室检查所见（内科 / 外科 / 眼科 / 耳鼻喉 / 口腔 / 妇科等），name 用科室名、
+finding 用原文所见，正常也照写（如“未见明显异常”）；general = 一般项目里的数值，
+报告没有的填 null。**化验室的检验项目仍然放进 metrics，不要重复放进 examSummary。**
 patientGender 只在报告明确写了性别时填 男/女，否则 null；
 patientBirthDate 只在报告明确写了出生日期时填 YYYY-MM-DD，只写了“年龄”不要反推，返回 null。
 isMedical：这张图上的文字整体是不是医疗相关（检验单/影像报告/病历/出院小结/处方/体检/疫苗本
@@ -74,6 +83,53 @@ def _clean_imaging_type(v) -> str | None:
         return None
     s = v.strip()
     return s if s in IMAGING_TYPES else None
+
+
+def _num_or_none(v):
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if f == f else None  # 排除 nan
+
+
+def _clean_exam_summary(v) -> dict | None:
+    """体检报告的结构化附加块。非体检报告 / 结构不对 → None。"""
+    if not isinstance(v, dict):
+        return None
+    conclusion = v.get("conclusion")
+    conclusion = conclusion.strip() if isinstance(conclusion, str) and conclusion.strip() else None
+
+    advice = [
+        s.strip() for s in (v.get("advice") or [])
+        if isinstance(s, str) and s.strip()
+    ]
+
+    departments = []
+    for d in (v.get("departments") or []):
+        if not isinstance(d, dict):
+            continue
+        name = (d.get("name") or "").strip() if isinstance(d.get("name"), str) else ""
+        finding = (d.get("finding") or "").strip() if isinstance(d.get("finding"), str) else ""
+        if name and finding:
+            departments.append({"name": name, "finding": finding})
+
+    g = v.get("general") if isinstance(v.get("general"), dict) else {}
+    general = {
+        k: _num_or_none(g.get(k))
+        for k in ("heightCm", "weightKg", "bmi", "waistCm",
+                  "systolic", "diastolic", "pulse")
+    }
+    general = {k: val for k, val in general.items() if val is not None}
+
+    if not (conclusion or advice or departments or general):
+        return None
+    return {
+        "conclusion": conclusion,
+        "advice": advice,
+        "departments": departments,
+        "general": general,
+    }
 
 
 class DeepSeekParseError(Exception):
@@ -201,6 +257,7 @@ def parse_ocr_result(ocr_lines: list[dict]) -> dict:
         "isMedical": model.isMedical,
         "imagingType": model.imagingType,
         "metrics": metrics,
+        "examSummary": _clean_exam_summary(data.get("examSummary")),
     }
 
 

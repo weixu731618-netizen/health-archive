@@ -352,6 +352,12 @@ StructuredMedicalReport structuredReportFromBackendJson(
     rawText: (body['rawText'] ?? '').toString(),
     metrics: metrics,
     sourceImagePath: imagePath,
+    examSummary: () {
+      final e = body['examSummary'];
+      if (e is! Map) return null;
+      final s = ExamSummary.fromJson(e);
+      return s.isEmpty ? null : s;
+    }(),
   );
 }
 
@@ -422,6 +428,10 @@ StructuredMedicalReport mergeStructuredReports(
     imagingType: firstNonEmpty((p) => p.imagingType),
     rawText: rawText,
     metrics: mergedMetrics,
+    // 体检报告分多页时，结论 / 建议 / 各科所见通常集中在某一页——取第一份非空的。
+    examSummary: pages
+        .map((p) => p.examSummary)
+        .firstWhere((e) => e != null && !e.isEmpty, orElse: () => null),
     sourceImagePath: sourceImagePath,
   );
 }

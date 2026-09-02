@@ -80,6 +80,9 @@ class MedicalReports extends Table {
   TextColumn get conditionCode => text().nullable()();
   // 慢病升级 步骤5：归属的一次就诊（可空）。
   IntColumn get encounterId => integer().nullable()();
+  // 体检报告结构化：{conclusion, advice[], departments:[{name,finding}], general:{...}}
+  // 的 JSON。只有体检报告才有；普通化验单 / 影像报告为 null。
+  TextColumn get examSummary => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 }
 
@@ -323,7 +326,7 @@ class AppDatabase extends _$AppDatabase {
   /// 03：14→15（新增 report_organs 表；reminders 增加 source_type / area_name / recommended_date）。
   /// 上传合并：15→16（person_profiles 增加 known_names，用于报告姓名比对）。
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -522,6 +525,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 19) {
             await m.createTable(metricMatchCache);
+          }
+          if (from < 20) {
+            await m.addColumn(medicalReports, medicalReports.examSummary);
           }
         },
       );

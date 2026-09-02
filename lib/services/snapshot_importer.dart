@@ -162,6 +162,7 @@ class SnapshotImporter {
           recognitionStatus: (item['recognitionStatus'] ?? 'confirmed').toString(),
           conditionCode: item['conditionCode']?.toString(),
           encounterId: oldEnc == null ? null : encounterIdMap[oldEnc],
+          examSummary: item['examSummary']?.toString(),
         );
         idMap[oldId.toInt()] = newId;
       } catch (_) {

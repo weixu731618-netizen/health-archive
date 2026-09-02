@@ -40,3 +40,30 @@ def test_apply_canonicalization_is_noop_without_dictionary_or_pending():
     hit, _ms = _apply_canonicalization(pending, '[{"id":"WBC","name":"白细胞计数"}]')
     assert hit == 0
     assert "matchedMetricId" not in pending[0]
+
+
+from services.deepseek_report_parser import _clean_exam_summary  # noqa: E402
+
+
+def test_clean_exam_summary_valid():
+    r = _clean_exam_summary({
+        "conclusion": "  血脂偏高  ",
+        "advice": ["低脂饮食", "  ", 3],
+        "departments": [
+            {"name": "内科", "finding": "心律齐"},
+            {"name": "", "finding": "x"},
+            {"name": "外科", "finding": ""},
+        ],
+        "general": {"systolic": 130, "diastolic": "85", "bmi": None, "pulse": 76},
+    })
+    assert r["conclusion"] == "血脂偏高"
+    assert r["advice"] == ["低脂饮食"]
+    assert r["departments"] == [{"name": "内科", "finding": "心律齐"}]
+    assert r["general"] == {"systolic": 130.0, "diastolic": 85.0, "pulse": 76.0}
+
+
+def test_clean_exam_summary_empty_or_bad():
+    assert _clean_exam_summary(None) is None
+    assert _clean_exam_summary("nope") is None
+    assert _clean_exam_summary({}) is None
+    assert _clean_exam_summary({"advice": [], "departments": [], "general": {}}) is None

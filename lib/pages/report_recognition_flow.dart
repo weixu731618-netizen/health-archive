@@ -201,7 +201,8 @@ class _RecognizingPageState extends State<_RecognizingPage> {
       //   ② imagingType 有值    → 图文报告页（影像），类型已定
       //   ③ isMedical=否 / 无文字 → 无法读取，不存
       //   ④ 其余（是医疗内容但不属于任何已知类型）→ 人工确认页
-      if (report.metrics.isNotEmpty) {
+      // 有化验指标，或是体检报告（带总检结论 / 各科所见）→ 核对页。
+      if (report.metrics.isNotEmpty || report.examSummary != null) {
         _transferredImageOwnership = true;
         await Navigator.of(context).pushReplacement(MaterialPageRoute(
           builder: (_) => ReportReviewPage(

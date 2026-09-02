@@ -163,6 +163,23 @@ void main() {
     expect(alb2.metricId, 'UNKNOWN');
   });
 
+  test('体检报告：examSummary 入库、进导出', () async {
+    await repo.ensureDefaultPersonProfile();
+    final rid = await repo.insertReport(
+      hospitalName: '某体检中心',
+      reportDate: DateTime(2026, 9, 1),
+      reportType: '健康体检',
+      examSummary: '{"conclusion":"血脂偏高","general":{"systolic":130}}',
+    );
+    final r = (await repo.getAllReports()).single;
+    expect(r.id, rid);
+    expect(r.examSummary, contains('血脂偏高'));
+
+    final data = await repo.exportHealthData();
+    final exported = (data['reports'] as List).single as Map;
+    expect(exported['examSummary'], contains('130'));
+  });
+
   test('T1 默认本人档案：新安装自动创建，新增数据归属 profileId=1', () async {
     final profile = await repo.ensureDefaultPersonProfile();
     expect(profile.id, HealthRepository.defaultProfileId);

@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../data/health_repository.dart';
 import '../main.dart';
 import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
@@ -170,6 +172,11 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
           if (_nonCoreAbnormal.isNotEmpty) ...[
             const SizedBox(height: 4),
             _NonCoreAbnormalNote(metrics: _nonCoreAbnormal),
+          ],
+          if (_report.examSummary != null &&
+              !_report.examSummary!.isEmpty) ...[
+            const SizedBox(height: 16),
+            _ExamSummaryPreview(exam: _report.examSummary!),
           ],
           if (!_saving) ...[
             const SizedBox(height: 8),
@@ -352,6 +359,7 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
       };
       final savedLines = <SavedMetricLine>[];
       // D2：报告 + 全部指标写在一个事务里，中途失败整体回滚，不留半条报告。
+      final exam = _report.examSummary;
       final reportId = await repo.runInTransaction<int>(() async {
         final rid = await repo.insertReport(
           hospitalName: _report.hospitalName,
@@ -359,7 +367,15 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
           reportType: _report.reportType,
           sourceImagePath: _report.sourceImagePath,
           rawText: _report.rawText, // 存库，但不打印到日志
+          examSummary: (exam != null && !exam.isEmpty)
+              ? jsonEncode(exam.toJson())
+              : null,
         );
+        // 体检报告的一般项目（血压 / 脉搏 / 体重 / 腰围）→ 日常记录，
+        // 于是身体页心血管 / 内分泌代谢也能看到。身高更新到档案资料。
+        if (exam != null) {
+          await _writeExamGeneral(repo, exam.general, _report.reportDate);
+        }
         for (final m in _report.metrics) {
           if (!m.isSelected) continue;
           // 只有匹配上标准指标的才把这份报告关联到对应身体系统；未匹配的不关联
@@ -829,6 +845,84 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
     if (v < min) return '偏低';
     return '正常';
   }
+}
+
+/// 体检报告核对页：除化验指标外，还带一般项目 / 各科所见 / 总检结论——
+/// 这里只读展示，让用户知道这些内容会一并存档（Layer 1 不做逐项编辑）。
+class _ExamSummaryPreview extends StatelessWidget {
+  final ExamSummary exam;
+  const _ExamSummaryPreview({required this.exam});
+
+  @override
+  Widget build(BuildContext context) {
+    final g = exam.general;
+    String n(double v) =>
+        v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+    final generalBits = <String>[
+      if (g.heightCm != null) '身高 ${n(g.heightCm!)}',
+      if (g.weightKg != null) '体重 ${n(g.weightKg!)}',
+      if (g.bmi != null) 'BMI ${n(g.bmi!)}',
+      if (g.waistCm != null) '腰围 ${n(g.waistCm!)}',
+      if (g.systolic != null && g.diastolic != null)
+        '血压 ${n(g.systolic!)}/${n(g.diastolic!)}',
+      if (g.pulse != null) '脉搏 ${n(g.pulse!)}',
+    ];
+    return HealthCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('体检报告还包含（会一并存档）',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary)),
+          if (generalBits.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('一般项目：${generalBits.join(' · ')}',
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary)),
+            const Text('（血压 / 脉搏 / 体重 / 腰围会记入日常记录）',
+                style:
+                    TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          ],
+          if (exam.departments.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('各科所见：${exam.departments.length} 项',
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary)),
+          ],
+          if (exam.conclusion != null) ...[
+            const SizedBox(height: 8),
+            const Text('总检结论',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary)),
+            const SizedBox(height: 2),
+            Text(exam.conclusion!,
+                style: const TextStyle(
+                    fontSize: 13, height: 1.4, color: AppColors.textSecondary)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 体检报告「一般项目」里的血压 / 脉搏 / 体重 / 腰围 → 日常记录（同一份 measuredAt）。
+/// 身高 / BMI 不入日常记录（不是时间序列），留在 examSummary 里详情页展示。
+Future<void> _writeExamGeneral(
+    HealthRepository repo, ExamGeneralItems g, DateTime at) async {
+  Future<void> add(String type, double v1, double? v2, String unit) =>
+      repo.insertDaily(
+          type: type, value1: v1, value2: v2, unit: unit, measuredAt: at);
+  if (g.systolic != null && g.diastolic != null) {
+    await add('blood_pressure', g.systolic!, g.diastolic!, 'mmHg');
+  }
+  if (g.pulse != null) await add('heart_rate', g.pulse!, null, '次/分');
+  if (g.weightKg != null) await add('weight', g.weightKg!, null, 'kg');
+  if (g.waistCm != null) await add('waist', g.waistCm!, null, 'cm');
 }
 
 String _fmt(double v) {
