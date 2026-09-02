@@ -1,0 +1,120 @@
+{
+  "baidu_raw": {
+    "common": {
+      "医院": "深圳市宝安区福永人民医院",
+      "报告单名称": "医学检验科报告单",
+      "标本种类": "钱名怡城",
+      "科室": "华强城社区健康",
+      "姓名": "徐威",
+      "临床诊断": "",
+      "年龄": "36岁",
+      "时间": "20260302",
+      "标本情况": "",
+      "临床症状": "",
+      "建议": "",
+      "检查结果": "",
+      "性别": "",
+      "检查目的": "",
+      "检查项目": ""
+    },
+    "items": [
+      {
+        "仪器类型": "",
+        "单位": "",
+        "参考区间": "",
+        "测试方法": "",
+        "结果": "",
+        "结果提示": "",
+        "项目代号": "",
+        "项目名称": "【尿微量白蛋自测定】"
+      },
+      {
+        "仪器类型": "",
+        "单位": "mg/mmol",
+        "参考区间": "0-2.26",
+        "测试方法": "计算法",
+        "结果": "1.00",
+        "结果提示": "|",
+        "项目代号": "MALB/MCr",
+        "项目名称": "MABMC"
+      },
+      {
+        "仪器类型": "",
+        "单位": "",
+        "参考区间": "",
+        "测试方法": "",
+        "结果": "",
+        "结果提示": "",
+        "项目代号": "",
+        "项目名称": "【尿肌酐】"
+      },
+      {
+        "仪器类型": "",
+        "单位": "umol/L",
+        "参考区间": "7000-18000",
+        "测试方法": "肌氨酸氧化酯",
+        "结果": "7753",
+        "结果提示": "",
+        "项目代号": "U-Cr",
+        "项目名称": "尿肌N"
+      },
+      {
+        "仪器类型": "",
+        "单位": "免疫透射比浊泛",
+        "参考区间": "0-20",
+        "测试方法": "",
+        "结果": "31",
+        "结果提示": "|",
+        "项目代号": "",
+        "项目名称": "尿微量白蛋自"
+      }
+    ]
+  },
+  "mapped_metrics": [
+    {
+      "rawName": "MABMC",
+      "canonicalName": null,
+      "matchedMetricId": null,
+      "numericValue": 1.0,
+      "textValue": null,
+      "qualifier": null,
+      "unit": "mg/mmol",
+      "referenceMin": 0.0,
+      "referenceMax": 2.26,
+      "referenceText": "0-2.26",
+      "originalStatus": "|",
+      "bodySystem": null,
+      "confidence": 0.99
+    },
+    {
+      "rawName": "尿肌N",
+      "canonicalName": null,
+      "matchedMetricId": null,
+      "numericValue": 7753.0,
+      "textValue": null,
+      "qualifier": null,
+      "unit": "umol/L",
+      "referenceMin": 7000.0,
+      "referenceMax": 18000.0,
+      "referenceText": "7000-18000",
+      "originalStatus": null,
+      "bodySystem": null,
+      "confidence": 0.99
+    },
+    {
+      "rawName": "尿微量白蛋自",
+      "canonicalName": null,
+      "matchedMetricId": null,
+      "numericValue": 31.0,
+      "textValue": null,
+      "qualifier": null,
+      "unit": "免疫透射比浊泛",
+      "referenceMin": 0.0,
+      "referenceMax": 20.0,
+      "referenceText": "0-20",
+      "originalStatus": "|",
+      "bodySystem": null,
+      "confidence": 0.99
+    }
+  ]
+}

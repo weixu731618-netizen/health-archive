@@ -111,17 +111,48 @@ def _parse_ref(raw: str) -> tuple[Optional[float], Optional[float], Optional[str
     return None, None, s
 
 
+# 干净的项目代号：以字母开头，字母/数字/斜杠/连字符（AST、CA19-9、25-OHD…）。
+_CLEAN_CODE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9/\-]{0,11}$")
+
+# 「行政区划 / 大城市名 + 至多两个大写字母」——报告里"深圳HR / 全国HR / 华南R"
+# 这类**地区参考值列标**被读进项目名 / 代号列时长这样。地名是有限、稳定的集合，
+# 不是穷举垃圾串；且这个形状不会误伤 γ-GT、25-OH-D、Ca2+ 这类真项目缩写。
+_REGION_LABEL_RE = re.compile(
+    r"^[（(]?("
+    r"全国|华[东南西北中]|[东西][北南]|"
+    r"北京|上海|天津|重庆|广州|深圳圳*|深*圳|杭州|南京|成都|武汉|"
+    r"广东|浙江|江苏|四川|湖[北南]|福建|山东|河[北南]|辽宁|安徽"
+    r")\s*[A-Z]{0,2}[）)]?$"
+)
+
+
 def _metric_from_item(it: dict) -> Optional[dict]:
     name = _pick(it, _ITEM_NAME)
+    code = _pick(it, _ITEM_CODE)
+    clean_code = code if _CLEAN_CODE_RE.match(code or "") else ""
     result = _pick(it, _ITEM_RESULT)
-    if not name or not result:
+    if not result:
+        return None
+    # 结构性规则（不认具体串）：
+    #  1. 项目代号是干净英文缩写时它比项目名可靠——始终作为客户端匹配候选
+    #     （canonicalName），能救"润接胆红素/电配"这类 OCR 错字行。
+    #  2. 项目名是"地区参考值列标"（深圳HR / 全国R…）→ 名字作废，改用代号；
+    #     没有代号 → 整行丢掉（宁可少一项，别在核对页显示"深圳HR"）。
+    name_is_region_label = bool(name) and bool(_REGION_LABEL_RE.match(name))
+    if name and not name_is_region_label:
+        raw_name = name
+        alt_name = clean_code if (clean_code and clean_code != name) else None
+    elif clean_code and not _REGION_LABEL_RE.match(clean_code):
+        raw_name = clean_code
+        alt_name = None
+    else:
         return None
     ref_min, ref_max, ref_text = _parse_ref(_pick(it, _ITEM_REF))
     numeric = _num(result)
     is_textual = numeric is None or re.search(r"[阴阳未见正常异常阴阳]", result)
     return {
-        "rawName": name,
-        "canonicalName": None,
+        "rawName": raw_name,
+        "canonicalName": alt_name,
         "matchedMetricId": None,
         "numericValue": None if is_textual else numeric,
         "textValue": result if is_textual else None,

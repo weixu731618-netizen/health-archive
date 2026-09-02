@@ -96,3 +96,40 @@ def test_parse_ref_double_dash():
     assert _parse_ref("<9.5")[:2] == (None, 9.5)
     assert _parse_ref(">3.5")[:2] == (3.5, None)
     assert _parse_ref("阴性") == (None, None, "阴性")
+
+
+from models.medical_report_map import _metric_from_item  # noqa: E402
+
+
+def test_region_label_name_falls_back_to_code():
+    # 项目名读成"深圳HR"这类地区参考值列标：有干净代号 → 用代号
+    m = _metric_from_item({
+        "项目名称": "深圳HR", "项目代号": "AST",
+        "结果": "21", "单位": "U/L", "参考区间": "15-40",
+    })
+    assert m["rawName"] == "AST"
+
+    # 没有代号 → 整行丢掉，不把"深圳HR"当项目名
+    assert _metric_from_item({
+        "项目名称": "深圳R", "项目代号": "",
+        "结果": "18", "单位": "umol/L", "参考区间": "0-26",
+    }) is None
+
+
+def test_clean_code_kept_as_alt_candidate_for_ocr_typos():
+    # 名字是 OCR 错字（润接胆红素），代号 IBIL 干净 → canonicalName=IBIL 兜底
+    m = _metric_from_item({
+        "项目名称": "润接胆红素", "项目代号": "IBIL",
+        "结果": "12", "单位": "umol/L", "参考区间": "2-14",
+    })
+    assert m["rawName"] == "润接胆红素"
+    assert m["canonicalName"] == "IBIL"
+
+
+def test_region_check_does_not_touch_real_abbreviations():
+    for name in ("γ-GT", "25-OH-D", "HbA1c", "Ca2+"):
+        m = _metric_from_item({
+            "项目名称": name, "项目代号": "",
+            "结果": "1.0", "单位": "x", "参考区间": "0-2",
+        })
+        assert m is not None and m["rawName"] == name
