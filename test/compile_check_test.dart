@@ -148,8 +148,8 @@ void main() {
     expect(bodyAreaForSystem('血糖代谢'), '内分泌/代谢');
     expect(bodyAreaForSystem('电解质'), '肾脏/泌尿'); // 指标分类下沉到器官/系统
     expect(bodyAreaForSystem('未知系统XYZ'), '其他'); // 未知一律归其他，不再自成一级
-    expect(AppMetadata.versionName, '1.9.9');
-    expect(AppMetadata.versionCode, 38);
+    expect(AppMetadata.versionName, '1.9.10');
+    expect(AppMetadata.versionCode, 39);
     // V0.4C-1：OCR 服务与调试页
     expect(ReportOcrService, isA<Type>());
     expect(RemoteOcrService, isA<Type>());
