@@ -49,11 +49,14 @@ JSON Schema（metric 的 value 用 numericValue/textValue/qualifier 组合表达
 "departments":[{"name":"string","finding":"string"}],
 "general":{"heightCm":number|null,"weightKg":number|null,"bmi":number|null,
 "waistCm":number|null,"systolic":number|null,"diastolic":number|null,"pulse":number|null}}|null}
-examSummary：**只有当这份明显是健康体检报告（多个科室检查 + 总检 / 主检结论）时才填，
-否则 null**。conclusion = 总检 / 主检结论那段话原文；advice = 医生分条建议的每一条；
-departments = 各科室检查所见（内科 / 外科 / 眼科 / 耳鼻喉 / 口腔 / 妇科等），name 用科室名、
-finding 用原文所见，正常也照写（如“未见明显异常”）；general = 一般项目里的数值，
-报告没有的填 null。**化验室的检验项目仍然放进 metrics，不要重复放进 examSummary。**
+examSummary：这份内容属于**健康体检报告**（哪怕只是其中一页）时就填——判断标准是
+出现下列任意一类：① 一般项目（身高 / 体重 / BMI / 腰围 / 血压 / 脉搏）；
+② 一个或多个科室的查体所见（内科 / 外科 / 眼科 / 耳鼻喉 / 口腔 / 妇科 / 外科等）；
+③ 总检 / 主检结论或健康建议。都没有则填 null。
+conclusion = 总检 / 主检结论那段话原文（没有就 null）；advice = 医生分条建议的每一条；
+departments = 各科室检查所见，name 用科室名、finding 用原文所见，正常也照写
+（如“未见明显异常”）；general = 一般项目里的数值，报告没有的填 null。
+**化验室的检验项目仍然放进 metrics，不要重复放进 examSummary。**
 patientGender 只在报告明确写了性别时填 男/女，否则 null；
 patientBirthDate 只在报告明确写了出生日期时填 YYYY-MM-DD，只写了“年龄”不要反推，返回 null。
 isMedical：这张图上的文字整体是不是医疗相关（检验单/影像报告/病历/出院小结/处方/体检/疫苗本
