@@ -737,19 +737,7 @@ class RealEntry {
     return source;
   }
 
-  static Set<String> _areasForDailyType(String t) {
-    switch (t) {
-      case 'blood_pressure':
-      case 'heart_rate':
-        return {'心血管'};
-      case 'blood_glucose':
-      case 'weight':
-      case 'waist':
-        return {'内分泌/代谢'};
-      default:
-        return const {};
-    }
-  }
+  static Set<String> _areasForDailyType(String t) => areasForDailyType(t);
 
   static String _dailyTitle(DailyHealthRecord d) {
     switch (d.type) {

@@ -1,11 +1,11 @@
 class AppMetadata {
   const AppMetadata._();
 
-  static const String versionName = '1.9.7';
-  static const int versionCode = 36;
+  static const String versionName = '1.9.8';
+  static const int versionCode = 37;
   static const String buildLabel =
-      '细节收尾：核对页给出「报告上写 X · 智能识别请核对」+「另有 N 项超参考范围'
-      '（非关键）」可点开；器官卡措辞改「关键指标未见异常 / 尚无关键化验指标」，'
-      '不再给「全部正常」的错觉；只有影像 / 图文报告的器官在身体页不再显示「暂无'
-      '记录」；血红蛋白等典型范围放宽到男女合并区间，避免正常女性被判偏低。';
+      '日常记录上身体页：血压 / 心率 → 心血管，血糖 / 体重 / 腰围 → 内分泌代谢——'
+      '有日常记录的器官不再显示「暂无记录」，概览行显示最近一次读数，器官详情页'
+      '「历史趋势」多一张日常记录卡，点进带折线的历史页。新增「使用帮助」页'
+      '（右上角头像菜单）：拍报告姿势 / 多页怎么传 / 识别不准怎么办等短说明。';
 }

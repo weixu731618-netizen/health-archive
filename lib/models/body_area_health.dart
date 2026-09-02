@@ -439,6 +439,41 @@ List<String> affectedBodyAreasForRawMetricNames(Iterable<String> names) {
   return list;
 }
 
+/// 日常记录类型（血压 / 血糖 / 体重 / 心率 / 腰围）→ 一级器官 / 系统。
+Set<String> areasForDailyType(String type) {
+  switch (type) {
+    case 'blood_pressure':
+    case 'heart_rate':
+      return const {'心血管'};
+    case 'blood_glucose':
+    case 'weight':
+    case 'waist':
+      return const {'内分泌/代谢'};
+    default:
+      return const {};
+  }
+}
+
+/// 某类日常记录在器官卡 / 概览行里的一句话（如「血压 138/88」）。
+String dailyReadingHint(String type, double value1, double? value2) {
+  String n(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+  switch (type) {
+    case 'blood_pressure':
+      return '血压 ${n(value1)}/${value2 == null ? '' : n(value2)}';
+    case 'blood_glucose':
+      return '血糖 ${n(value1)}';
+    case 'weight':
+      return '体重 ${n(value1)}';
+    case 'heart_rate':
+      return '心率 ${n(value1)}';
+    case 'waist':
+      return '腰围 ${n(value1)}';
+    default:
+      return n(value1);
+  }
+}
+
 String _statusFromMetrics(List<BodyAreaMetricEvidence> metrics) {
   // 只有核心指标（standardized 且非 advisoryOnly）参与器官判定。
   final judged = metrics.where((m) => m.counts).toList();

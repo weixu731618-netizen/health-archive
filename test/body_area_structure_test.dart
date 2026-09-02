@@ -33,6 +33,23 @@ void main() {
     });
   });
 
+  group('日常记录 → 器官', () {
+    test('血压 / 心率 → 心血管；血糖 / 体重 / 腰围 → 内分泌 / 代谢', () {
+      expect(areasForDailyType('blood_pressure'), {'心血管'});
+      expect(areasForDailyType('heart_rate'), {'心血管'});
+      expect(areasForDailyType('blood_glucose'), {'内分泌/代谢'});
+      expect(areasForDailyType('weight'), {'内分泌/代谢'});
+      expect(areasForDailyType('waist'), {'内分泌/代谢'});
+      expect(areasForDailyType('unknown'), isEmpty);
+    });
+
+    test('dailyReadingHint 一句话读数', () {
+      expect(dailyReadingHint('blood_pressure', 138, 88), '血压 138/88');
+      expect(dailyReadingHint('blood_glucose', 5.6, null), '血糖 5.6');
+      expect(dailyReadingHint('weight', 62.0, null), '体重 62');
+    });
+  });
+
   group('metricGroupLabelForSystem：器官详情页内部的指标分类小标题', () {
     test('常见分类有稳定小标题', () {
       expect(metricGroupLabelForSystem('电解质'), '电解质');

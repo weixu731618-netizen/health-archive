@@ -15,6 +15,7 @@ import '../widgets/ios_tap.dart';
 import '../widgets/normal_items_toggle.dart';
 import '../widgets/profile_switcher.dart';
 import 'add_page.dart';
+import 'daily_history_page.dart';
 import 'metric_history_page.dart';
 import 'reminders_page.dart';
 import 'report_detail_page.dart';
@@ -48,7 +49,11 @@ class _AreaRow {
   /// 该部位当前未完成的复查 / 随访任务数（§3：显示「N 项待复查」而非统一「等待复查」）。
   final int followUpCount;
 
-  const _AreaRow(this.area, this.state, {this.followUpCount = 0});
+  /// 该部位最近一条日常记录的一句话（如「血压 138/88 · 3 天前」）；没有则 null。
+  final String? dailyHint;
+
+  const _AreaRow(this.area, this.state,
+      {this.followUpCount = 0, this.dailyHint});
 
   int get abnormalCount => area.abnormalCount;
 }
@@ -92,6 +97,26 @@ class _BodyPageState extends State<BodyPage> {
       final areasWithReport = <String>{
         for (final areas in reportLinks.values) ...areas,
       };
+      // 日常记录（血压 / 血糖 / 体重 / 心率 / 腰围）→ 每个器官最近一条。
+      final dailies = await repo.getAllDailyRecords(); // 已按时间倒序
+      final now0 = DateTime.now();
+      final latestDailyByArea = <String, DailyHealthRecord>{};
+      for (final d in dailies) {
+        for (final area in areasForDailyType(d.type)) {
+          latestDailyByArea.putIfAbsent(area, () => d);
+        }
+      }
+      String? dailyHint(String areaName) {
+        final d = latestDailyByArea[areaName];
+        if (d == null) return null;
+        final days = now0.difference(d.measuredAt).inDays;
+        final ago = days <= 0
+            ? '今天'
+            : days == 1
+                ? '昨天'
+                : '$days 天前';
+        return '${dailyReadingHint(d.type, d.value1, d.value2)} · $ago';
+      }
 
       // 每个部位有几个「该处理了」的复查 / 随访任务——只算已过期或 30 天内到期的。
       // 排到几个月后的复查不该让器官显橙点（否则"设了复查反而更红"）。
@@ -125,8 +150,10 @@ class _BodyPageState extends State<BodyPage> {
               followUp: (followUpCountByArea[a.name] ?? 0) > 0,
               longTerm: longTermAreas.contains(a.name),
               hasReport: areasWithReport.contains(a.name),
+              hasDaily: latestDailyByArea.containsKey(a.name),
             ),
             followUpCount: followUpCountByArea[a.name] ?? 0,
+            dailyHint: dailyHint(a.name),
           ),
       ];
 
@@ -153,12 +180,15 @@ class _BodyPageState extends State<BodyPage> {
     required bool followUp,
     required bool longTerm,
     bool hasReport = false,
+    bool hasDaily = false,
   }) {
     if (followUp) return _AreaState.followUp;
     if (a.status == '异常' || a.status == '需关注') return _AreaState.attention;
     if (longTerm) return _AreaState.longTerm;
-    // 有结构化指标，或有显式关联的影像 / 图文报告，都算「有记录」。
-    if (a.metrics.isNotEmpty || hasReport) return _AreaState.hasRecord;
+    // 有结构化指标 / 显式关联的影像图文报告 / 日常记录，都算「有记录」。
+    if (a.metrics.isNotEmpty || hasReport || hasDaily) {
+      return _AreaState.hasRecord;
+    }
     return _AreaState.noRecord;
   }
 
@@ -360,6 +390,10 @@ String? _areaForDailyType(String t) {
       text: '${row.abnormalCount} 项指标异常',
       dot: row.area.status == '异常' ? AppColors.abnormal : AppColors.warning,
     );
+  }
+  // 没有化验指标、但有日常记录 → 直接把最近一条读数亮出来。
+  if (row.area.metrics.isEmpty && row.dailyHint != null) {
+    return (text: row.dailyHint!, dot: null);
   }
   return (text: row.state.label, dot: null);
 }
@@ -564,6 +598,9 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
   /// 显式关联到本部位、但没有指标喂进来的报告（主要是影像 / 图文报告）。
   List<int> _extraReportIds = const [];
 
+  /// 本部位相关的日常记录类型 → 最近一条（血压 / 血糖 / 体重 / 心率 / 腰围）。
+  Map<String, DailyHealthRecord> _dailyByType = const {};
+
   @override
   void initState() {
     super.initState();
@@ -625,6 +662,18 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
       extraReportIds = await repo.reportIdsForArea(widget.area.name);
     } catch (_) {}
 
+    var dailyByType = const <String, DailyHealthRecord>{};
+    try {
+      final dailies = await repo.getAllDailyRecords(); // 时间倒序
+      final out = <String, DailyHealthRecord>{};
+      for (final d in dailies) {
+        if (areasForDailyType(d.type).contains(widget.area.name)) {
+          out.putIfAbsent(d.type, () => d);
+        }
+      }
+      dailyByType = out;
+    } catch (_) {}
+
     if (mounted) {
       setState(() {
         _allMetrics = list;
@@ -633,6 +682,7 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
         _longTerm = longTerm;
         _reportsById = reportsById;
         _extraReportIds = extraReportIds;
+        _dailyByType = dailyByType;
       });
     }
   }
@@ -747,14 +797,27 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
               ..._groupedMetricCards(_referenceMetrics, muted: true),
             ],
             const HealthSectionHeader('历史趋势'),
-            if (key == null)
+            if (key == null && _dailyByType.isEmpty)
               const _EmptyDataCard(message: '暂无足够数据形成趋势')
-            else
-              _TrendEntryCard(
-                metric: key,
-                onTap:
-                    widget.isExample ? null : () => _openHistoryByEvidence(key),
-              ),
+            else ...[
+              if (key != null)
+                _TrendEntryCard(
+                  metric: key,
+                  onTap: widget.isExample
+                      ? null
+                      : () => _openHistoryByEvidence(key),
+                ),
+              for (final d in _dailyByType.values) ...[
+                if (key != null || d != _dailyByType.values.first)
+                  const SizedBox(height: 12),
+                _DailyTrendCard(
+                  record: d,
+                  onTap: widget.isExample
+                      ? null
+                      : () => _openDailyHistory(d.type),
+                ),
+              ],
+            ],
             const HealthSectionHeader('历史报告'),
             if (widget.isExample)
               const _SourceNoteCard(text: '示例数据来自本地演示内容。导入报告或手动录入后，将展示实际来源。')
@@ -830,6 +893,13 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
       ));
     });
     return out;
+  }
+
+  Future<void> _openDailyHistory(String type) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => DailyHistoryPage(type: type)),
+    );
+    if (mounted) _reload();
   }
 
   Future<void> _openHistoryByEvidence(BodyAreaMetricEvidence metric) async {
@@ -1045,6 +1115,48 @@ class _EvidenceCard extends StatelessWidget {
       title: metric.name,
       value: metric.valueText,
       status: metric.status,
+    );
+  }
+}
+
+/// 日常记录（血压 / 血糖 / 体重 / 心率 / 腰围）的趋势入口卡，点进 DailyHistoryPage。
+class _DailyTrendCard extends StatelessWidget {
+  final DailyHealthRecord record;
+  final VoidCallback? onTap;
+
+  const _DailyTrendCard({required this.record, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return HealthCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${dailyReadingHint(record.type, record.value1, record.value2)}'
+                  '${record.unit.isEmpty ? '' : ' ${record.unit}'}',
+                  style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '日常记录 · ${formatDate(record.measuredAt)}',
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const Icon(CupertinoIcons.chevron_forward,
+              size: 16, color: AppColors.textSecondary),
+        ],
+      ),
     );
   }
 }

@@ -7,6 +7,7 @@ import '../main.dart';
 import '../pages/about_page.dart';
 import '../pages/family_members_page.dart';
 import '../pages/health_records_page.dart';
+import '../pages/help_page.dart';
 import '../pages/privacy_page.dart';
 
 /// 每页右上角的头像入口（首页 / 身体 / 记录共用）。
@@ -83,6 +84,8 @@ class _ProfileSwitcherState extends State<ProfileSwitcher> {
         await _push(const FamilyMembersPage());
       case _PickKind.privacy:
         await _push(const PrivacyPage());
+      case _PickKind.help:
+        await _push(const HelpPage());
       case _PickKind.about:
         await _push(const AboutPage());
     }
@@ -137,7 +140,7 @@ class _ProfileSwitcherState extends State<ProfileSwitcher> {
   }
 }
 
-enum _PickKind { profile, records, family, privacy, about }
+enum _PickKind { profile, records, family, privacy, help, about }
 
 class _MenuPick {
   final _PickKind kind;
@@ -207,6 +210,12 @@ class _ProfileMenuSheet extends StatelessWidget {
               label: '数据与隐私',
               onTap: () =>
                   Navigator.pop(context, const _MenuPick(_PickKind.privacy)),
+            ),
+            _ActionTile(
+              icon: CupertinoIcons.question_circle,
+              label: '使用帮助',
+              onTap: () =>
+                  Navigator.pop(context, const _MenuPick(_PickKind.help)),
             ),
             _ActionTile(
               icon: CupertinoIcons.info,
