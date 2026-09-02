@@ -1,11 +1,11 @@
 class AppMetadata {
   const AppMetadata._();
 
-  static const String versionName = '1.9.6';
-  static const int versionCode = 35;
+  static const String versionName = '1.9.7';
+  static const int versionCode = 36;
   static const String buildLabel =
-      '收尾（Round 4）：数据与隐私里新增「匹配记录」页——查看 / 删除 App 学到的'
-      '「报告项目名 → 标准指标」映射，删错后可「按名字重新匹配历史记录」；'
-      '报告详情页命中公认危急值 / 危险形态（重度贫血、粒缺、高钾、出现原始细胞…）'
-      '时给出「建议尽快就医复核」提示（不是诊断，不涉及影像）。';
+      '细节收尾：核对页给出「报告上写 X · 智能识别请核对」+「另有 N 项超参考范围'
+      '（非关键）」可点开；器官卡措辞改「关键指标未见异常 / 尚无关键化验指标」，'
+      '不再给「全部正常」的错觉；只有影像 / 图文报告的器官在身体页不再显示「暂无'
+      '记录」；血红蛋白等典型范围放宽到男女合并区间，避免正常女性被判偏低。';
 }

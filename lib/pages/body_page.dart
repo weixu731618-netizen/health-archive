@@ -87,6 +87,11 @@ class _BodyPageState extends State<BodyPage> {
       final metrics = await repo.getAllMetrics();
       final reminders = await repo.getActiveReminders();
       final diseases = await repo.getChronicDiseases();
+      // 显式关联到某部位、但没有结构化指标的报告（影像 / 图文报告）。
+      final reportLinks = await repo.getAllReportOrganLinks();
+      final areasWithReport = <String>{
+        for (final areas in reportLinks.values) ...areas,
+      };
 
       // 每个部位有几个「该处理了」的复查 / 随访任务——只算已过期或 30 天内到期的。
       // 排到几个月后的复查不该让器官显橙点（否则"设了复查反而更红"）。
@@ -119,6 +124,7 @@ class _BodyPageState extends State<BodyPage> {
               a,
               followUp: (followUpCountByArea[a.name] ?? 0) > 0,
               longTerm: longTermAreas.contains(a.name),
+              hasReport: areasWithReport.contains(a.name),
             ),
             followUpCount: followUpCountByArea[a.name] ?? 0,
           ),
@@ -146,15 +152,20 @@ class _BodyPageState extends State<BodyPage> {
     BodyAreaHealthSummary a, {
     required bool followUp,
     required bool longTerm,
+    bool hasReport = false,
   }) {
     if (followUp) return _AreaState.followUp;
     if (a.status == '异常' || a.status == '需关注') return _AreaState.attention;
     if (longTerm) return _AreaState.longTerm;
-    if (a.metrics.isNotEmpty) return _AreaState.hasRecord;
+    // 有结构化指标，或有显式关联的影像 / 图文报告，都算「有记录」。
+    if (a.metrics.isNotEmpty || hasReport) return _AreaState.hasRecord;
     return _AreaState.noRecord;
   }
 
-  bool get _hasAnyRecord => _rows.any((r) => r.area.metrics.isNotEmpty);
+  bool get _hasAnyRecord => _rows.any((r) =>
+      r.area.metrics.isNotEmpty ||
+      r.state == _AreaState.hasRecord ||
+      r.state == _AreaState.attention);
 
   /// §4：某行属于哪个统计桶（与 [_OverviewCard] 的计数口径一致）。
   static _StatFilter _bucketOf(_AreaState s) => switch (s) {
@@ -905,9 +916,13 @@ class _SummaryCard extends StatelessWidget {
     final latest = area.latestMeasuredAt == null
         ? (isExample ? '示例数据' : '暂无数据')
         : formatDate(area.latestMeasuredAt!);
-    final attention = area.abnormalCount == 0
-        ? '未发现需关注指标'
-        : '${area.abnormalCount} 项指标需关注';
+    // 只按「关键指标」措辞，别给「全部正常」的错觉（非核心项另有其他指标区）。
+    final coreCount = area.metrics.where((m) => m.counts).length;
+    final attention = coreCount == 0
+        ? (area.metrics.isEmpty ? '暂无检查指标' : '尚无关键化验指标')
+        : (area.abnormalCount == 0
+            ? '关键指标未见异常'
+            : '${area.abnormalCount} 项关键指标需关注');
 
     // 右上角：原来是「需关注」状态色块——但用户就是点了需关注进来的，重复。
     // 换成复查控件：未设 → 「设复查」；已设 → 「复查 M-D」。

@@ -57,6 +57,18 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
 
   int get _selectedCount => _report.metrics.where((m) => m.isSelected).length;
 
+  /// 勾选保存、但没匹配上核心指标、且超出参考范围的项——存下来但不参与器官
+  /// 判定，这里给个提示别让用户以为漏了。
+  List<RecognizedMetric> get _nonCoreAbnormal => _report.metrics
+      .where((m) =>
+          m.isSelected &&
+          m.matchedMetricId == null &&
+          (m.status.contains('偏高') ||
+              m.status.contains('偏低') ||
+              m.status.contains('异常') ||
+              m.status.contains('关注')))
+      .toList();
+
   /// 「换种方式重新识别」时会把原图交给新的识别页，本页 dispose 不能删它。
   bool _handedOff = false;
 
@@ -154,6 +166,10 @@ class _ReportReviewPageState extends State<ReportReviewPage> {
               onChanged: () => setState(() {}),
             ),
             const SizedBox(height: 10),
+          ],
+          if (_nonCoreAbnormal.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            _NonCoreAbnormalNote(metrics: _nonCoreAbnormal),
           ],
           if (!_saving) ...[
             const SizedBox(height: 8),
@@ -522,10 +538,19 @@ class _MetricEditTile extends StatelessWidget {
     required this.onChanged,
   });
 
+  static String _norm(String s) =>
+      s.trim().toLowerCase().replaceAll(RegExp(r'[\s()\-－—_／/]'), '');
+
   @override
   Widget build(BuildContext context) {
     final lowConfidence = metric.confidence < 0.8;
     final unmatched = metric.matchedMetricId == null;
+    final smartMatch =
+        metric.matchType == 'deepseek' || metric.matchType == 'cache';
+    // 匹配后改了名（智能归一化 / 别名），把报告原名亮出来让用户核对。
+    final renamed = metric.matchedMetricId != null &&
+        metric.rawName.trim().isNotEmpty &&
+        _norm(metric.rawName) != _norm(metric.canonicalName);
     // D3：卡片默认只显示「名称 + 识别值 + 状态」；参考范围 / 所属 / 单位等
     // 细节移进编辑器。只保留会影响用户决策的两个提醒（未匹配 / 低可信度）。
     return HealthCard(
@@ -568,6 +593,18 @@ class _MetricEditTile extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 13, color: AppColors.textSecondary),
                 ),
+                if (renamed) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    '报告上写「${metric.rawName.trim()}」'
+                    '${smartMatch ? ' · 智能识别，请核对' : ''}',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: smartMatch
+                            ? AppColors.warning
+                            : AppColors.textSecondary),
+                  ),
+                ],
                 if (unmatched || lowConfidence) ...[
                   const SizedBox(height: 3),
                   Text(
@@ -797,4 +834,64 @@ class _MetricEditorSheetState extends State<_MetricEditorSheet> {
 String _fmt(double v) {
   if (v == v.roundToDouble()) return v.toStringAsFixed(0);
   return v.toString();
+}
+
+/// 「另有 N 项超参考范围（非关键指标）」——默认收起，点开看清单。
+class _NonCoreAbnormalNote extends StatefulWidget {
+  final List<RecognizedMetric> metrics;
+  const _NonCoreAbnormalNote({required this.metrics});
+
+  @override
+  State<_NonCoreAbnormalNote> createState() => _NonCoreAbnormalNoteState();
+}
+
+class _NonCoreAbnormalNoteState extends State<_NonCoreAbnormalNote> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return HealthCard(
+      onTap: () => setState(() => _open = !_open),
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '另有 ${widget.metrics.length} 项超出参考范围（非关键指标）',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary),
+                ),
+              ),
+              Icon(_open ? CupertinoIcons.chevron_up : CupertinoIcons.chevron_down,
+                  size: 16, color: AppColors.textSecondary),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '会一并存档，可在报告详情里查看；这些项不参与器官判定。',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          if (_open) ...[
+            const SizedBox(height: 8),
+            for (final m in widget.metrics)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text(
+                  '· ${m.rawName.trim().isEmpty ? m.canonicalName : m.rawName.trim()}'
+                  '  ${m.numericValue == null ? (m.textValue ?? '') : _fmt(m.numericValue!)}'
+                  '${m.unit.isEmpty ? '' : ' ${m.unit}'} · ${m.status}',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
 }

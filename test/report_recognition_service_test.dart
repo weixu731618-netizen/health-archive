@@ -304,6 +304,24 @@ void main() {
     expect(report.metrics[3].matchType, 'unmatched');
   });
 
+  test('血红蛋白典型范围放宽到男女合并（115–175），女性 120 配上错范围也不误判', () {
+    // 范围被 OCR 读成 g/dL 数量级（13–17），值 120（g/L，女性正常）。
+    // 数量级交叉验 → 退回典型范围 115–175 → 正常（放宽前典型 130–175 → 偏高）。
+    final report = structuredReportFromBackendJson({
+      'metrics': [
+        {
+          'rawName': '血红蛋白',
+          'numericValue': 120,
+          'unit': 'g/L',
+          'referenceMin': 13,
+          'referenceMax': 17,
+        },
+      ],
+    }, null);
+    expect(report.metrics[0].matchedMetricId, 'HGB');
+    expect(report.metrics[0].status, '正常');
+  });
+
   test('远程结构化空结果或无法匹配时不进入核对页', () {
     final empty = structuredReportFromBackendJson({'metrics': []}, null);
     expect(validateStructuredReportForReview(empty), contains('未识别到'));

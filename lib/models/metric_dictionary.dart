@@ -370,12 +370,15 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     typicalRange: ReferenceRange(min: 4, max: 10),
     aliases: ['WBC', '白细胞', '白细胞总数', 'White Blood Cell'],
   ),
+  // 血红蛋白 / 红细胞 / 压积的参考范围男女差别大。报告基本都印了随患者性别的
+  // 范围，优先用那个；这里的典型范围只在报告完全没印范围时兜底，故取「男女合并」
+  // 的宽区间，避免把正常女性判成偏低。
   MetricDefinition(
     metricId: 'RBC',
     metricName: '红细胞计数',
     unit: '×10¹²/L',
     bodySystem: '血液',
-    typicalRange: ReferenceRange(min: 4.0, max: 5.5),
+    typicalRange: ReferenceRange(min: 3.8, max: 5.8),
     aliases: ['RBC', '红细胞', '红细胞总数', 'Red Blood Cell'],
   ),
   MetricDefinition(
@@ -383,7 +386,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     metricName: '血红蛋白',
     unit: 'g/L',
     bodySystem: '血液',
-    typicalRange: ReferenceRange(min: 130, max: 175),
+    typicalRange: ReferenceRange(min: 115, max: 175),
     aliases: ['HGB', 'Hb', '血色素', 'Hemoglobin'],
   ),
   MetricDefinition(
@@ -391,7 +394,7 @@ const List<MetricDefinition> METRIC_DICTIONARY = [
     metricName: '红细胞压积',
     unit: '%',
     bodySystem: '血液',
-    typicalRange: ReferenceRange(min: 40, max: 50),
+    typicalRange: ReferenceRange(min: 35, max: 50),
     aliases: ['HCT', '红细胞比容', 'Hematocrit'],
   ),
   MetricDefinition(
