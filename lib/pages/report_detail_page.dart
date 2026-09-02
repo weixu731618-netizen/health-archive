@@ -13,6 +13,7 @@ import '../widgets/ios_button.dart';
 import '../widgets/ios_tap.dart';
 import '../models/app_metadata.dart';
 import '../models/body_area_health.dart';
+import '../models/danger_signals.dart';
 import '../models/report_models.dart' show kUnlinkedReportType;
 import '../utils/file_image.dart';
 import '../utils/format.dart';
@@ -342,6 +343,10 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
             ),
             const SizedBox(height: 12),
           ],
+          if (_dangerSignals.isNotEmpty) ...[
+            _DangerSignalCard(signals: _dangerSignals),
+            const SizedBox(height: 12),
+          ],
           HealthCard(
             child: Column(
               children: [
@@ -448,6 +453,8 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
       isMetricAbnormalStatus(m.status) || isMetricAttentionStatus(m.status);
 
   /// 异常/需关注的指标：始终展示在前；正常（含未判断）的可折叠。
+  List<DangerSignal> get _dangerSignals => dangerSignalsForMetrics(_metrics);
+
   List<HealthMetric> get _attentionMetrics {
     final list = _metrics.where(_needsAttention).toList();
     list.sort((a, b) => b.measuredAt.compareTo(a.measuredAt));
@@ -720,6 +727,56 @@ class _FailedNotice extends StatelessWidget {
           const SizedBox(height: 8),
           IosButton.tinted('补录指标',
               icon: CupertinoIcons.add, onPressed: onAddMetrics),
+        ],
+      ),
+    );
+  }
+}
+
+/// 命中危急值 / 危险形态时的醒目提示。不是诊断。
+class _DangerSignalCard extends StatelessWidget {
+  final List<DangerSignal> signals;
+  const _DangerSignalCard({required this.signals});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.abnormal.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.abnormal.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(CupertinoIcons.exclamationmark_triangle_fill,
+                  size: 18, color: AppColors.abnormal),
+              SizedBox(width: 8),
+              Text('建议尽快就医复核',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.abnormal)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final s in signals)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                '· ${s.message}（${s.metricName} ${s.valueText}）',
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textPrimary),
+              ),
+            ),
+          const SizedBox(height: 4),
+          const Text(
+            '这是按公认的危急值范围做的提醒，不是诊断。请结合临床，必要时尽快就诊。',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
         ],
       ),
     );

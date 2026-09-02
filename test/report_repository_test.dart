@@ -113,6 +113,56 @@ void main() {
     expect(matchMetricId('完全未知指标'), isNull);
   });
 
+  test('匹配缓存 + rematchAllMetrics：按名字重判历史行', () async {
+    await repo.ensureDefaultPersonProfile();
+    // 一条历史 UNKNOWN 行，名字其实是「纤维蛋白原」（词典里有 FIB）
+    await repo.insertMetric(
+      metricId: 'UNKNOWN',
+      metricName: '纤维蛋白原',
+      value: 3.0,
+      unit: 'g/L',
+      referenceMin: null,
+      referenceMax: null,
+      status: '正常',
+      bodySystem: '其他',
+      measuredAt: DateTime(2026, 8, 1),
+      sourceType: 'report_import',
+    );
+    // 一条名字没进词典、但缓存里有的行
+    await repo.insertMetric(
+      metricId: 'UNKNOWN',
+      metricName: '深圳HR白蛋白',
+      value: 45,
+      unit: 'g/L',
+      referenceMin: null,
+      referenceMax: null,
+      status: '正常',
+      bodySystem: '其他',
+      measuredAt: DateTime(2026, 8, 1),
+      sourceType: 'report_import',
+    );
+    await repo.upsertMetricMatch(
+        rawDisplay: '深圳HR白蛋白', canonicalId: 'ALB', source: 'learned');
+
+    final changed = await repo.rematchAllMetrics();
+    expect(changed, 2);
+
+    final rows = await repo.getAllMetrics();
+    final fib = rows.firstWhere((m) => m.metricName == '纤维蛋白原');
+    expect(fib.metricId, 'FIB');
+    expect(fib.bodySystem, '凝血');
+    final alb = rows.firstWhere((m) => m.metricName == '深圳HR白蛋白');
+    expect(alb.metricId, 'ALB');
+
+    // 删掉缓存后再 rematch → 那条退回 UNKNOWN
+    final match = (await repo.getAllMetricMatches()).single;
+    await repo.deleteMetricMatch(match.id);
+    await repo.rematchAllMetrics();
+    final alb2 = (await repo.getAllMetrics())
+        .firstWhere((m) => m.metricName == '深圳HR白蛋白');
+    expect(alb2.metricId, 'UNKNOWN');
+  });
+
   test('T1 默认本人档案：新安装自动创建，新增数据归属 profileId=1', () async {
     final profile = await repo.ensureDefaultPersonProfile();
     expect(profile.id, HealthRepository.defaultProfileId);

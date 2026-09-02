@@ -1,5 +1,11 @@
 import 'package:drift/drift.dart';
 
+import '../models/metric_dictionary.dart'
+    show
+        matchMetricId,
+        findMetricDefinition,
+        bodySystemForMetric,
+        guessSystemForRawName;
 import '../services/followup_scheduler.dart';
 import '../utils/patient_name_match.dart';
 import 'app_database.dart';
@@ -1025,6 +1031,36 @@ class HealthRepository {
 
   Future<void> deleteMetricMatch(int id) =>
       (_db.delete(_db.metricMatchCache)..where((t) => t.id.equals(id))).go();
+
+  /// 按当前词典 + 缓存把已入库的所有指标重新匹配一遍：能匹配上核心词典的
+  /// 更新 metric_id / body_system；已经指向有效词典项且没变的不动；变回认不出
+  /// 的（比如刚删了一条错误缓存）退回 UNKNOWN + 关键词粗归系统。返回改动条数。
+  Future<int> rematchAllMetrics() async {
+    final cache = await loadMetricMatchCache();
+    final rows = await _db.select(_db.healthMetrics).get();
+    var changed = 0;
+    for (final r in rows) {
+      final name = r.metricName;
+      final byDict = matchMetricId(name);
+      final byCache = cache[normalizeMatchKey(name)];
+      final newId = byDict ??
+          ((byCache != null && findMetricDefinition(byCache) != null)
+              ? byCache
+              : null);
+      final String targetId = newId ?? 'UNKNOWN';
+      final String targetSystem = newId != null
+          ? bodySystemForMetric(newId)
+          : guessSystemForRawName(name);
+      if (targetId == r.metricId && targetSystem == r.bodySystem) continue;
+      await (_db.update(_db.healthMetrics)..where((t) => t.id.equals(r.id)))
+          .write(HealthMetricsCompanion(
+        metricId: Value(targetId),
+        bodySystem: Value(targetSystem),
+      ));
+      changed++;
+    }
+    return changed;
+  }
 
   // ---------- 慢病升级 步骤4：随访计划自动排期 ----------
 

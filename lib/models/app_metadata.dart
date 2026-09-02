@@ -1,11 +1,11 @@
 class AppMetadata {
   const AppMetadata._();
 
-  static const String versionName = '1.9.5';
-  static const int versionCode = 34;
+  static const String versionName = '1.9.6';
+  static const int versionCode = 35;
   static const String buildLabel =
-      '指标名归一化匹配（Round 3b·下）：撞不上核心词典的项交给后端 DeepSeek 归一化'
-      '到 110 个标准指标之一（高置信 + 单位兼容才采纳），命中的写进本地缓存'
-      '（metric_match_cache，进备份），同名下次直接用、不再调模型。客户端匹配顺序：'
-      '本地词典 → 缓存 → DeepSeek → 非核心。';
+      '收尾（Round 4）：数据与隐私里新增「匹配记录」页——查看 / 删除 App 学到的'
+      '「报告项目名 → 标准指标」映射，删错后可「按名字重新匹配历史记录」；'
+      '报告详情页命中公认危急值 / 危险形态（重度贫血、粒缺、高钾、出现原始细胞…）'
+      '时给出「建议尽快就医复核」提示（不是诊断，不涉及影像）。';
 }

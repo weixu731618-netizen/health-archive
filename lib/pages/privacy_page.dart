@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../dev/sample_data_seeder.dart';
 import '../main.dart';
+import 'metric_match_page.dart';
 import '../widgets/toast.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_nav.dart';
@@ -234,6 +235,16 @@ class _PrivacyPageState extends State<PrivacyPage> {
             title: '导出健康数据（纯文本）',
             subtitle: 'JSON，含指标 / 日常记录 / 报告 / 疾病史 / 用药，不含报告原图',
             onTap: _busy ? null : _export,
+          ),
+          const SizedBox(height: 12),
+          _actionCard(
+            icon: CupertinoIcons.arrow_2_squarepath,
+            title: '匹配记录',
+            subtitle: 'App 学到的「报告项目名 → 标准指标」对应关系，可查看 / 删除 / 重新匹配',
+            onTap: _busy
+                ? null
+                : () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const MetricMatchPage())),
           ),
           const SizedBox(height: 12),
           _actionCard(
