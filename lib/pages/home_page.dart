@@ -206,6 +206,7 @@ class _HomePageState extends State<HomePage> {
       BodyAreaHealthSummary a, List<HealthMetric> all, DateTime now) {
     final cutoff = now.subtract(const Duration(days: 60));
     for (final m in a.metrics) {
+      if (!m.counts) continue; // 非核心 / 仅提示项不驱动待跟进
       if (!m.isAbnormal) continue;
       if (m.measuredAt != null && m.measuredAt!.isAfter(cutoff)) return true;
       final hist = all.where((x) => x.metricId == m.metricId).toList()
@@ -229,7 +230,7 @@ class _HomePageState extends State<HomePage> {
     final ack = acks[a.name];
     if (ack == null) return false;
     return a.metrics
-        .where((m) => m.isAbnormal)
+        .where((m) => m.isAbnormal && m.counts)
         .every((m) => m.measuredAt != null && !m.measuredAt!.isAfter(ack));
   }
 

@@ -32,6 +32,54 @@ void main() {
     }
   });
 
+  test('升级到 18：历史 UNKNOWN 指标按扩充后的词典重新匹配', () async {
+    final dir = Directory.systemTemp
+        .createTempSync('health_archive_migration_rematch_');
+    final file =
+        File('${dir.path}${Platform.pathSeparator}v5_rematch.db');
+    try {
+      _createVersion5Database(file);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final raw = sqlite3.sqlite3.open(file.path);
+      raw.execute('''
+        INSERT INTO health_metrics
+          (metric_id, metric_name, value, unit, status, body_system,
+           measured_at, source_type, created_at, match_type)
+        VALUES
+          ('UNKNOWN', '纤维蛋白原', 3.0, 'g/L', '正常', '其他',
+           $now, 'report_import', $now, 'unmatched'),
+          ('UNKNOWN', '中性粒细胞百分比', 60, '%', '正常', '其他',
+           $now, 'report_import', $now, 'unmatched'),
+          ('UNKNOWN', '某个没人认识的项目', 1, 'x', '正常', '其他',
+           $now, 'report_import', $now, 'unmatched');
+      ''');
+      raw.dispose();
+
+      final db = AppDatabase(NativeDatabase(file));
+      addTearDown(db.close);
+      final rows = await db.select(db.healthMetrics).get();
+
+      final fib = rows.firstWhere((m) => m.metricName == '纤维蛋白原');
+      expect(fib.metricId, 'FIB'); // 现在词典里有了
+      expect(fib.bodySystem, '凝血');
+
+      // 词典里没有「百分比」项，但关键词兜底把系统归到「血液」
+      final neutPct =
+          rows.firstWhere((m) => m.metricName == '中性粒细胞百分比');
+      expect(neutPct.metricId, 'UNKNOWN');
+      expect(neutPct.bodySystem, '血液');
+
+      // 真认不出的：id 和系统都不动
+      final junk = rows.firstWhere((m) => m.metricName == '某个没人认识的项目');
+      expect(junk.metricId, 'UNKNOWN');
+      expect(junk.bodySystem, '其他');
+    } finally {
+      try {
+        dir.deleteSync(recursive: true);
+      } catch (_) {}
+    }
+  });
+
   test('schema 5 升级到 6：已有的真实数据不会丢失，且自动归属默认档案', () async {
     final dir = Directory.systemTemp
         .createTempSync('health_archive_migration_data_');

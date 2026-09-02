@@ -144,8 +144,8 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.9.3+32'), findsOneWidget);
-    expect(find.textContaining('核心指标词典'), findsOneWidget);
+    expect(find.text('版本 1.9.4+33'), findsOneWidget);
+    expect(find.textContaining('其他指标'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {

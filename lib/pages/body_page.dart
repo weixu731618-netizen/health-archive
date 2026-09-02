@@ -639,12 +639,20 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
     return list;
   }
 
+  /// 参与判定的核心指标（standardized 且非 advisoryOnly）。
+  List<BodyAreaMetricEvidence> get _coreMetrics =>
+      _area.metrics.where((m) => m.counts).toList();
+
   /// 每个指标去重后只保留最新一条：异常/需关注的排前，正常/数据不足的可折叠。
   List<BodyAreaMetricEvidence> get _attentionMetrics =>
-      _area.metrics.where((m) => m.needsAttention).toList();
+      _coreMetrics.where((m) => m.needsAttention).toList();
 
   List<BodyAreaMetricEvidence> get _normalMetrics =>
-      _area.metrics.where((m) => !m.needsAttention).toList();
+      _coreMetrics.where((m) => !m.needsAttention).toList();
+
+  /// 非核心 / 仅提示项：只收录展示，不参与本部位判定。
+  List<BodyAreaMetricEvidence> get _referenceMetrics =>
+      _area.metrics.where((m) => !m.counts).toList();
 
   /// 显式关联到本部位、但不在 _metricsByReport 里的报告 id（影像 / 图文报告）。
   List<int> get _extraOnlyReportIds {
@@ -683,10 +691,13 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
               _LongTermCard(names: _longTerm),
             ],
             const HealthSectionHeader('需关注问题'),
-            if (_area.metrics.isEmpty)
+            if (_coreMetrics.isEmpty)
               _EmptyDataCard(
                 message: _extraOnlyReportIds.isEmpty
-                    ? '暂无可用于判断的检查指标'
+                    ? (_referenceMetrics.isEmpty
+                        ? '暂无可用于判断的检查指标'
+                        : '本部位暂无可用于判断的关键指标，'
+                            '识别到的其他指标见下方')
                     : '本部位有影像 / 图文记录（见下方历史报告），'
                         '暂无可用于判断的关键化验指标',
               )
@@ -711,6 +722,18 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
                   ..._groupedMetricCards(_normalMetrics),
                 ],
               ],
+            ],
+            if (!widget.isExample && _referenceMetrics.isNotEmpty) ...[
+              const HealthSectionHeader('其他指标'),
+              const Padding(
+                padding: EdgeInsets.only(left: 4, bottom: 8),
+                child: Text(
+                  '以下指标仅收录展示，不参与本部位判断',
+                  style: TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ),
+              ..._groupedMetricCards(_referenceMetrics, muted: true),
             ],
             const HealthSectionHeader('历史趋势'),
             if (key == null)
@@ -753,7 +776,8 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
 
   /// 把指标卡片按「指标分类」（血糖 / 电解质 / 肝功能…）分组渲染。
   /// 只有一个分类时不显示小标题，避免多余层级。
-  List<Widget> _groupedMetricCards(List<BodyAreaMetricEvidence> list) {
+  List<Widget> _groupedMetricCards(List<BodyAreaMetricEvidence> list,
+      {bool muted = false}) {
     if (list.isEmpty) return const [];
     final groups = <String, List<BodyAreaMetricEvidence>>{};
     for (final m in list) {
@@ -783,7 +807,12 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
             children: [
               for (final m in items)
                 _RealMetricRow(
-                    metric: m, onTap: () => _openHistoryByEvidence(m)),
+                  metric: m,
+                  muted: muted,
+                  onTap: muted && !m.standardized
+                      ? null
+                      : () => _openHistoryByEvidence(m),
+                ),
             ],
           ),
         ),
@@ -950,24 +979,41 @@ class _SummaryCard extends StatelessWidget {
 
 class _RealMetricRow extends StatelessWidget {
   final BodyAreaMetricEvidence metric;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
-  const _RealMetricRow({required this.metric, required this.onTap});
+  /// 弱化显示（「其他指标」区）：状态用灰字而非彩色 chip，附「未标准化 / 仅供参考」。
+  final bool muted;
+
+  const _RealMetricRow({
+    required this.metric,
+    required this.onTap,
+    this.muted = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final hasRange = metric.referenceMin != null && metric.referenceMax != null;
     final dateText =
         metric.measuredAt == null ? '' : ' · ${formatDate(metric.measuredAt!)}';
+    final tag = !metric.standardized
+        ? '未标准化'
+        : (metric.advisoryOnly ? '仅供参考' : '');
     return HealthRow(
       title: metric.name,
       subtitle: '${metric.valueText}'
           '${hasRange ? ' · 参考 ${_fmt(metric.referenceMin!)}–${_fmt(metric.referenceMax!)}' : ''}'
-          '$dateText',
-      trailing: StatusChip(
-        text: metric.status,
-        color: valueStatusColor(metric.status),
-      ),
+          '$dateText'
+          '${muted && tag.isNotEmpty ? ' · $tag' : ''}',
+      trailing: muted
+          ? Text(
+              metric.status,
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary),
+            )
+          : StatusChip(
+              text: metric.status,
+              color: valueStatusColor(metric.status),
+            ),
       onTap: onTap,
     );
   }

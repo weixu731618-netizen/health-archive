@@ -93,6 +93,49 @@ String bodySystemForMetric(String? metricId, {String fallback = '其他'}) {
   return fallback;
 }
 
+/// 未匹配核心词典的指标：按原始名里的关键词粗猜身体系统，让它在器官详情页
+/// 至少归到对的「其他指标」区（而不是一律堆进「其他」）。猜不出返回 '其他'。
+/// 返回值是 `bodySystem` 级别的字符串，仍要过 [bodyAreaForSystem] 才是一级器官。
+String guessSystemForRawName(String rawName) {
+  final n = rawName.toLowerCase();
+  bool has(List<String> ks) => ks.any(n.contains);
+  if (has([
+    '红细胞', '白细胞', '血小板', '血红蛋白', '中性粒', '淋巴细胞', '单核细胞',
+    '嗜酸', '嗜碱', '网织红', '血细胞', '红细胞压积', '红细胞比容', 'rbc', 'wbc',
+    'plt', 'hgb', 'hct', 'mcv', 'mch', 'rdw', 'mpv', 'pdw', '粒细胞', '铁蛋白',
+    '凝血', 'aptt', 'inr', '纤维蛋白', '二聚体', '血沉', '沉降率',
+  ])) {
+    return '血液';
+  }
+  if (has([
+    '转氨酶', '胆红素', '胆汁酸', '白蛋白', '球蛋白', 'alt', 'ast', 'ggt',
+    'γ-gt', '碱性磷酸酶', 'alp', '总蛋白', '谷丙', '谷草',
+  ])) {
+    return '肝脏';
+  }
+  if (has([
+    '肌酐', '尿素', '尿酸', 'egfr', '滤过率', '胱抑素', '微量白蛋白', '尿蛋白',
+    '钾', '钠', '氯', '钙', '磷', '镁', '二氧化碳结合力',
+  ])) {
+    return '肾脏';
+  }
+  if (has([
+    '葡萄糖', '血糖', '糖化', '胰岛素', 'c肽', '果糖胺', 'hba1c',
+  ])) {
+    return '血糖代谢';
+  }
+  if (has([
+    '胆固醇', '甘油三酯', '高密度', '低密度', '载脂蛋白', 'ldl', 'hdl',
+    '同型半胱氨酸', '脂蛋白', '肌钙蛋白', '肌酸激酶', 'bnp',
+  ])) {
+    return '心血管';
+  }
+  if (has(['甲状腺', 'tsh', 'ft3', 'ft4', '促甲状腺'])) return '甲状腺';
+  if (has(['淀粉酶', '脂肪酶'])) return '胰腺';
+  if (has(['尿', '比重', '酸碱度', '亚硝酸盐', '尿胆原', '酮体'])) return '尿常规';
+  return '其他';
+}
+
 /// 基础单位标准化（只显示格式统一，不做数值换算）。
 /// 例：umol/L、µmol/L、μmol/L → μmol/L；10^9/L、×10^9/L、10⁹/L → ×10⁹/L
 String normalizeUnit(String unit) {

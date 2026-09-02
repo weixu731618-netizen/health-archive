@@ -1,11 +1,12 @@
 class AppMetadata {
   const AppMetadata._();
 
-  static const String versionName = '1.9.3';
-  static const int versionCode = 32;
+  static const String versionName = '1.9.4';
+  static const int versionCode = 33;
   static const String buildLabel =
-      '核心指标词典扩充（Round 2）：75 → 110 条，补齐凝血 / 铁代谢 / 炎症 / 胰酶 / '
-      '甲状旁腺激素 / 常见肿瘤标志物；血常规绝对值项补上参考范围（百分比仍归非'
-      '核心）；肿瘤标志物与急性指标标记「仅提示不报警」（超范围只提示、不进需关注'
-      '红点，接线在后续版本）。';
+      '器官判断只用核心指标（Round 3b·上）：没匹配上核心词典的指标不再从生理图谱'
+      '消失——进器官详情页「其他指标」区照实展示，但不参与器官红黄判定 / 趋势 / '
+      '首页需关注；肿瘤标志物与急性指标同样「仅提示不判定」。未匹配项按名字关键词'
+      '粗归到对的系统（血常规分类项进血液系统而非「其他」）。迁移 v18：已入库指标'
+      '按扩充后的词典重新匹配，避免趋势断层。';
 }

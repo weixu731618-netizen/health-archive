@@ -314,7 +314,10 @@ StructuredMedicalReport structuredReportFromBackendJson(
         status: status,
         originalStatus: originalStatus,
         statusFromLabFlag: statusFromLabFlag,
-        bodySystem: bodySystemForMetric(id, fallback: '其他'),
+        // 匹配到核心指标 → 用词典系统；否则按原始名关键词粗猜，让「其他指标」
+        // 归到对的器官（血常规分类项进血液系统，而不是一律「其他」）。
+        bodySystem:
+            id != null ? bodySystemForMetric(id) : guessSystemForRawName(rawName),
         confidence: _num(item['confidence']) ?? 0.0,
       ));
     }

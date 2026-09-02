@@ -32,6 +32,14 @@ class BodyAreaMetricEvidence {
   final double? referenceMin;
   final double? referenceMax;
 
+  /// 匹配上了核心指标词典（metricId != 'UNKNOWN'）。false = 只收录展示，
+  /// 不参与器官判定 / 趋势 / 需关注。
+  final bool standardized;
+
+  /// 仅提示、不报警（肿瘤标志物 / 急性指标）。不参与器官判定 / 需关注，
+  /// 但仍在详情页显示。
+  final bool advisoryOnly;
+
   const BodyAreaMetricEvidence({
     required this.metricId,
     required this.name,
@@ -41,7 +49,12 @@ class BodyAreaMetricEvidence {
     this.reportId,
     this.referenceMin,
     this.referenceMax,
+    this.standardized = true,
+    this.advisoryOnly = false,
   });
+
+  /// 参与器官判定 / 趋势 / 首页需关注的指标。
+  bool get counts => standardized && !advisoryOnly;
 
   bool get isAbnormal => isMetricAbnormalStatus(status);
   bool get needsAttention => isAbnormal || isMetricAttentionStatus(status);
@@ -64,7 +77,8 @@ class BodyAreaHealthSummary {
     required this.metrics,
   });
 
-  int get abnormalCount => metrics.where((m) => m.isAbnormal).length;
+  int get abnormalCount =>
+      metrics.where((m) => m.isAbnormal && m.counts).length;
 
   DateTime? get latestMeasuredAt {
     DateTime? latest;
@@ -76,9 +90,10 @@ class BodyAreaHealthSummary {
   }
 
   BodyAreaMetricEvidence? get keyMetric {
-    if (metrics.isEmpty) return null;
-    final sorted = [...metrics]..sort(compareMetricEvidence);
-    return sorted.first;
+    final pool = metrics.where((m) => m.counts).toList();
+    if (pool.isEmpty) return null;
+    pool.sort(compareMetricEvidence);
+    return pool.first;
   }
 
   int get priorityRank {
@@ -268,17 +283,18 @@ List<BodyAreaHealthSummary> buildBodyAreaHealthFromMetrics(
   List<HealthMetric> rawMetrics, {
   bool includeEmptyCoreAreas = true,
 }) {
-  // 未匹配标准指标的（metricId='UNKNOWN'）不进生理图谱：它们没有可靠的参考范围
-  // 和系统归属，堆进「其他」只是噪音。数据仍存在库里，报告详情能看到，
-  // 但器官/系统视图与首页「需要关注」都不据它计算。
+  // Round 3b：未匹配核心词典的（metricId='UNKNOWN'）不再直接丢掉——它们进器官
+  // 详情页的「其他指标」区照实展示，但 `standardized=false`，不参与器官判定 /
+  // 趋势 / 首页需关注（见 BodyAreaMetricEvidence.counts）。
   // 用 metricId 而非 matchType 判断：入库时 metricId = matchedMetricId ?? 'UNKNOWN'，
   // 比 matchType 可靠（历史数据里 matchType 一度未被正确写入）。
-  final metrics = rawMetrics.where((m) => m.metricId != 'UNKNOWN').toList();
-
   final latestByMetric = <String, HealthMetric>{};
-  for (final m in metrics) {
+  for (final m in rawMetrics) {
     final area = bodyAreaForSystem(m.bodySystem);
-    final key = '$area:${m.metricId}';
+    // 未标准化的按 (area, 名字) 去重（同一 UNKNOWN 指标 id 都一样，不能用 id）。
+    final key = m.metricId == 'UNKNOWN'
+        ? '$area:UNKNOWN:${m.metricName}'
+        : '$area:${m.metricId}';
     final existing = latestByMetric[key];
     if (existing == null || m.measuredAt.isAfter(existing.measuredAt)) {
       latestByMetric[key] = m;
@@ -288,6 +304,7 @@ List<BodyAreaHealthSummary> buildBodyAreaHealthFromMetrics(
   final byArea = <String, List<BodyAreaMetricEvidence>>{};
   for (final m in latestByMetric.values) {
     final area = bodyAreaForSystem(m.bodySystem);
+    final def = m.metricId == 'UNKNOWN' ? null : findMetricDefinition(m.metricId);
     byArea.putIfAbsent(area, () => []).add(
           BodyAreaMetricEvidence(
             metricId: m.metricId,
@@ -298,6 +315,8 @@ List<BodyAreaHealthSummary> buildBodyAreaHealthFromMetrics(
             reportId: m.reportId,
             referenceMin: m.referenceMin,
             referenceMax: m.referenceMax,
+            standardized: m.metricId != 'UNKNOWN',
+            advisoryOnly: def?.advisoryOnly ?? false,
           ),
         );
   }
@@ -398,7 +417,11 @@ int _compareTopicSummary(HealthTopicSummary a, HealthTopicSummary b) {
 List<String> affectedBodyAreasForMetrics(Iterable<HealthMetric> metrics) {
   final areas = <String>{};
   for (final m in metrics) {
-    areas.add(bodyAreaForSystem(m.bodySystem));
+    final area = bodyAreaForSystem(m.bodySystem);
+    // 未匹配核心词典的指标只有落到某个真实器官时才算「关联」；
+    // 归不出（'其他'）的不把报告拽进「其他」器官。
+    if (m.metricId == 'UNKNOWN' && area == '其他') continue;
+    areas.add(area);
   }
   final list = areas.toList();
   list.sort((a, b) => _bodyAreaOrder(a).compareTo(_bodyAreaOrder(b)));
@@ -417,10 +440,12 @@ List<String> affectedBodyAreasForRawMetricNames(Iterable<String> names) {
 }
 
 String _statusFromMetrics(List<BodyAreaMetricEvidence> metrics) {
-  if (metrics.isEmpty) return '数据不足';
-  if (metrics.any((m) => m.status.contains('异常'))) return '异常';
-  if (metrics.any((m) => m.needsAttention)) return '需关注';
-  if (metrics.every((m) => m.status.contains('正常'))) return '正常';
+  // 只有核心指标（standardized 且非 advisoryOnly）参与器官判定。
+  final judged = metrics.where((m) => m.counts).toList();
+  if (judged.isEmpty) return '数据不足';
+  if (judged.any((m) => m.status.contains('异常'))) return '异常';
+  if (judged.any((m) => m.needsAttention)) return '需关注';
+  if (judged.every((m) => m.status.contains('正常'))) return '正常';
   return '数据不足';
 }
 

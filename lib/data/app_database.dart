@@ -1,6 +1,9 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../models/metric_dictionary.dart'
+    show matchMetricId, findMetricDefinition, bodySystemForMetric, guessSystemForRawName;
+
 part 'app_database.g.dart';
 
 /// 健康指标记录表（手工录入 或 报告导入的化验 / 检查指标）
@@ -294,7 +297,7 @@ class AppDatabase extends _$AppDatabase {
   /// 03：14→15（新增 report_organs 表；reminders 增加 source_type / area_name / recommended_date）。
   /// 上传合并：15→16（person_profiles 增加 known_names，用于报告姓名比对）。
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -458,6 +461,38 @@ class AppDatabase extends _$AppDatabase {
               "AND reference_max >= reference_min "
               "AND status IN ('偏高', '偏低', '正常')",
             );
+          }
+          if (from < 18) {
+            // 核心指标词典扩到 110 条 + 新增关键词兜底：把已入库的指标按新词典
+            // 重新匹配（避免「启用前」的历史行 metric_id 停在旧值 / UNKNOWN，
+            // 导致同一指标趋势断层）。已经匹配到有效词典项的行不动。
+            final rows = await customSelect(
+              'SELECT id, metric_id, metric_name FROM health_metrics',
+            ).get();
+            for (final r in rows) {
+              final rowId = r.read<int>('id');
+              final curId = r.read<String>('metric_id');
+              final name = r.read<String>('metric_name');
+              final alreadyValid =
+                  curId != 'UNKNOWN' && findMetricDefinition(curId) != null;
+              if (alreadyValid) continue;
+              final newId = matchMetricId(name);
+              if (newId != null) {
+                await customStatement(
+                  'UPDATE health_metrics SET metric_id = ?, body_system = ? '
+                  'WHERE id = ?',
+                  [newId, bodySystemForMetric(newId), rowId],
+                );
+              } else if (curId == 'UNKNOWN') {
+                final sys = guessSystemForRawName(name);
+                if (sys != '其他') {
+                  await customStatement(
+                    'UPDATE health_metrics SET body_system = ? WHERE id = ?',
+                    [sys, rowId],
+                  );
+                }
+              }
+            }
           }
         },
       );
