@@ -7,7 +7,6 @@ import '../main.dart';
 import '../models/backup_nudge.dart';
 import '../models/body_area_health.dart';
 import '../utils/attention_acks.dart';
-import '../utils/format.dart';
 import '../widgets/health_ui.dart';
 import '../widgets/ios_nav.dart';
 import '../widgets/profile_switcher.dart';
@@ -16,7 +15,6 @@ import 'notification_center_page.dart';
 import 'privacy_page.dart';
 import 'reminders_page.dart';
 import 'report_capture_page.dart';
-import 'report_detail_page.dart';
 import 'report_import_page.dart';
 
 const double _kContentMaxWidth = 720;
@@ -26,8 +24,8 @@ const double _kContentMaxWidth = 720;
 ///
 /// 自上而下:
 ///  1. 拍报告 —— 第一优先级，配相册 / 文件 / 影像
-///  2. 需要关注 —— 有异常 / 待复查才显示；超过 3 行折叠
-///  3. 最近 —— 最近导入的医疗资料
+///  2. 待跟进 —— 有异常 / 待复查才显示；超过 3 行折叠
+///  （「过去添加了什么」是「记录」Tab 的职责，首页不再放「最近」列表。）
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -47,7 +45,6 @@ class _HomePageState extends State<HomePage> {
   List<_AttentionArea> _attention = const [];
   List<Reminder> _overdueFollowups = const [];
   List<Reminder> _upcomingFollowups = const [];
-  List<MedicalReport> _recent = const [];
 
   // —— 换机不丢数据（V1 无登录 / 云同步，只靠本地 zip 备份）——
   static const String _kRestoreHintDismissedKey = 'home_restore_hint_dismissed';
@@ -132,9 +129,6 @@ class _HomePageState extends State<HomePage> {
             _AttentionArea(area: a),
       ];
 
-      final sortedReports = [...reports]
-        ..sort((a, b) => b.reportDate.compareTo(a.reportDate));
-
       // —— 备份提醒判定 ——
       final dbEmpty = reports.isEmpty && metrics.isEmpty;
       DateTime? newestReportCreatedAt;
@@ -171,7 +165,6 @@ class _HomePageState extends State<HomePage> {
           _attention = attention;
           _overdueFollowups = overdue;
           _upcomingFollowups = upcoming;
-          _recent = sortedReports.take(3).toList();
           _loading = false;
         });
       }
@@ -435,32 +428,9 @@ class _HomePageState extends State<HomePage> {
                         ),
                         _attentionSection(),
                       ],
-
-                      // 3. 最近
-                      HealthSectionHeader(
-                        '最近',
-                        actionLabel: _recent.isEmpty ? null : '查看全部',
-                        onAction: _recent.isEmpty
-                            ? null
-                            : () => activeTabNotifier.value = 2,
-                      ),
-                      if (_recent.isEmpty)
-                        const _EmptyRecent()
-                      else
-                        HealthCard(
-                          padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
-                          child: Column(
-                            children: [
-                              for (final r in _recent)
-                                _RecentTile(
-                                  report: r,
-                                  onTap: () =>
-                                      _push(ReportDetailPage(reportId: r.id)),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ]),
+                      // 「最近」已移除：那是「记录」Tab 的职责，就在底部一步可达；
+                      // 首页只管「怎么开始建档」+「待跟进」。
+                    ]),
                     ),
                   ),
               ],
@@ -718,51 +688,6 @@ class _RecheckRow extends StatelessWidget {
                   color: AppColors.warning))
           : null,
       onTap: onTap,
-    );
-  }
-}
-
-class _RecentTile extends StatelessWidget {
-  final MedicalReport report;
-  final VoidCallback onTap;
-  const _RecentTile({required this.report, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final r = report;
-    final label = [r.hospitalName, r.reportType]
-        .where((e) => e.trim().isNotEmpty)
-        .join(' · ');
-    return HealthRow(
-      leading: const Icon(CupertinoIcons.doc_text,
-          size: 20, color: AppColors.textSecondary),
-      title: label.isEmpty ? '报告' : label,
-      subtitle: formatDate(r.reportDate),
-      onTap: onTap,
-    );
-  }
-}
-
-/// 首页「最近」空状态：只说明，不放操作按钮（上传入口在页面顶部）。
-class _EmptyRecent extends StatelessWidget {
-  const _EmptyRecent();
-
-  @override
-  Widget build(BuildContext context) {
-    return const HealthCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('还没有健康记录',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary)),
-          SizedBox(height: 6),
-          Text('添加第一份资料后，这里会显示最近的检查和健康变化。',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-        ],
-      ),
     );
   }
 }

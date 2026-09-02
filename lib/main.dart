@@ -45,10 +45,6 @@ AppDatabase? appDatabase;
 final ValueNotifier<int> activeProfileNotifier =
     ValueNotifier<int>(HealthRepository.defaultProfileId);
 
-/// 底部 Tab 的全局切换器（0 首页 / 1 身体 / 2 记录）。
-/// 首页「最近 → 查看全部」等页面内入口用它跳到「记录」Tab。
-final ValueNotifier<int> activeTabNotifier = ValueNotifier<int>(0);
-
 const String _kActiveProfilePrefKey = 'active_profile_id';
 
 /// B2：提醒有变动后调用——把 notifications 表补齐，并用全部可排程提醒重排系统本地通知。
@@ -292,32 +288,6 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    activeTabNotifier.addListener(_onTabRequested);
-  }
-
-  @override
-  void dispose() {
-    activeTabNotifier.removeListener(_onTabRequested);
-    super.dispose();
-  }
-
-  void _onTabRequested() {
-    final v = activeTabNotifier.value;
-    if (v == _index || v < 0 || v > 2) return;
-    // 只有 MainShell 本身是当前可见路由（上面没压着「健康资料」这类推入页）时
-    // 才切 Tab。否则一个残留的切换请求会在你返回时把底层 Tab 悄悄换掉。
-    final route = ModalRoute.of(context);
-    if (route != null && !route.isCurrent) {
-      // 把请求拉回当前 Tab，避免它一直停在别处，下次返回又触发。
-      activeTabNotifier.value = _index;
-      return;
-    }
-    setState(() => _index = v);
-  }
-
   /// 每次切换 Tab 都重新构建对应页面，确保「记录」「身体」等页能加载到最新保存的数据。
   /// 「添加」不占底部导航，也不再用悬浮 `+`：首页有三个核心导入入口，记录页 / 器官详情页
   /// 右上角有上下文 `+`（见各页 AppBar）。Tab Bar 只负责页面切换。
@@ -347,10 +317,7 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: CupertinoTabBar(
         currentIndex: _index,
-        onTap: (value) {
-          activeTabNotifier.value = value;
-          setState(() => _index = value);
-        },
+        onTap: (value) => setState(() => _index = value),
         activeColor: AppColors.primary,
         inactiveColor: AppColors.textSecondary,
         backgroundColor: Colors.white,

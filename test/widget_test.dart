@@ -14,7 +14,7 @@ void main() {
     appDatabase = null;
   });
 
-  testWidgets('首页：铃铛 + 添加报告 + 最近', (tester) async {
+  testWidgets('首页：铃铛 + 添加报告，不再有「最近」', (tester) async {
     tester.view.physicalSize = const Size(800, 2000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -27,10 +27,9 @@ void main() {
     // 两个导入入口：拍报告（第一优先级）+ 上传截图或 PDF（统一识别，自动分流）
     expect(find.text('拍报告'), findsOneWidget);
     expect(find.text('上传截图或 PDF'), findsOneWidget);
-    // 「最近」空状态只有说明，不再有重复的操作按钮
-    expect(find.text('还没有健康记录'), findsOneWidget);
+    // 「最近」整块已移除（那是「记录」Tab 的职责）
     expect(find.text('本人档案'), findsNothing);
-    expect(find.text('最近'), findsOneWidget);
+    expect(find.text('最近'), findsNothing);
     // 「健康档案完成度」「该做的」已从首页移除
     expect(find.textContaining('健康档案完成度'), findsNothing);
     expect(find.textContaining('该做的'), findsNothing);
@@ -144,8 +143,8 @@ void main() {
     await tester.tap(find.text('关于健康档案'));
     await tester.pumpAndSettle();
 
-    expect(find.text('版本 1.9.14+43'), findsOneWidget);
-    expect(find.textContaining('修 Tab 乱跳'), findsOneWidget);
+    expect(find.text('版本 1.9.15+44'), findsOneWidget);
+    expect(find.textContaining('删掉首页「最近」'), findsOneWidget);
   });
 
   testWidgets('关于页展示本地备份和识别后端状态', (tester) async {
