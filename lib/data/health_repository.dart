@@ -592,6 +592,11 @@ class HealthRepository {
     await (_db.delete(_db.healthMetrics)
           ..where((t) => t.reportId.equals(reportId)))
         .go();
+    // 报告-器官关联也要清，否则身体页概览会一直把该器官算成「有记录」，
+    // 器官详情页的「历史报告」也会指向一份已删的报告。
+    await (_db.delete(_db.reportOrgans)
+          ..where((t) => t.reportId.equals(reportId)))
+        .go();
     await (_db.delete(_db.medicalReports)..where((t) => t.id.equals(reportId)))
         .go();
   }

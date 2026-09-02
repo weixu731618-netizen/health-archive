@@ -39,6 +39,18 @@ class AboutPage extends StatelessWidget {
               ],
             ),
           ),
+          const HealthSectionHeader('重要说明'),
+          const HealthCard(
+            child: Text(
+              '「健康档案」用来收存和整理你的检查报告与日常记录，方便随时查看、'
+              '对比趋势、就诊时给医生看。\n\n'
+              'App 里的状态判定（正常 / 偏高 / 需关注等）只是按报告上的数值和'
+              '参考范围机械比对得出的提示，不是医学诊断，也不构成任何医疗、'
+              '用药或治疗建议。任何健康决定请以医生的判断为准；身体不适请及时就医。',
+              style: TextStyle(
+                  fontSize: 13, height: 1.5, color: AppColors.textSecondary),
+            ),
+          ),
           const HealthSectionHeader('功能状态'),
           HealthCard(
             padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),

@@ -716,9 +716,12 @@ class _BodySystemDetailPageState extends State<BodySystemDetailPage> {
       _area.metrics.where((m) => !m.counts).toList();
 
   /// 显式关联到本部位、但不在 _metricsByReport 里的报告 id（影像 / 图文报告）。
+  /// 过滤掉已不存在的报告（历史遗留的孤儿 report_organs 行）。
   List<int> get _extraOnlyReportIds {
     final withMetrics = _metricsByReport.keys.toSet();
-    return _extraReportIds.where((id) => !withMetrics.contains(id)).toList();
+    return _extraReportIds
+        .where((id) => !withMetrics.contains(id) && _reportsById.containsKey(id))
+        .toList();
   }
 
   Map<int, List<HealthMetric>> get _metricsByReport {

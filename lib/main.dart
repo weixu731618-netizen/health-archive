@@ -200,6 +200,9 @@ class _HealthArchiveAppState extends State<HealthArchiveApp>
         GlobalCupertinoLocalizations.delegate,
       ],
       theme: _buildTheme(),
+      // 全 App 用 AppColors（static const，未做深色调色板）。锁死浅色，
+      // 避免系统深色下部分组件串成深底浅字。深色是独立任务。
+      themeMode: ThemeMode.light,
       home: const MainShell(),
       builder: (context, child) {
         return Stack(

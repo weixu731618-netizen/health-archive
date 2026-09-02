@@ -91,6 +91,9 @@ void main() {
       sourceType: 'manual',
     );
 
+    await repo.setReportOrgans(reportId, {'肾脏/泌尿'});
+    expect(await repo.reportIdsForArea('肾脏/泌尿'), [reportId]);
+
     await repo.deleteReportCascade(reportId);
 
     expect(await repo.getAllReports(), isEmpty);
@@ -98,6 +101,9 @@ void main() {
     final remaining = await repo.getAllMetrics();
     expect(remaining, hasLength(1)); // 只剩手工那条
     expect(remaining.first.sourceType, 'manual');
+    // 报告-器官关联也被清掉（否则身体页概览会一直显示该器官「有记录」）
+    expect(await repo.reportIdsForArea('肾脏/泌尿'), isEmpty);
+    expect(await repo.getAllReportOrganLinks(), isEmpty);
   });
 
   test('指标匹配器：别名映射到标准指标', () {

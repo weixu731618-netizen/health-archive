@@ -40,8 +40,10 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
-	<!-- 仅为本地开发调试：允许 App 连本机/局域网的明文 HTTP 识别后端。
-	     生产环境 REPORT_API_BASE 指向 https 域名，不依赖此例外。 -->
+	<!-- ⚠️ 上架前必须删除：以下 NSAppTransportSecurity 例外 + 下面那条
+	     NSLocalNetworkUsageDescription，都只为本地调试连 192.168.1.73:8000。
+	     生产版 REPORT_API_BASE 指向 https 域名，不需要这些；带着一个写死的
+	     局域网 IP 明文例外，App Store 审核会挑。 -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

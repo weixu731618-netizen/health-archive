@@ -216,6 +216,34 @@ void main() {
     expect(await repo.getMetricsByReport(reports.single.id), isEmpty);
   });
 
+  test('体检报告 exam_summary + 指标匹配缓存 也能完整往返', () async {
+    await repo.ensureDefaultPersonProfile();
+    await repo.insertReport(
+      hospitalName: '某体检中心',
+      reportDate: DateTime(2026, 9, 1),
+      reportType: '健康体检',
+      examSummary:
+          '{"conclusion":"血脂偏高，建议复查","general":{"systolic":130,"diastolic":85}}',
+      recognitionStatus: 'confirmed',
+    );
+    await repo.upsertMetricMatch(
+        rawDisplay: '白细胞数目', canonicalId: 'WBC', source: 'learned');
+    await repo.upsertMetricMatch(
+        rawDisplay: '深圳HR白蛋白', canonicalId: 'ALB', source: 'deepseek');
+
+    final zipPath = await backup.exportBundle();
+    expect(await backup.restoreFromFile(zipPath), '恢复成功');
+
+    final r = (await repo.getAllReports()).single;
+    expect(r.reportType, '健康体检');
+    expect(r.examSummary, contains('血脂偏高'));
+    expect(r.examSummary, contains('130'));
+
+    final cache = await repo.loadMetricMatchCache();
+    expect(cache['白细胞数目'], 'WBC');
+    expect(cache['深圳hr白蛋白'], 'ALB');
+  });
+
   test('加密备份：正确密码能恢复，缺少或错误密码会失败', () async {
     await repo.insertDisease(name: '高血压', status: '确诊');
 
